@@ -254,7 +254,7 @@
             position: relative; display: block;
             padding: 8px 12px;
             margin: 2px 6px;
-            font-size: 15px; color: var(--gnp-text-main);
+            font-size: 14px; color: var(--gnp-text-main);
             cursor: default; 
             border-radius: 8px; 
             transition: background 0.15s;
@@ -281,7 +281,7 @@
         .gemini-nav-item.is-favorite .item-text { color: var(--gnp-fav-color); font-weight: 600; }
         .gemini-nav-item.active-current.is-favorite .item-text { color: var(--gnp-fav-color); }
         .item-index { color: var(--gnp-index-color); font-weight: 700; margin-right: 4px; opacity: 0.9; }
-        .item-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; line-height: 1.5; -webkit-line-clamp: 10; white-space: normal; }
+        .item-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; line-height: 1.5; font-size: 13px; -webkit-line-clamp: 10; white-space: normal; }
         .item-text.density-compact { -webkit-line-clamp: 3; white-space: normal; }
         .item-text.density-medium { -webkit-line-clamp: 6; white-space: normal; }
         .item-text.density-spacious { -webkit-line-clamp: 10; white-space: normal; padding-bottom: 2px; }
@@ -458,7 +458,7 @@
     border: 2px solid var(--gnp-hover-preview-border);
     box-shadow: 0 18px 60px rgba(0,0,0,0.28);
     color: var(--gnp-text-main);
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
@@ -509,6 +509,40 @@ let gnpHoverPreviewTimer = null;
 let gnpHoverPreviewHideTimer = null;
 let gnpHoverPreviewAnchor = null;
 
+let gnpHoverPreviewDismissInstalled = false;
+
+function onDocMouseDownForHoverPreview(e) {
+    try {
+        if (!gnpHoverPreviewEl || !gnpHoverPreviewEl.classList.contains('visible')) return;
+        // 点击弹窗内部不关闭
+        if (gnpHoverPreviewEl.contains(e.target)) return;
+        hideHoverPreview();
+    } catch (_) {}
+}
+
+function onKeyDownForHoverPreview(e) {
+    try {
+        if (e && (e.key === 'Escape' || e.key === 'Esc')) {
+            if (gnpHoverPreviewEl && gnpHoverPreviewEl.classList.contains('visible')) hideHoverPreview();
+        }
+    } catch (_) {}
+}
+
+function installHoverPreviewDismissHandlers() {
+    if (gnpHoverPreviewDismissInstalled) return;
+    gnpHoverPreviewDismissInstalled = true;
+    // capture: 优先于页面自身逻辑，确保“点击外部关闭”稳定
+    document.addEventListener('mousedown', onDocMouseDownForHoverPreview, true);
+    window.addEventListener('keydown', onKeyDownForHoverPreview, true);
+}
+
+function removeHoverPreviewDismissHandlers() {
+    if (!gnpHoverPreviewDismissInstalled) return;
+    gnpHoverPreviewDismissInstalled = false;
+    document.removeEventListener('mousedown', onDocMouseDownForHoverPreview, true);
+    window.removeEventListener('keydown', onKeyDownForHoverPreview, true);
+}
+
 function ensureHoverPreviewEl() {
     if (gnpHoverPreviewEl && document.body && document.body.contains(gnpHoverPreviewEl)) return gnpHoverPreviewEl;
 
@@ -521,13 +555,9 @@ function ensureHoverPreviewEl() {
     gnpHoverPreviewEl.appendChild(gnpHoverPreviewInnerEl);
     (document.body || document.documentElement).appendChild(gnpHoverPreviewEl);
 
-    // 允许鼠标进入弹窗（滚动/复制），离开后自动隐藏
-    gnpHoverPreviewEl.addEventListener('mouseenter', () => {
-        if (gnpHoverPreviewHideTimer) { clearTimeout(gnpHoverPreviewHideTimer); gnpHoverPreviewHideTimer = null; }
-    });
-    gnpHoverPreviewEl.addEventListener('mouseleave', () => {
-        scheduleHideHoverPreview(120);
-    });
+        // 弹窗不随 mouseleave 自动消失：避免“侧栏自动隐藏”导致弹窗瞬间消失
+    // 关闭方式：点击弹窗外区域 或 按 Esc 键（见 installHoverPreviewDismissHandlers）
+
 
     return gnpHoverPreviewEl;
 }
@@ -544,6 +574,7 @@ function clearHoverPreviewTimers() {
 function hideHoverPreview() {
     gnpHoverPreviewAnchor = null;
     clearHoverPreviewTimers();
+    removeHoverPreviewDismissHandlers();
     if (gnpHoverPreviewEl) gnpHoverPreviewEl.classList.remove('visible');
 }
 
@@ -571,6 +602,7 @@ function showHoverPreview(anchorEl, text) {
     gnpHoverPreviewTimer = setTimeout(() => {
         if (gnpHoverPreviewAnchor !== anchorEl) return;
         const el = ensureHoverPreviewEl();
+        installHoverPreviewDismissHandlers();
         gnpHoverPreviewInnerEl.textContent = t;
 
         // 先显示以便测量尺寸
@@ -661,14 +693,36 @@ function bindHoverPreviewToItem(itemEl) {
     });
 
     itemEl.addEventListener('mouseleave', () => {
-        // 给一点点缓冲：允许鼠标从条目移动到弹窗上
-        scheduleHideHoverPreview(120);
+        // 弹窗仅在“点击外部/按 Esc”时关闭；mouseleave 不触发关闭
     });
 }
 
-// 页面滚动/缩放时隐藏，避免残留
-window.addEventListener('scroll', hideHoverPreview, true);
-window.addEventListener('resize', hideHoverPreview, true);
+function repositionHoverPreview() {
+    try {
+        if (!gnpHoverPreviewEl || !gnpHoverPreviewEl.classList.contains('visible') || !gnpHoverPreviewAnchor) return;
+        const rect = gnpHoverPreviewAnchor.getBoundingClientRect();
+        // 若锚点不可见（例如侧栏折叠后 display:none），保持当前位置
+        if ((rect.width <= 1 && rect.height <= 1)) return;
+
+        const el = gnpHoverPreviewEl;
+        const tooltipW = el.offsetWidth || 360;
+        const tooltipH = el.offsetHeight || 180;
+
+        const preferLeft = rect.left > (window.innerWidth / 2);
+        let x = preferLeft ? (rect.left - tooltipW - 12) : (rect.right + 12);
+        x = clampNumber(x, 8, window.innerWidth - tooltipW - 8);
+
+        let y = rect.top;
+        y = clampNumber(y, 8, window.innerHeight - tooltipH - 8);
+
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+    } catch (_) {}
+}
+
+// 页面滚动/缩放时仅重新定位（不自动隐藏）
+window.addEventListener('scroll', repositionHoverPreview, true);
+window.addEventListener('resize', repositionHoverPreview, true);
 
 
     const collapsedIcon = document.createElement('div');

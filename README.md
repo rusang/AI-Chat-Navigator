@@ -6,9 +6,7 @@ AI-Chat-Navigator 是一个 Chrome 扩展，为 ChatGPT / Gemini 等对话页面
 
 ## 预览
 
-> 如果 GitHub 网页无法直接播放 mp4，可下载后本地观看。
-
-<video src="images/preview.mp4" controls style="max-width:100%; border-radius:12px;"></video>
+![Preview](images/preview.gif)
 
 ---
 
