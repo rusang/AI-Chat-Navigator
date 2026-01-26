@@ -437,6 +437,37 @@
         .gnp-folder-badge:hover{ background: var(--gnp-hover-bg); }
         .gnp-folder-select:focus{ outline: none; }
         .gnp-prompt-input::placeholder{ color: var(--gnp-text-sub); }
+
+/* Hover preview (show full prompt) */
+#gnp-hover-preview{
+    position: fixed;
+    left: 0; top: 0;
+    z-index: 2147483647;
+    display: none;
+    max-width: min(720px, 78vw);
+    max-height: min(520px, 70vh);
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--gnp-modal-bg);
+    border: 1px solid var(--gnp-border);
+    box-shadow: 0 18px 60px rgba(0,0,0,0.28);
+    color: var(--gnp-text-main);
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    pointer-events: auto; /* 允许滚动/选中文本 */
+    overflow: hidden;      /* 保持圆角裁剪 */
+}
+#gnp-hover-preview.visible{ display:block; }
+#gnp-hover-preview .gnp-hover-preview-inner{
+    max-height: calc(min(520px, 70vh) - 20px);
+    overflow: auto;
+    padding-right: 2px;
+}
+#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar { width: 6px; }
+#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-thumb { background: var(--gnp-scroll-thumb); border-radius: 4px; }
+#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-thumb:hover { background: var(--gnp-scroll-thumb-hover); }
 `;
 
     injectStyles(styles);
@@ -464,6 +495,120 @@ chatTop: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"c
 
     const sidebar = document.createElement('div');
     sidebar.id = 'gemini-nav-sidebar';
+
+// --- Hover preview: show full prompt content on hover ---
+let gnpHoverPreviewEl = null;
+let gnpHoverPreviewInnerEl = null;
+let gnpHoverPreviewTimer = null;
+let gnpHoverPreviewHideTimer = null;
+let gnpHoverPreviewAnchor = null;
+
+function ensureHoverPreviewEl() {
+    if (gnpHoverPreviewEl && document.body && document.body.contains(gnpHoverPreviewEl)) return gnpHoverPreviewEl;
+
+    gnpHoverPreviewEl = document.createElement('div');
+    gnpHoverPreviewEl.id = 'gnp-hover-preview';
+
+    gnpHoverPreviewInnerEl = document.createElement('div');
+    gnpHoverPreviewInnerEl.className = 'gnp-hover-preview-inner';
+
+    gnpHoverPreviewEl.appendChild(gnpHoverPreviewInnerEl);
+    (document.body || document.documentElement).appendChild(gnpHoverPreviewEl);
+
+    // 允许鼠标进入弹窗（滚动/复制），离开后自动隐藏
+    gnpHoverPreviewEl.addEventListener('mouseenter', () => {
+        if (gnpHoverPreviewHideTimer) { clearTimeout(gnpHoverPreviewHideTimer); gnpHoverPreviewHideTimer = null; }
+    });
+    gnpHoverPreviewEl.addEventListener('mouseleave', () => {
+        scheduleHideHoverPreview(120);
+    });
+
+    return gnpHoverPreviewEl;
+}
+
+function clampNumber(n, min, max) {
+    return Math.max(min, Math.min(max, n));
+}
+
+function clearHoverPreviewTimers() {
+    if (gnpHoverPreviewTimer) { clearTimeout(gnpHoverPreviewTimer); gnpHoverPreviewTimer = null; }
+    if (gnpHoverPreviewHideTimer) { clearTimeout(gnpHoverPreviewHideTimer); gnpHoverPreviewHideTimer = null; }
+}
+
+function hideHoverPreview() {
+    gnpHoverPreviewAnchor = null;
+    clearHoverPreviewTimers();
+    if (gnpHoverPreviewEl) gnpHoverPreviewEl.classList.remove('visible');
+}
+
+function scheduleHideHoverPreview(delay = 120) {
+    if (gnpHoverPreviewHideTimer) { clearTimeout(gnpHoverPreviewHideTimer); gnpHoverPreviewHideTimer = null; }
+    gnpHoverPreviewHideTimer = setTimeout(() => hideHoverPreview(), delay);
+}
+
+function showHoverPreview(anchorEl, text) {
+    if (!anchorEl) return;
+    const t = String(text ?? '').trim();
+    if (!t) return;
+
+    // 如果侧边栏折叠/隐藏，不显示
+    try {
+        const sb = document.getElementById('gemini-nav-sidebar');
+        if (sb && sb.classList.contains('collapsed')) return;
+    } catch (_) {}
+
+    gnpHoverPreviewAnchor = anchorEl;
+    if (gnpHoverPreviewHideTimer) { clearTimeout(gnpHoverPreviewHideTimer); gnpHoverPreviewHideTimer = null; }
+    if (gnpHoverPreviewTimer) { clearTimeout(gnpHoverPreviewTimer); gnpHoverPreviewTimer = null; }
+
+    // 轻微延迟，避免快速扫过时抖动
+    gnpHoverPreviewTimer = setTimeout(() => {
+        if (gnpHoverPreviewAnchor !== anchorEl) return;
+        const el = ensureHoverPreviewEl();
+        gnpHoverPreviewInnerEl.textContent = t;
+
+        // 先显示以便测量尺寸
+        el.classList.add('visible');
+        el.style.left = '0px';
+        el.style.top = '0px';
+
+        const rect = anchorEl.getBoundingClientRect();
+        const tooltipW = el.offsetWidth || 360;
+        const tooltipH = el.offsetHeight || 180;
+
+        // 默认：右半屏的条目 -> 弹窗向左；左半屏 -> 向右
+        const preferLeft = rect.left > (window.innerWidth / 2);
+        let x = preferLeft ? (rect.left - tooltipW - 12) : (rect.right + 12);
+        x = clampNumber(x, 8, window.innerWidth - tooltipW - 8);
+
+        let y = rect.top;
+        y = clampNumber(y, 8, window.innerHeight - tooltipH - 8);
+
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+    }, 120);
+}
+
+function bindHoverPreviewToItem(itemEl) {
+    if (!itemEl) return;
+
+    itemEl.addEventListener('mouseenter', () => {
+        if (!document.body.contains(itemEl)) return;
+        if (gnpHoverPreviewHideTimer) { clearTimeout(gnpHoverPreviewHideTimer); gnpHoverPreviewHideTimer = null; }
+        const full = (itemEl.dataset && itemEl.dataset.prompt) ? itemEl.dataset.prompt : '';
+        showHoverPreview(itemEl, full);
+    });
+
+    itemEl.addEventListener('mouseleave', () => {
+        // 给一点点缓冲：允许鼠标从条目移动到弹窗上
+        scheduleHideHoverPreview(120);
+    });
+}
+
+// 页面滚动/缩放时隐藏，避免残留
+window.addEventListener('scroll', hideHoverPreview, true);
+window.addEventListener('resize', hideHoverPreview, true);
+
 
     const collapsedIcon = document.createElement('div');
     collapsedIcon.id = 'gemini-collapsed-icon';
@@ -1553,6 +1698,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             item.className = 'gemini-nav-item';
             if (selectedItems.has(favText)) item.classList.add('multi-selected');
             item.dataset.prompt = favText;
+            bindHoverPreviewToItem(item);
             item.draggable = true;
 
             // --- 多选逻辑注入 ---
@@ -1781,6 +1927,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             item.className = 'gemini-nav-item';
             if (selectedItems.has(content)) item.classList.add('multi-selected');
             item.dataset.prompt = content;
+            bindHoverPreviewToItem(item);
             item.dataset.originalIndex = originalIndex; 
             
             if (originalIndex === currentActiveIndex) item.classList.add('active-current');
