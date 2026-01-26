@@ -277,10 +277,10 @@
         .gemini-nav-item.is-favorite .item-text { color: var(--gnp-fav-color); font-weight: 600; }
         .gemini-nav-item.active-current.is-favorite .item-text { color: var(--gnp-fav-color); }
         .item-index { color: var(--gnp-index-color); font-weight: 700; margin-right: 4px; opacity: 0.9; }
-        .item-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; line-height: 1.5; }
+        .item-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; width: 100%; line-height: 1.5; -webkit-line-clamp: 10; white-space: normal; }
         .item-text.density-compact { -webkit-line-clamp: 3; white-space: normal; }
         .item-text.density-medium { -webkit-line-clamp: 6; white-space: normal; }
-        .item-text.density-spacious { -webkit-line-clamp: 12; white-space: normal; padding-bottom: 2px; }
+        .item-text.density-spacious { -webkit-line-clamp: 10; white-space: normal; padding-bottom: 2px; }
 
         .bottom-toolbar {
             position: absolute; bottom: 2px; right: 4px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; background: transparent; z-index: 20; pointer-events: auto; 
