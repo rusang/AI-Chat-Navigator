@@ -1240,6 +1240,17 @@ window.addEventListener('resize', repositionHoverPreview, true);
     setTimeout(() => {
         sidebar.append(collapsedIcon, header, searchContainer, contentWrapper, ...resizers);
         document.body.appendChild(sidebar);
+
+        // 修复：页面刷新后侧边栏初次注入不会自动触发 mouseleave，从而无法自动隐藏。
+        // 注入完成后若鼠标不在侧边栏上，则主动触发一次自动隐藏计时。
+        setTimeout(() => {
+            try {
+                if (!isAutoHideEnabled) return;
+                if (!sidebar || sidebar.classList.contains('collapsed')) return;
+                if (sidebar.matches(':hover')) return;
+                scheduleAutoHide();
+            } catch (_) {}
+        }, 60);
     }, 1500);
 
     const STORAGE_KEY_CONFIG = 'gemini-nav-config-v7-0'; 
