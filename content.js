@@ -154,6 +154,8 @@
             --gnp-collapsed-border: rgba(0, 0, 0, 0.18);
             --gnp-collapsed-shadow: 0 10px 26px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.10);
             --gnp-collapsed-accent: rgba(220, 38, 38, 0.55);
+            --gnp-hover-preview-border: rgba(0, 0, 0, 0.28);
+            --gnp-hover-preview-bg: linear-gradient(180deg, rgba(255, 246, 249, 0.98), rgba(255, 232, 238, 0.94));
             --gnp-scroll-thumb: rgba(0, 0, 0, 0.25);
             --gnp-scroll-thumb-hover: rgba(0, 0, 0, 0.45);
             --gnp-index-color: #1a73e8;
@@ -193,6 +195,8 @@
                 --gnp-collapsed-border: rgba(255, 255, 255, 0.22);
                 --gnp-collapsed-shadow: 0 12px 30px rgba(0,0,0,0.70), 0 0 0 1px rgba(255,255,255,0.10);
                 --gnp-collapsed-accent: rgba(248, 113, 113, 0.60);
+                --gnp-hover-preview-border: rgba(255, 255, 255, 0.22);
+                --gnp-hover-preview-bg: linear-gradient(180deg, rgba(52, 30, 36, 0.96), rgba(32, 20, 24, 0.92));
                 --gnp-scroll-thumb: rgba(255, 255, 255, 0.25);
                 --gnp-scroll-thumb-hover: rgba(255, 255, 255, 0.45);
                 --gnp-index-color: #8ab4f8;
@@ -215,7 +219,7 @@
             background: var(--gnp-bg) !important;
             backdrop-filter: blur(20px) saturate(180%);
             -webkit-backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid var(--gnp-border);
+            border: 2px solid var(--gnp-hover-preview-border);
             box-shadow: var(--gnp-shadow);
             border-radius: 16px;
             z-index: 2147483647; 
@@ -250,7 +254,7 @@
             position: relative; display: block;
             padding: 8px 12px;
             margin: 2px 6px;
-            font-size: 13px; color: var(--gnp-text-main);
+            font-size: 15px; color: var(--gnp-text-main);
             cursor: default; 
             border-radius: 8px; 
             transition: background 0.15s;
@@ -366,7 +370,7 @@
         .content-panel.active { display: block; }
 
         #gemini-nav-search-container { padding: 4px 14px 8px 14px; }
-        #gemini-nav-search-input { width: 100%; box-sizing: border-box; padding: 8px 12px; background: var(--gnp-input-bg); border: 1px solid transparent; border-radius: 8px; font-size: 13px; outline: none; transition: all 0.2s; color: var(--gnp-input-text) !important; }
+        #gemini-nav-search-input { width: 100%; box-sizing: border-box; padding: 8px 12px; background: var(--gnp-input-bg); border: 1px solid transparent; border-radius: 8px; font-size: 15px; outline: none; transition: all 0.2s; color: var(--gnp-input-text) !important; }
         #gemini-nav-search-input:focus { background: var(--gnp-tab-active-bg); box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3); }
         #gemini-nav-search-input::placeholder { color: var(--gnp-text-sub); }
 
@@ -380,21 +384,21 @@
 
         .gnp-confirm-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--gnp-modal-overlay); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .gnp-confirm-box { padding: 16px; background: var(--gnp-modal-bg); border: 1px solid var(--gnp-border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); max-width: 85%; text-align: center; }
-        .gnp-confirm-title { font-size: 13px; font-weight: 600; color: var(--gnp-text-main); margin-bottom: 4px; }
+        .gnp-confirm-box { padding: 16px; background: var(--gnp-modal-bg); border: 2px solid var(--gnp-hover-preview-border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); max-width: 85%; text-align: center; }
+        .gnp-confirm-title { font-size: 15px; font-weight: 600; color: var(--gnp-text-main); margin-bottom: 4px; }
         .gnp-confirm-desc { font-size: 12px; color: var(--gnp-text-sub); margin-bottom: 12px; }
         .gnp-btn-row { display: flex; gap: 8px; justify-content: center; }
         .gnp-btn-confirm { background: #d93025; color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .gnp-btn-confirm:hover { background: #b02018; }
-        .gnp-btn-cancel { background: transparent; color: var(--gnp-text-main); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; border: 1px solid var(--gnp-border); }
+        .gnp-btn-cancel { background: transparent; color: var(--gnp-text-main); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; border: 2px solid var(--gnp-hover-preview-border); }
         .gnp-btn-cancel:hover { background: var(--gnp-hover-bg); }
 
         
         /* 全屏居中编辑弹窗（用于收藏编辑） */
         .gnp-global-overlay { position: fixed; inset: 0; background: var(--gnp-modal-overlay); z-index: 2147483647; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
-        .gnp-global-box { width: min(760px, 86vw); max-height: 82vh; background: var(--gnp-modal-bg); border: 1px solid var(--gnp-border); border-radius: 14px; box-shadow: 0 18px 60px rgba(0,0,0,0.28); padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
-        .gnp-global-title { font-size: 13px; font-weight: 600; color: var(--gnp-text-main); }
-        .gnp-global-textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--gnp-border); outline: none; font-size: 14px; line-height: 1.5; background: var(--gnp-input-bg); color: var(--gnp-input-text); caret-color: var(--gnp-input-text); min-height: 132px; max-height: 52vh; resize: vertical; overflow: auto; white-space: pre-wrap; }
+        .gnp-global-box { width: min(760px, 86vw); max-height: 82vh; background: var(--gnp-modal-bg); border: 2px solid var(--gnp-hover-preview-border); border-radius: 14px; box-shadow: 0 18px 60px rgba(0,0,0,0.28); padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+        .gnp-global-title { font-size: 15px; font-weight: 600; color: var(--gnp-text-main); }
+        .gnp-global-textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--gnp-hover-preview-border); outline: none; font-size: 14px; line-height: 1.5; background: var(--gnp-input-bg); color: var(--gnp-input-text); caret-color: var(--gnp-input-text); min-height: 132px; max-height: 52vh; resize: vertical; overflow: auto; white-space: pre-wrap; }
         .gnp-global-textarea::placeholder { color: var(--gnp-text-sub); }
         .gnp-global-error { margin-top: -6px; color: #d33; font-size: 12px; display: none; }
         .gnp-global-btnrow { display: flex; gap: 10px; justify-content: flex-end; }
@@ -427,7 +431,7 @@
             line-height:1;
             color: var(--gnp-text-sub);
             background: rgba(0,0,0,0.04);
-            border: 1px solid var(--gnp-border);
+            border: 2px solid var(--gnp-hover-preview-border);
             border-radius: 10px;
             padding: 2px 6px;
             margin-right: 6px;
@@ -445,14 +449,16 @@
     z-index: 2147483647;
     display: none;
     max-width: min(720px, 78vw);
-    max-height: min(520px, 70vh);
+    max-height: min(420px, 55vh);
     padding: 10px 12px;
     border-radius: 12px;
-    background: var(--gnp-modal-bg);
-    border: 1px solid var(--gnp-border);
+    background: var(--gnp-hover-preview-bg);
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    backdrop-filter: blur(10px) saturate(1.1);
+    border: 2px solid var(--gnp-hover-preview-border);
     box-shadow: 0 18px 60px rgba(0,0,0,0.28);
     color: var(--gnp-text-main);
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
@@ -461,7 +467,7 @@
 }
 #gnp-hover-preview.visible{ display:block; }
 #gnp-hover-preview .gnp-hover-preview-inner{
-    max-height: calc(min(520px, 70vh) - 20px);
+    max-height: calc(min(420px, 55vh) - 20px);
     overflow: auto;
     padding-right: 2px;
 }
@@ -589,6 +595,59 @@ function showHoverPreview(anchorEl, text) {
     }, 120);
 }
 
+
+let gnpHoverMeasureEl = null;
+
+function ensureHoverMeasureEl() {
+    if (gnpHoverMeasureEl && document.body && document.body.contains(gnpHoverMeasureEl)) return gnpHoverMeasureEl;
+
+    gnpHoverMeasureEl = document.createElement('div');
+    gnpHoverMeasureEl.id = 'gnp-hover-measure';
+    gnpHoverMeasureEl.setAttribute('aria-hidden', 'true');
+    gnpHoverMeasureEl.style.cssText = 'position: fixed; left: -99999px; top: -99999px; visibility: hidden; pointer-events: none; z-index: -1; white-space: normal; word-break: break-word; overflow: visible; padding: 0; margin: 0; border: 0;';
+    (document.body || document.documentElement).appendChild(gnpHoverMeasureEl);
+    return gnpHoverMeasureEl;
+}
+
+// 仅当内容超过 10 行（即被省略）时，才显示 hover 预览弹窗
+function isPromptOmittedOverTenLines(textEl, fullText) {
+    try {
+        if (!textEl) return false;
+        const t = String(fullText ?? '').trim();
+        if (!t) return false;
+
+        const rect = textEl.getBoundingClientRect();
+        const w = Math.max(0, rect.width);
+        if (!w) return false;
+
+        const cs = getComputedStyle(textEl);
+        const meas = ensureHoverMeasureEl();
+        meas.style.width = `${Math.ceil(w)}px`;
+        meas.style.fontFamily = cs.fontFamily;
+        meas.style.fontSize = cs.fontSize;
+        meas.style.fontWeight = cs.fontWeight;
+        meas.style.fontStyle = cs.fontStyle;
+        meas.style.letterSpacing = cs.letterSpacing;
+        meas.style.lineHeight = cs.lineHeight;
+        meas.style.wordBreak = cs.wordBreak || 'break-word';
+        meas.style.overflowWrap = cs.overflowWrap || 'anywhere';
+        meas.textContent = t;
+
+        const fullH = meas.scrollHeight;
+
+        let lh = parseFloat(cs.lineHeight);
+        if (!lh || Number.isNaN(lh)) {
+            const fs = parseFloat(cs.fontSize) || 14;
+            lh = fs * 1.5; // fallback（与 .item-text 默认 line-height: 1.5 对齐）
+        }
+
+        const maxH = lh * 10 + 1; // 10 行阈值 + 容差
+        return fullH > maxH;
+    } catch (_) {
+        return false;
+    }
+}
+
 function bindHoverPreviewToItem(itemEl) {
     if (!itemEl) return;
 
@@ -596,6 +655,8 @@ function bindHoverPreviewToItem(itemEl) {
         if (!document.body.contains(itemEl)) return;
         if (gnpHoverPreviewHideTimer) { clearTimeout(gnpHoverPreviewHideTimer); gnpHoverPreviewHideTimer = null; }
         const full = (itemEl.dataset && itemEl.dataset.prompt) ? itemEl.dataset.prompt : '';
+        const textEl = itemEl.querySelector('.item-text');
+        if (!isPromptOmittedOverTenLines(textEl, full)) return;
         showHoverPreview(itemEl, full);
     });
 
