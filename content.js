@@ -161,7 +161,7 @@
             --gnp-collapsed-shadow: 0 10px 26px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.10);
             --gnp-collapsed-accent: rgba(220, 38, 38, 0.55);
             --gnp-hover-preview-border: rgba(0, 0, 0, 0.28);
-            --gnp-hover-preview-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 252, 0.96));
+            --gnp-hover-preview-bg: linear-gradient(180deg, rgba(255, 243, 244, 0.98), rgba(255, 255, 255, 0.96));
             --gnp-hover-preview-toolbar-bg: rgba(255, 255, 255, 0.72);
             --gnp-scroll-thumb: rgba(0, 0, 0, 0.25);
             --gnp-scroll-thumb-hover: rgba(0, 0, 0, 0.45);
@@ -213,7 +213,7 @@
                 --gnp-collapsed-shadow: 0 12px 30px rgba(0,0,0,0.70), 0 0 0 1px rgba(255,255,255,0.10);
                 --gnp-collapsed-accent: rgba(248, 113, 113, 0.60);
                 --gnp-hover-preview-border: rgba(255, 255, 255, 0.22);
-                --gnp-hover-preview-bg: linear-gradient(180deg, rgba(32, 32, 36, 0.94), rgba(20, 20, 24, 0.92));
+                --gnp-hover-preview-bg: linear-gradient(180deg, rgba(76, 38, 44, 0.92), rgba(22, 18, 20, 0.92));
                 --gnp-hover-preview-toolbar-bg: rgba(0, 0, 0, 0.32);
                 --gnp-scroll-thumb: rgba(255, 255, 255, 0.25);
                 --gnp-scroll-thumb-hover: rgba(255, 255, 255, 0.45);
@@ -323,9 +323,30 @@
         .item-text.density-spacious { -webkit-line-clamp: 10; white-space: normal; padding-bottom: 2px; }
 
         .bottom-toolbar {
-            position: absolute; bottom: 2px; right: 4px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; background: transparent; z-index: 20; pointer-events: auto; 
+            position: absolute; bottom: 2px; right: 4px; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.15s; background: transparent; z-index: 20; pointer-events: auto; 
         }
         .gemini-nav-item:hover .bottom-toolbar { opacity: 1; }
+
+        /* 导航：使用时间（放在右下角工具区，位于⚡左侧，不占正文列宽） */
+        .gnp-nav-use-time{
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            padding: 0 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            line-height: 1;
+            color: var(--gnp-text-sub);
+            background: rgba(0,0,0,0.04);
+            border: 1px solid var(--gnp-border);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            user-select: none;
+            pointer-events: auto;
+        }
+        @media (prefers-color-scheme: dark){
+            .gnp-nav-use-time{ background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); }
+        }
+
 
         /* 多选模式下隐藏右下角工具图标（防误触） */
         .gemini-nav-item.multi-selected .bottom-toolbar { display: none !important; }
@@ -386,7 +407,7 @@
         #gemini-fav-header::-webkit-scrollbar{ display:none; }
         #gemini-fav-left { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; min-width:0; flex:1 1 auto; }
         #gemini-fav-right { display:flex; align-items:center; gap:6px; flex-shrink:0; flex-wrap:nowrap; }
-        #gemini-nav-tabs { display: flex; gap: 4px; background: rgba(0,0,0,0.03); padding: 2px; border-radius: 12px; }
+        #gemini-nav-tabs { display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.03); padding: 2px; border-radius: 12px; }
         #gemini-nav-tabs { flex: 0 0 auto; }
 
         .header-circle-btn {
@@ -503,7 +524,60 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
             flex-shrink:0;
         }
         .gnp-folder-badge:hover{ background: var(--gnp-hover-bg); }
-        .gnp-folder-select:focus{ outline: none; }
+
+        /* 收藏：使用次数/最近使用 */
+        .gnp-use-meta{
+            display:inline-flex;
+            align-items:center;
+            font-size:10px;
+            line-height:1;
+            color: var(--gnp-text-sub);
+            background: rgba(0,0,0,0.03);
+            border: 1px solid var(--gnp-border);
+            border-radius: 10px;
+            padding: 2px 6px;
+            margin-right: 6px;
+            white-space: nowrap;
+            flex-shrink:0;
+            user-select: none;
+        }
+        @media (prefers-color-scheme: dark){
+            .gnp-use-meta{ background: rgba(255,255,255,0.08); }
+        }
+
+        
+        /* 导航：使用时间徽标（顶部右侧，不占行） */
+        .gnp-nav-use-meta{
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            z-index: 5;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            line-height: 1.2;
+            color: var(--gnp-text-sub);
+            background: rgba(26, 115, 232, 0.10);
+            border: 1px solid rgba(26, 115, 232, 0.22);
+            user-select: none;
+            pointer-events: auto;
+            -webkit-backdrop-filter: blur(6px) saturate(1.1);
+            backdrop-filter: blur(6px) saturate(1.1);
+        }
+        html[data-theme="dark"] .gnp-nav-use-meta{
+            color: rgba(255,255,255,0.78);
+            background: rgba(248, 113, 113, 0.14);
+            border: 1px solid rgba(248, 113, 113, 0.28);
+        }
+        /* 给右上角徽标留出空间，避免压住首行文字 */
+        .gemini-nav-item[data-gnp-source="nav"] .item-text{
+            padding-right: 0;
+        }
+
+.gnp-folder-select:focus{ outline: none; }
         .gnp-prompt-input::placeholder{ color: var(--gnp-text-sub); }
 
 /* Hover preview (show full prompt) */
@@ -532,21 +606,50 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
 }
 #gnp-hover-preview.visible{ display:flex; }
 #gnp-hover-preview .gnp-hover-preview-toolbar{
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
+    /* footer row: keep actions + meta on their own line */
+    position: relative;
+    width: 100%;
     display:flex;
     align-items:center;
     justify-content:flex-end;
-    gap:4px;
-    padding: 0;
-    margin: 0;
-    border: none;
-    background: transparent;
-    border-radius: 0;
-    box-shadow: none;
+    gap:6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0,0,0,0.10);
     pointer-events: auto;
 }
+@media (prefers-color-scheme: dark){
+    #gnp-hover-preview .gnp-hover-preview-toolbar{ border-top-color: rgba(255,255,255,0.14); }
+}
+html[data-theme="dark"] #gnp-hover-preview .gnp-hover-preview-toolbar{
+    border-top-color: rgba(255,255,255,0.14);
+}
+
+#gnp-hover-preview .gnp-hover-use-meta{
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--gnp-text-sub);
+    background: rgba(0,0,0,0.06);
+    border: 1px solid var(--gnp-border);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    user-select: none;
+    pointer-events: auto;
+    margin-right: 2px;
+}
+@media (prefers-color-scheme: dark){
+    #gnp-hover-preview .gnp-hover-use-meta{ background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.16); color: rgba(255,255,255,0.82); }
+}
+html[data-theme="dark"] #gnp-hover-preview .gnp-hover-use-meta{
+    background: rgba(255,255,255,0.10);
+    border-color: rgba(255,255,255,0.16);
+    color: rgba(255,255,255,0.82);
+}
+
 #gnp-hover-preview .gnp-hover-preview-toolbar .mini-btn{
     width: 24px;
     height: 20px;
@@ -583,12 +686,10 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     resize: both; /* 编辑模式可拉伸弹窗本体 */
 }
 #gnp-hover-preview.editing .gnp-hover-preview-inner{
-    max-height: none;
-    height: 100%;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding-bottom: 54px; /* 编辑模式下也预留工具条空间 */
 }
 #gnp-hover-preview .gnp-hover-edit-hint{
     margin-top: 8px;
@@ -597,10 +698,10 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     user-select: none;
 }
 #gnp-hover-preview .gnp-hover-preview-inner{
-    max-height: 100%;
+    flex: 1 1 auto;
     overflow: auto;
     padding-right: 2px;
-    padding-bottom: 0; }
+}
 #gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-thumb { background: var(--gnp-scroll-thumb); border-radius: 4px; }
 #gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-thumb:hover { background: var(--gnp-scroll-thumb-hover); }
 `;
@@ -609,6 +710,7 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
 
     const SVGS = {
         clear: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
+        close: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
         edit: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
         copy: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
         pin: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`,
@@ -689,7 +791,8 @@ function ensureHoverPreviewEl() {
     gnpHoverPreviewInnerEl = document.createElement('div');
     gnpHoverPreviewInnerEl.className = 'gnp-hover-preview-inner';
 
-    gnpHoverPreviewEl.append(gnpHoverPreviewToolbarEl, gnpHoverPreviewInnerEl);
+    // inner first, toolbar as footer row (icons + meta on their own line)
+    gnpHoverPreviewEl.append(gnpHoverPreviewInnerEl, gnpHoverPreviewToolbarEl);
     (document.body || document.documentElement).appendChild(gnpHoverPreviewEl);
 
     // 允许从条目移入弹窗而不闪退：进入弹窗取消隐藏，移出弹窗自动关闭
@@ -747,7 +850,7 @@ function enterHoverPreviewEditMode(favText) {
     clearHoverPreviewContent();
 
     // 工具栏：取消/保存
-    const cancelBtn = makeMiniBtn({ cls: '', title: '取消 (Esc)', html: SVGS.clear, onClick: () => {
+    const cancelBtn = makeMiniBtn({ cls: '', title: '退出编辑 (Esc)', html: SVGS.close, onClick: () => {
         exitHoverPreviewEditMode();
         renderHoverPreviewContent(gnpHoverPreviewAnchor, originalText);
         repositionHoverPreview();
@@ -842,6 +945,21 @@ function renderHoverPreviewContent(anchorEl, text) {
 
     // 工具栏
     if (source === 'fav') {
+        // 统计信息（使用次数 / 最近使用）
+        try {
+            const idx = getFavoriteIndex(t);
+            const favObj = (idx > -1 && favorites && favorites[idx]) ? favorites[idx] : { useCount: 0, lastUsed: 0 };
+            const uc = Number(favObj.useCount) || 0;
+            const lu = Number(favObj.lastUsed) || 0;
+            const meta = document.createElement('span');
+            meta.className = 'gnp-hover-use-meta';
+            meta.textContent = `${uc}次 · ${formatRelativeTimeNav(lu)}`;
+            meta.title = lu ? `最近使用：${new Date(lu).toLocaleString()}` : '从未使用';
+            meta.addEventListener('mousedown', (e) => e.stopPropagation());
+            meta.addEventListener('click', (e) => e.stopPropagation());
+            gnpHoverPreviewToolbarEl.appendChild(meta);
+        } catch (_) {}
+
         // 填入
         gnpHoverPreviewToolbarEl.appendChild(makeMiniBtn({
             cls: 'use-btn',
@@ -853,6 +971,7 @@ function renderHoverPreviewContent(anchorEl, text) {
         // 复制
         const copyBtn = makeMiniBtn({ cls: '', title: '复制', html: SVGS.copy, onClick: () => {
             navigator.clipboard.writeText(t);
+                recordPromptUse(t);
             copyBtn.innerHTML = SVGS.check;
             setTimeout(() => { try { copyBtn.innerHTML = SVGS.copy; } catch (_) {} }, 900);
         }});
@@ -908,6 +1027,18 @@ function renderHoverPreviewContent(anchorEl, text) {
             }
         }));
     } else {
+        // 统计信息（最近使用时间）
+        try {
+            const lu = Number(getPromptLastUsed(t)) || 0;
+            const meta = document.createElement('span');
+            meta.className = 'gnp-hover-use-meta';
+            meta.textContent = formatRelativeTimeNav(lu);
+            meta.title = lu ? `最近使用：${new Date(lu).toLocaleString()}` : '从未使用';
+            meta.addEventListener('mousedown', (e) => e.stopPropagation());
+            meta.addEventListener('click', (e) => e.stopPropagation());
+            gnpHoverPreviewToolbarEl.appendChild(meta);
+        } catch (_) {}
+
         // nav 弹窗：填入 / 复制 / 收藏切换
         gnpHoverPreviewToolbarEl.appendChild(makeMiniBtn({
             cls: 'use-btn',
@@ -918,6 +1049,7 @@ function renderHoverPreviewContent(anchorEl, text) {
 
         const copyBtn = makeMiniBtn({ cls: '', title: '复制', html: SVGS.copy, onClick: () => {
             navigator.clipboard.writeText(t);
+                recordPromptUse(t);
             copyBtn.innerHTML = SVGS.check;
             setTimeout(() => { try { copyBtn.innerHTML = SVGS.copy; } catch (_) {} }, 900);
         }});
@@ -1257,6 +1389,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
     const STORAGE_KEY_FAV = 'gemini-favorites';
     const STORAGE_KEY_HIDE = 'gemini-auto-hide';
     const STORAGE_KEY_AUTOSEND = 'gemini-auto-send-mode';
+    const STORAGE_KEY_USAGE = 'gemini-nav-usage-stats-v1';
 
     const STORAGE_KEY_FOLDERS = 'gemini-nav-pro-panel-fav-folders';
     const STORAGE_KEY_FAV_FOLDER_FILTER = 'gemini-nav-pro-panel-fav-folder-filter';
@@ -1264,7 +1397,10 @@ window.addEventListener('resize', repositionHoverPreview, true);
     let folders = JSON.parse(localStorage.getItem(STORAGE_KEY_FOLDERS)) || ['默认'];
     folders = [...new Set(folders.map(f => String(f || '').trim()).filter(Boolean))];
     if (!folders.includes('默认')) folders.unshift('默认');
-    const saveFolders = () => localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders));
+    const saveFolders = () => {
+        localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders));
+        gnpPersistSharedState();
+    };
 
     // 收藏：兼容旧版本（string 数组）与新版本（对象数组）
     const rawFav = JSON.parse(localStorage.getItem(STORAGE_KEY_FAV)) || [];
@@ -1273,11 +1409,15 @@ window.addEventListener('resize', repositionHoverPreview, true);
     rawFav.forEach(it => {
         let t = '';
         let folder = '默认';
+        let useCount = 0;
+        let lastUsed = 0;
         if (typeof it === 'string') {
             t = it;
         } else if (it && typeof it === 'object') {
             t = it.text ?? it.t ?? '';
             folder = it.folder ?? it.f ?? folder;
+            useCount = parseInt(it.useCount ?? it.uc ?? it.count ?? it.c ?? 0, 10) || 0;
+            lastUsed = Number(it.lastUsed ?? it.lu ?? it.last ?? it.u ?? 0) || 0;
         }
         t = String(t || '').trim();
         folder = String(folder || '默认').trim() || '默认';
@@ -1285,18 +1425,309 @@ window.addEventListener('resize', repositionHoverPreview, true);
         if (seenFavText.has(t)) return;
         seenFavText.add(t);
         if (!folders.includes(folder)) folders.push(folder);
-        favorites.push({ text: t, folder });
+        favorites.push({ text: t, folder, useCount, lastUsed });
     });
 
     let favFolderFilter = localStorage.getItem(STORAGE_KEY_FAV_FOLDER_FILTER) || '全部';
 
+
+    // 导航使用记录（用于在“目录”面板展示最近使用时间；key 为 prompt 的哈希，避免把长文本直接当作对象 key）
+    let usageStats = {};
+    try {
+        usageStats = JSON.parse(localStorage.getItem(STORAGE_KEY_USAGE) || '{}') || {};
+    } catch (_) { usageStats = {}; }
+    if (!usageStats || typeof usageStats !== 'object' || Array.isArray(usageStats)) usageStats = {};
+
+    // === Shared favorites across tabs / origins / Chrome instances (via chrome.storage) ===
+    // 说明：
+    // - 现有实现使用 localStorage（按站点域隔离），因此 Gemini/ChatGPT 等不同域名之间不会共享收藏。
+    // - chrome.storage 属于扩展级存储：同一 Chrome Profile 下所有标签页/窗口/不同站点都共享；
+    //   若使用 storage.sync，则在同账号的不同 Chrome/设备间也可同步（受配额限制，超限自动降级 local）。
+    const GNP_SHARED_STATE_KEY = 'ai-chat-navigator-shared-state-v1';
+    const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
+    const gnpStorageSync = gnpChrome && gnpChrome.storage && gnpChrome.storage.sync;
+    const gnpStorageLocal = gnpChrome && gnpChrome.storage && gnpChrome.storage.local;
+
+    // 默认优先使用 sync（跨“Chrome 实例/设备”），如果不可用或超限会自动降级 local（容量更大、同机稳定共享）
+    let gnpStorageArea = gnpStorageSync || gnpStorageLocal || null;
+    let gnpSharedUpdatedAt = 0;
+    let gnpApplyingSharedState = false;
+
+    function gnpBuildSharedState() {
+        return {
+            v: 1,
+            updatedAt: Date.now(),
+            favorites: favorites.map(f => ({
+                text: f.text,
+                folder: f.folder,
+                useCount: Number(f.useCount) || 0,
+                lastUsed: Number(f.lastUsed) || 0
+            })),
+            folders: Array.isArray(folders) ? folders.slice() : ['默认'],
+            favFolderFilter: String(favFolderFilter || '全部'),
+            usageStats: (usageStats && typeof usageStats === 'object' && !Array.isArray(usageStats)) ? usageStats : {}
+        };
+    }
+
+    function gnpApplySharedState(state) {
+        if (!state || typeof state !== 'object') return false;
+
+        const raw = Array.isArray(state.favorites) ? state.favorites : [];
+        const nextFav = [];
+        const seen = new Set();
+        raw.forEach(it => {
+            if (!it) return;
+            const t = String((it.text ?? it.t) || '').trim();
+            if (!t || seen.has(t)) return;
+            seen.add(t);
+            const folder = String((it.folder ?? it.f) || '默认').trim() || '默认';
+            const useCount = parseInt((it.useCount ?? it.uc) || 0, 10) || 0;
+            const lastUsed = Number((it.lastUsed ?? it.lu) || 0) || 0;
+            nextFav.push({ text: t, folder, useCount, lastUsed });
+        });
+
+        let nextFolders = Array.isArray(state.folders) ? state.folders : ['默认'];
+        nextFolders = [...new Set(nextFolders.map(f => String(f || '').trim()).filter(Boolean))];
+        if (!nextFolders.includes('默认')) nextFolders.unshift('默认');
+
+        // 收藏里出现的新文件夹，自动补齐
+        nextFav.forEach(f => { if (!nextFolders.includes(f.folder)) nextFolders.push(f.folder); });
+
+        favorites = nextFav;
+        folders = nextFolders;
+        favFolderFilter = String(state.favFolderFilter || '全部');
+        usageStats = (state.usageStats && typeof state.usageStats === 'object' && !Array.isArray(state.usageStats)) ? state.usageStats : {};
+
+        // 同步回 localStorage（作为各站点的“本地缓存”），保证旧逻辑/兼容性
+        try { localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(gnpBuildSharedState().favorites)); } catch (_) {}
+        try { localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders)); } catch (_) {}
+        try { localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter); } catch (_) {}
+        try { localStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(usageStats)); } catch (_) {}
+
+        return true;
+    }
+
+    function gnpPersistSharedState() {
+        if (!gnpStorageArea || gnpApplyingSharedState) return;
+        const state = gnpBuildSharedState();
+        gnpSharedUpdatedAt = state.updatedAt;
+
+        try {
+            gnpStorageArea.set({ [GNP_SHARED_STATE_KEY]: state }, () => {
+                // 额外写入 local 作为持久化/大容量备份（即便主要使用 sync）
+                if (gnpStorageArea === gnpStorageSync && gnpStorageLocal) {
+                    try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: state }); } catch (_) {}
+                }
+                const err = gnpChrome && gnpChrome.runtime && gnpChrome.runtime.lastError;
+                // sync 额度不足时降级到 local，保证“共享”可用
+                if (err && gnpStorageArea === gnpStorageSync && gnpStorageLocal) {
+                    gnpStorageArea = gnpStorageLocal;
+                    try { gnpStorageArea.set({ [GNP_SHARED_STATE_KEY]: state }); } catch (_) {}
+                }
+            });
+        } catch (_) {}
+    }
+
+    function gnpBootstrapSharedState() {
+        if (!gnpStorageArea) return;
+
+        const getFromArea = (area, cb) => {
+            try {
+                area.get([GNP_SHARED_STATE_KEY], (res) => cb(res && res[GNP_SHARED_STATE_KEY]));
+            } catch (_) { cb(null); }
+        };
+
+        // 优先 sync（跨设备/不同 Chrome 实例），其次 local（容量更大）
+        if (gnpStorageSync) {
+            getFromArea(gnpStorageSync, (stSync) => {
+                if (stSync && stSync.favorites) {
+                    gnpApplyingSharedState = true;
+                    try { gnpApplySharedState(stSync); } finally { gnpApplyingSharedState = false; }
+                    gnpSharedUpdatedAt = Number(stSync.updatedAt) || Date.now();
+                    // 同步数据也写一份到 local（容量大，且保证重启后可用）
+                    if (gnpStorageLocal) { try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: stSync }); } catch (_) {} }
+                } else if (gnpStorageLocal) {
+                    getFromArea(gnpStorageLocal, (stLocal) => {
+                        if (stLocal && stLocal.favorites) {
+                            gnpApplyingSharedState = true;
+                            try { gnpApplySharedState(stLocal); } finally { gnpApplyingSharedState = false; }
+                            gnpSharedUpdatedAt = Number(stLocal.updatedAt) || Date.now();
+                            // 回填 sync（若可用）
+                            try { gnpStorageSync.set({ [GNP_SHARED_STATE_KEY]: stLocal }); } catch (_) {}
+                        } else {
+                            // 没有共享数据：用当前站点 localStorage 里的数据“初始化”共享区
+                            gnpPersistSharedState();
+                        }
+                    });
+                } else {
+                    gnpPersistSharedState();
+                }
+
+                // UI 若已就绪，尽量刷新一次（函数声明可提前调用）
+                try { renderFavorites(); } catch (_) {}
+                try { refreshNav(true); } catch (_) {}
+            });
+        } else {
+            getFromArea(gnpStorageArea, (st) => {
+                if (st && st.favorites) {
+                    gnpApplyingSharedState = true;
+                    try { gnpApplySharedState(st); } finally { gnpApplyingSharedState = false; }
+                    gnpSharedUpdatedAt = Number(st.updatedAt) || Date.now();
+                    try { renderFavorites(); } catch (_) {}
+                    try { refreshNav(true); } catch (_) {}
+                } else {
+                    gnpPersistSharedState();
+                }
+            });
+        }
+    }
+
+    // 监听其他标签页/窗口（或 sync 同步）对共享收藏的修改，并实时刷新当前面板
+    try {
+        if (gnpChrome && gnpChrome.storage && gnpChrome.storage.onChanged) {
+            gnpChrome.storage.onChanged.addListener((changes, areaName) => {
+                if (!changes || !changes[GNP_SHARED_STATE_KEY]) return;
+                if (areaName !== 'sync' && areaName !== 'local') return;
+
+                const next = changes[GNP_SHARED_STATE_KEY].newValue;
+                if (!next) return;
+
+                const ts = Number(next.updatedAt) || 0;
+                if (ts && ts <= gnpSharedUpdatedAt) return;
+
+                gnpSharedUpdatedAt = ts || Date.now();
+                gnpApplyingSharedState = true;
+                try { gnpApplySharedState(next); } finally { gnpApplyingSharedState = false; }
+
+                try { renderFavorites(); } catch (_) {}
+                try { refreshNav(true); } catch (_) {}
+            });
+        }
+    } catch (_) {}
+
+    // 启动：异步拉取共享收藏
+    gnpBootstrapSharedState();
+
+
+
     const saveFavorites = () => {
-        const payload = favorites.map(f => ({ text: f.text, folder: f.folder }));
+        const payload = favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 }));
         localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(payload));
+        gnpPersistSharedState();
     };
 
     const getFavoriteIndex = (t) => favorites.findIndex(f => f.text === t);
     const hasFavorite = (t) => getFavoriteIndex(t) !== -1;
+
+    const formatRelativeTime = (ts) => {
+        const t = Number(ts) || 0;
+        if (!t) return '未使用';
+        const diff = Date.now() - t;
+        if (diff < 60_000) return '刚刚';
+        if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}分钟前`;
+        if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}小时前`;
+        if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}天前`;
+        const d = new Date(t);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    const recordFavoriteUse = (t) => {
+    const idx = getFavoriteIndex(t);
+    if (idx === -1) return;
+    const f = favorites[idx];
+    f.useCount = (Number(f.useCount) || 0) + 1;
+    f.lastUsed = Date.now();
+    saveFavorites();
+
+    // 若当前正在显示收藏面板，则就地更新该条的统计信息，避免整列表重渲染导致闪烁/滚动跳动
+    try {
+        if (panelFav && panelFav.classList.contains('active')) {
+            const esc = (CSS && CSS.escape)
+                    ? CSS.escape(String(t))
+                    : String(t).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            const row = panelFav.querySelector(`.gemini-nav-item[data-prompt="${esc}"]`);
+            const meta = row ? row.querySelector('.gnp-use-meta') : null;
+            if (meta) {
+                const uc = Number(f.useCount) || 0;
+                const luStr = formatRelativeTime(f.lastUsed);
+                meta.textContent = `${uc}次 · ${luStr}`;
+                meta.title = f.lastUsed ? `最近使用：${new Date(Number(f.lastUsed)).toLocaleString()}` : '从未使用';
+            } else if (row) {
+                renderFavorites();
+            }
+        }
+    } catch (_) {}
+};
+
+
+    const hashPrompt = (s) => {
+        const str = String(s || '');
+        let h = 5381;
+        for (let i = 0; i < str.length; i++) {
+            h = ((h << 5) + h) ^ str.charCodeAt(i);
+        }
+        return (h >>> 0).toString(36);
+    };
+
+    const saveUsageStats = () => {
+        try { localStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(usageStats)); } catch (_) {}
+        gnpPersistSharedState();
+    };
+
+    const getPromptLastUsed = (t) => {
+        const text = String(t || '').trim();
+        if (!text) return 0;
+        const fIdx = getFavoriteIndex(text);
+        if (fIdx !== -1) return Number(favorites[fIdx].lastUsed) || 0;
+        const k = hashPrompt(text);
+        return Number(usageStats[k]) || 0;
+    };
+
+    const formatRelativeTimeNav = (ts) => {
+        const s = formatRelativeTime(ts);
+        return (s === '未使用') ? '未用' : s;
+    };
+
+    const recordPromptUse = (t) => {
+        const text = String(t || '').trim();
+        if (!text) return;
+
+        const now = Date.now();
+
+        // 若是收藏项，继续维护“使用次数/最近使用”统计
+        try { recordFavoriteUse(text); } catch (_) {}
+
+        // 全量使用记录（用于导航面板展示）
+        try {
+            const k = hashPrompt(text);
+            usageStats[k] = now;
+
+            // 简单裁剪，避免 localStorage 过大
+            const keys = Object.keys(usageStats);
+            if (keys.length > 2000) {
+                const entries = keys.map(k2 => [k2, Number(usageStats[k2]) || 0]).sort((a,b)=>b[1]-a[1]);
+                usageStats = Object.fromEntries(entries.slice(0, 2000));
+            }
+            saveUsageStats();
+        } catch (_) {}
+
+        // 就地刷新“目录”面板的使用时间徽标（若存在）
+        try {
+            if (panelNav && panelNav.classList.contains('active')) {
+                const row = panelNav.querySelector(`.gemini-nav-item[data-prompt="${gnpCssEscape(text)}"]`);
+                const meta = row ? row.querySelector('.gnp-nav-use-time') : null;
+                if (meta) {
+                    meta.textContent = formatRelativeTimeNav(now);
+                    meta.title = `最近使用：${new Date(now).toLocaleString()}`;
+                }
+            }
+        } catch (_) {}
+    };
+
+
 
     const addFavorite = (t, folder = '默认') => {
         const text = String(t || '').trim();
@@ -1304,7 +1735,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
         if (!text) return false;
         if (hasFavorite(text)) return false;
         if (!folders.includes(f)) { folders.push(f); saveFolders(); }
-        favorites.unshift({ text, folder: f }); // 新收藏置顶：保持原行为
+        favorites.unshift({ text, folder: f, useCount: 0, lastUsed: 0 }); // 新收藏置顶：保持原行为
         return true;
     };
 
@@ -1616,6 +2047,9 @@ clearBtn.onclick = (e) => {
                 }
             }, 100);
         }
+        // 记录使用（仅当该条已在收藏中）
+        recordPromptUse(text);
+
     }
 
     // --- 批量操作逻辑 ---
@@ -2053,6 +2487,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         if (effectiveFilter !== favFolderFilter) {
             favFolderFilter = effectiveFilter;
             localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
+            gnpPersistSharedState();
         }
 
         const filteredFavorites = (favFolderFilter === '全部')
@@ -2110,6 +2545,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             isSelectInteracting = false;
             favFolderFilter = folderSelect.value;
             localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
+            gnpPersistSharedState();
             selectedItems.clear();
             updateBatchBar();
             renderFavorites();
@@ -2135,6 +2571,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                     const f = ensureFolderExists(name);
                     favFolderFilter = f;
                     localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
+                    gnpPersistSharedState();
                     renderFavorites();
                 }
             });
@@ -2174,6 +2611,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
 
                     favFolderFilter = finalName;
                     localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
+                    gnpPersistSharedState();
                     renderFavorites();
                 }
             });
@@ -2204,6 +2642,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                     saveFavorites();
                     favFolderFilter = '全部';
                     localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
+                    gnpPersistSharedState();
                     selectedItems.clear();
                     updateBatchBar();
                     renderFavorites();
@@ -2341,8 +2780,16 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                 const f = ensureFolderExists(newFolder);
                 favObj.folder = f;
                 saveFavorites();
-                renderFavorites();
-            };
+                            };
+
+            const useMeta = document.createElement('span');
+            useMeta.className = 'gnp-use-meta';
+            const uc = Number(favObj.useCount) || 0;
+            const luStr = formatRelativeTime(favObj.lastUsed);
+            useMeta.textContent = `${uc}次 · ${luStr}`;
+            useMeta.title = favObj.lastUsed ? `最近使用：${new Date(Number(favObj.lastUsed)).toLocaleString()}` : '从未使用';
+            useMeta.addEventListener('mousedown', (e) => e.stopPropagation());
+            useMeta.addEventListener('click', (e) => e.stopPropagation());
 
             const toolbar = document.createElement('div');
             toolbar.className = 'bottom-toolbar';
@@ -2361,6 +2808,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             copyBtn.onclick = (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(favText);
+                recordPromptUse(favText);
                 copyBtn.innerHTML = SVGS.check;
                 setTimeout(() => copyBtn.innerHTML = SVGS.copy, 1000);
             };
@@ -2427,7 +2875,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             };
 
             toolbar.append(useBtn, copyBtn, editBtn, pinBtn, delBtn);
-            item.append(folderBadge, txt, toolbar);
+            item.append(folderBadge, useMeta, txt, toolbar);
             panelFav.append(item);
         });
 
@@ -2520,7 +2968,9 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             if (originalIndex === currentActiveIndex) item.classList.add('active-current');
             if (isFav) item.classList.add('is-favorite');
 
-            const txt = document.createElement('span');
+            const lastUsed = getPromptLastUsed(content);
+
+            const txt = document.createElement('div');
             txt.className = `item-text ${densityClass}`;
             txt.innerHTML = `<span class="item-index">${i + 1}.</span> ${content}`;
 
@@ -2561,6 +3011,13 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             toolbar.className = 'bottom-toolbar';
             toolbar.addEventListener('mousedown', (e) => e.stopPropagation()); 
 
+            const useTime = document.createElement('span');
+            useTime.className = 'gnp-nav-use-time';
+            useTime.textContent = formatRelativeTimeNav(lastUsed);
+            useTime.title = lastUsed ? `最近使用：${new Date(Number(lastUsed)).toLocaleString()}` : '从未使用';
+            useTime.addEventListener('mousedown', (e) => e.stopPropagation());
+            useTime.addEventListener('click', (e) => e.stopPropagation());
+
             const useBtn = document.createElement('span');
             useBtn.className = `mini-btn use-btn ${isAutoSendEnabled ? 'autosend-mode' : ''}`;
             useBtn.textContent = '⚡';
@@ -2574,6 +3031,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             copyBtn.onclick = (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(content);
+                recordPromptUse(content);
                 copyBtn.innerHTML = SVGS.check;
                 setTimeout(() => copyBtn.innerHTML = SVGS.copy, 1000);
             };
@@ -2601,7 +3059,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                 }
             };
             
-            toolbar.append(useBtn, copyBtn, starBtn);
+            toolbar.append(useTime, useBtn, copyBtn, starBtn);
             item.append(txt, toolbar); 
             panelNav.append(item);
         });
