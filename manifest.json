@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
   "name": "AI Chat Navigator",
-  "version": "1.0",
+  "version": "1.1",
   "description": "为Gemini/ChatGPT等AI对话添加带有搜索和收藏功能的高级导航面板",
-  "permissions": ["storage"],
+  "permissions": [
+    "tabs",
+    "storage"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -11,8 +14,23 @@
         "https://chatgpt.com/*",
         "https://chat.openai.com/*"
       ],
-      "js": ["content.js"],
-      "css": ["styles.css"]
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
     }
-  ]
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "toggle-gnp-sidebar": {
+      "suggested_key": {
+        "default": "F1"
+      },
+      "description": "Toggle AI Chat Navigator sidebar"
+    }
+  }
 }
