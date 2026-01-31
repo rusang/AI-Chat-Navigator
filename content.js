@@ -57,18 +57,16 @@
             ]
         },
         claude: {
-            // Claude 页面结构变动频繁：优先用 data-testid（更稳定），再回退到 class
-            // 参考：多款 Claude 脚本/扩展均使用 data-testid="user-message"、"user-human-turn"、"send-button" 等锚点。
+            // Claude DOM 变动频繁：优先使用 data-testid，其次回退到旧 class 结构
             promptSelector: [
-                '[data-testid="user-human-turn"]',
                 'div[data-testid="user-message"]',
-                '[data-testid="user-message"]',
-                'div.font-user-message',
+                '[data-testid="user-human-turn"]',
                 'div[data-is-streaming="false"] div.font-user-message',
+                'div.font-user-message',
                 'div[data-test-render-count] div.font-user-message'
             ],
             inputSelector: [
-                'div[contenteditable="true"].ProseMirror',
+                'div.ProseMirror[contenteditable="true"]',
                 'div[contenteditable="true"][role="textbox"]',
                 'fieldset div[contenteditable="true"]',
                 'div[contenteditable="true"]',
@@ -77,14 +75,12 @@
             sendBtnSelector: [
                 'button[data-testid="send-button"]',
                 'button[aria-label*="Send message" i]',
-                'button[aria-label*="Send Message" i]',
-                'button[aria-label="Send" i]',
+                'button[aria-label*="Send" i]',
                 'button[aria-label*="发送" i]',
-                'fieldset button[type="button"]',
-                'button[type="submit"]'
+                'button[type="submit"]',
+                'fieldset button[type="button"]'
             ]
-        }
-    };
+        }};
     
     const CURRENT_CONFIG = IS_CLAUDE ? SITE_CONFIG.claude : (IS_CHATGPT ? SITE_CONFIG.chatgpt : SITE_CONFIG.gemini);
 
@@ -191,8 +187,8 @@
     --gnp-mini-active-bg: rgba(37, 99, 235, 0.14);
     --gnp-mini-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
 
-    --gnp-tab-active-bg: rgba(37, 99, 235, 0.14);
-    --gnp-tab-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
+    --gnp-tab-active-bg: rgba(239, 68, 68, 0.22);
+    --gnp-tab-active-shadow: 0 10px 24px rgba(239, 68, 68, 0.18), 0 0 0 1px rgba(239, 68, 68, 0.24);
     --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
 
     --gnp-tab-icon: rgba(15, 23, 42, 0.55);
@@ -255,9 +251,9 @@
         --gnp-mini-active-bg: rgba(96, 165, 250, 0.18);
         --gnp-mini-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
 
-        --gnp-tab-active-bg: rgba(96, 165, 250, 0.18);
-        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
-        --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
+        --gnp-tab-active-bg: rgba(239, 68, 68, 0.30);
+    --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(239, 68, 68, 0.26);
+    --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
 
         --gnp-tab-icon: rgba(248, 250, 252, 0.62);
         --gnp-tab-icon-active: rgba(248, 250, 252, 0.96);
@@ -947,13 +943,15 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
 }
 `;
 
-    injectStyles(styles);
+    const IS_EXTENSION = (typeof chrome !== "undefined" && chrome && chrome.runtime && chrome.runtime.id);
+    if (!IS_EXTENSION) injectStyles(styles);
 
     const SVGS = {
         clear: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
         close: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
         edit: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
         copy: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+        plus: `<svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"/></svg>`,
         pin: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`,
         folderPlus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="12" y1="12" x2="12" y2="18"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>`,
         folderX: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="10" y1="13" x2="14" y2="17"></line><line x1="14" y1="13" x2="10" y2="17"></line></svg>`,
@@ -1726,7 +1724,8 @@ window.addEventListener('resize', repositionHoverPreview, true);
     // - chrome.storage 属于扩展级存储：同一 Chrome Profile 下所有标签页/窗口/不同站点都共享；
     //   若使用 storage.sync，则在同账号的不同 Chrome/设备间也可同步（受配额限制，超限自动降级 local）。
     const GNP_SHARED_STATE_KEY = 'ai-chat-navigator-shared-state-v1';
-    const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
+    const GNP_LOCAL_JSON_FILE_KEY = 'ai-chat-navigator-favorites-json-file-v1';
+const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
     const gnpStorageSync = gnpChrome && gnpChrome.storage && gnpChrome.storage.sync;
     const gnpStorageLocal = gnpChrome && gnpChrome.storage && gnpChrome.storage.local;
 
@@ -1734,6 +1733,47 @@ window.addEventListener('resize', repositionHoverPreview, true);
     let gnpStorageArea = gnpStorageSync || gnpStorageLocal || null;
     let gnpSharedUpdatedAt = 0;
     let gnpApplyingSharedState = false;
+    // === Local JSON "file" backup (stored on disk via chrome.storage.local) ===
+    // 说明：
+    // - Chrome 扩展出于安全限制，无法在无用户交互的情况下读写任意本地文件。
+    // - 这里采用 chrome.storage.local 保存一份「JSON 字符串备份」（等价于落盘的本地 JSON 文件），
+    //   用于：扩展重启/更新后自动恢复收藏，避免丢失。
+    let gnpLocalJsonWriteTimer = null;
+
+    function gnpPersistLocalJsonFile(stateObj) {
+        if (!gnpStorageLocal || gnpApplyingSharedState) return;
+        try {
+            const jsonStr = (typeof stateObj === 'string') ? stateObj : JSON.stringify(stateObj);
+            clearTimeout(gnpLocalJsonWriteTimer);
+            gnpLocalJsonWriteTimer = setTimeout(() => {
+                try { gnpStorageLocal.set({ [GNP_LOCAL_JSON_FILE_KEY]: jsonStr }); } catch (_) {}
+            }, 200);
+        } catch (_) {}
+    }
+
+    function gnpBootstrapLocalJsonFile(done) {
+        if (!gnpStorageLocal) { try { done && done(); } catch (_) {} return; }
+        try {
+            gnpStorageLocal.get([GNP_LOCAL_JSON_FILE_KEY], (res) => {
+                try {
+                    const raw = res && res[GNP_LOCAL_JSON_FILE_KEY];
+                    if (raw && typeof raw === 'string') {
+                        const st = JSON.parse(raw);
+                        const ts = Number(st && st.updatedAt) || 0;
+                        if (st && st.favorites && (!ts || ts >= gnpSharedUpdatedAt)) {
+                            gnpApplyingSharedState = true;
+                            try { gnpApplySharedState(st); } finally { gnpApplyingSharedState = false; }
+                            gnpSharedUpdatedAt = ts || Date.now();
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[GNP] local json backup parse failed:', e);
+                }
+                try { done && done(); } catch (_) {}
+            });
+        } catch (_) { try { done && done(); } catch (_) {} }
+    }
+
 
     function gnpBuildSharedState() {
         return {
@@ -1794,6 +1834,9 @@ window.addEventListener('resize', repositionHoverPreview, true);
         const state = gnpBuildSharedState();
         gnpSharedUpdatedAt = state.updatedAt;
 
+
+        // 额外写入一份本地 JSON 字符串备份（用于重启/更新自动恢复）
+        gnpPersistLocalJsonFile(state);
         try {
             gnpStorageArea.set({ [GNP_SHARED_STATE_KEY]: state }, () => {
                 // 额外写入 local 作为持久化/大容量备份（即便主要使用 sync）
@@ -1823,19 +1866,35 @@ window.addEventListener('resize', repositionHoverPreview, true);
         if (gnpStorageSync) {
             getFromArea(gnpStorageSync, (stSync) => {
                 if (stSync && stSync.favorites) {
-                    gnpApplyingSharedState = true;
-                    try { gnpApplySharedState(stSync); } finally { gnpApplyingSharedState = false; }
-                    gnpSharedUpdatedAt = Number(stSync.updatedAt) || Date.now();
-                    // 同步数据也写一份到 local（容量大，且保证重启后可用）
-                    if (gnpStorageLocal) { try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: stSync }); } catch (_) {} }
+                    const ts = Number(stSync.updatedAt) || 0;
+                    // 若本地已有更新的数据（例如刚从本地 JSON 备份恢复），避免被较旧的 sync 覆盖
+                    if (ts && ts <= gnpSharedUpdatedAt) {
+                        if (gnpStorageLocal) { try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: stSync }); } catch (_) {} }
+                        gnpPersistLocalJsonFile(stSync);
+                    } else {
+                        gnpApplyingSharedState = true;
+                        try { gnpApplySharedState(stSync); } finally { gnpApplyingSharedState = false; }
+                        gnpSharedUpdatedAt = ts || Date.now();
+                        // 同步数据也写一份到 local（容量大，且保证重启后可用）
+                        if (gnpStorageLocal) { try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: stSync }); } catch (_) {} }
+                        gnpPersistLocalJsonFile(stSync);
+                    }
                 } else if (gnpStorageLocal) {
                     getFromArea(gnpStorageLocal, (stLocal) => {
                         if (stLocal && stLocal.favorites) {
-                            gnpApplyingSharedState = true;
-                            try { gnpApplySharedState(stLocal); } finally { gnpApplyingSharedState = false; }
-                            gnpSharedUpdatedAt = Number(stLocal.updatedAt) || Date.now();
-                            // 回填 sync（若可用）
-                            try { gnpStorageSync.set({ [GNP_SHARED_STATE_KEY]: stLocal }); } catch (_) {}
+                            const ts = Number(stLocal.updatedAt) || 0;
+                            if (ts && ts <= gnpSharedUpdatedAt) {
+                                // 本地已有更新数据：只做回填即可
+                                try { gnpStorageSync.set({ [GNP_SHARED_STATE_KEY]: stLocal }); } catch (_) {}
+                                gnpPersistLocalJsonFile(stLocal);
+                            } else {
+                                gnpApplyingSharedState = true;
+                                try { gnpApplySharedState(stLocal); } finally { gnpApplyingSharedState = false; }
+                                gnpSharedUpdatedAt = ts || Date.now();
+                                // 回填 sync（若可用）
+                                try { gnpStorageSync.set({ [GNP_SHARED_STATE_KEY]: stLocal }); } catch (_) {}
+                                gnpPersistLocalJsonFile(stLocal);
+                            }
                         } else {
                             // 没有共享数据：用当前站点 localStorage 里的数据“初始化”共享区
                             gnpPersistSharedState();
@@ -1852,9 +1911,13 @@ window.addEventListener('resize', repositionHoverPreview, true);
         } else {
             getFromArea(gnpStorageArea, (st) => {
                 if (st && st.favorites) {
-                    gnpApplyingSharedState = true;
-                    try { gnpApplySharedState(st); } finally { gnpApplyingSharedState = false; }
-                    gnpSharedUpdatedAt = Number(st.updatedAt) || Date.now();
+                    const ts = Number(st.updatedAt) || 0;
+                    if (!ts || ts > gnpSharedUpdatedAt) {
+                        gnpApplyingSharedState = true;
+                        try { gnpApplySharedState(st); } finally { gnpApplyingSharedState = false; }
+                        gnpSharedUpdatedAt = ts || Date.now();
+                    }
+                    gnpPersistLocalJsonFile(st);
                     try { renderFavorites(); } catch (_) {}
                     try { refreshNav(true); } catch (_) {}
                 } else {
@@ -1887,12 +1950,11 @@ window.addEventListener('resize', repositionHoverPreview, true);
         }
     } catch (_) {}
 
-    // 启动：异步拉取共享收藏
-    gnpBootstrapSharedState();
-
-
-
-    const saveFavorites = () => {
+    // 启动：先从本地 JSON 备份恢复，再拉取共享收藏
+    gnpBootstrapLocalJsonFile(() => {
+        gnpBootstrapSharedState();
+    });
+const saveFavorites = () => {
         const payload = favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 }));
         localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(payload));
         gnpPersistSharedState();
@@ -2474,6 +2536,111 @@ function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText
 
             // 自动聚焦
             setTimeout(() => { try { input.focus(); input.select(); } catch (e) {} }, 0);
+
+function showAddFavoritePromptInSidebar(defaultFolder) {
+    try {
+        // 清理已有遮罩
+        const existed = sidebar && sidebar.querySelector('.gnp-confirm-overlay');
+        if (existed) existed.remove();
+
+        // 打开输入弹层时：保持侧边栏展开，且暂停自动隐藏
+        keepSidebarExpanded();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'gnp-confirm-overlay';
+
+        const closeOverlay = () => {
+            overlay.remove();
+            if (isAutoHideEnabled && sidebar && !sidebar.matches(':hover')) scheduleAutoHide();
+        };
+
+        const box = document.createElement('div');
+        box.className = 'gnp-confirm-box gnp-add-prompt';
+
+        const title = document.createElement('div');
+        title.className = 'gnp-confirm-title';
+        title.textContent = '手动添加 Prompt';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'gnp-global-textarea';
+        textarea.placeholder = '在此粘贴/输入 Prompt（支持多行）...';
+        textarea.rows = 6;
+
+        const folderRow = document.createElement('div');
+        folderRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:10px;';
+        const folderLabel = document.createElement('div');
+        folderLabel.style.cssText = 'font-size:12px; color: var(--gnp-text-sub); flex:0 0 auto;';
+        folderLabel.textContent = '文件夹';
+        const folderSel = document.createElement('select');
+        folderSel.className = 'gnp-folder-select';
+        folderSel.style.minWidth = '140px';
+
+        const folders = Array.from(new Set(favorites.map(f => f.folder || '默认')));
+        if (!folders.includes('默认')) folders.unshift('默认');
+        folders.forEach(fn => {
+            const opt = document.createElement('option');
+            opt.value = fn;
+            opt.textContent = fn;
+            folderSel.append(opt);
+        });
+
+        const def = (defaultFolder && defaultFolder !== '全部') ? defaultFolder : '默认';
+        folderSel.value = folders.includes(def) ? def : '默认';
+        folderRow.append(folderLabel, folderSel);
+
+        const err = document.createElement('div');
+        err.className = 'gnp-prompt-error';
+        err.style.cssText = 'margin-top:8px;color:#d33;font-size:12px;display:none;';
+        const showErr = (msg) => { err.textContent = msg; err.style.display = 'block'; };
+
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex; gap:8px; margin-top:12px; justify-content:flex-end;';
+
+        const btnCancel = document.createElement('button');
+        btnCancel.className = 'gnp-btn-cancel';
+        btnCancel.textContent = '取消';
+        btnCancel.onclick = closeOverlay;
+
+        const btnAdd = document.createElement('button');
+        btnAdd.className = 'gnp-btn-confirm';
+        btnAdd.textContent = '添加';
+
+        const doAdd = () => {
+            const text = (textarea.value || '').trim();
+            if (!text) return showErr('请输入 Prompt 内容');
+            if (hasFavorite(text)) return showErr('该 Prompt 已在收藏中');
+
+            const folder = (folderSel.value || '默认').trim() || '默认';
+            favorites.unshift({ text, folder, useCount: 0, lastUsed: 0 });
+            saveFavorites();
+
+            keyboardSelectedPrompt = text;
+            renderFavorites();
+            showSidebarToast('已添加到收藏');
+            closeOverlay();
+        };
+        btnAdd.onclick = doAdd;
+
+        textarea.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape') { ev.preventDefault(); closeOverlay(); }
+        });
+
+        overlay.addEventListener('mousedown', (ev) => { ev.stopPropagation(); });
+        overlay.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            if (ev.target === overlay) closeOverlay();
+        });
+
+        btnRow.append(btnCancel, btnAdd);
+        box.append(title, textarea, folderRow, err, btnRow);
+        overlay.append(box);
+        sidebar.appendChild(overlay);
+
+        setTimeout(() => { try { textarea.focus(); } catch (e) {} }, 0);
+    } catch (e) { console.error('[GNP] showAddFavoritePromptInSidebar failed:', e); }
+}
+
+
 }
 
 
@@ -2973,7 +3140,18 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             sidebar.appendChild(overlay);
         };
 
-        rightBox.append(newFolderBtn, renameFolderBtn, deleteFolderBtn, clearAllBtn);
+        
+        const addPromptBtn = document.createElement('button');
+        addPromptBtn.className = 'header-circle-btn gnp-add-prompt-btn';
+        addPromptBtn.title = '手动添加 Prompt';
+        addPromptBtn.innerHTML = SVGS.plus || SVGS.folderPlus;
+        addPromptBtn.onclick = (e) => {
+            e.stopPropagation();
+            showAddFavoritePromptInSidebar(favFolderFilter);
+        };
+        addPromptBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+
+rightBox.append(addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, clearAllBtn);
         favHeader.append(leftBox, rightBox);
         panelFav.append(favHeader);
 
@@ -3162,6 +3340,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         });
 
         if (searchInput.value) searchInput.dispatchEvent(new Event('input'));
+        restoreKeyboardSelection(panelFav);
     }
 
     let lastCount = -1;
@@ -3347,7 +3526,8 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         });
         
         if (searchInput.value) searchInput.dispatchEvent(new Event('input'));
-    }
+        restoreKeyboardSelection(panelNav);
+}
 
     function applyMagneticSnapping() {
         const threshold = 60;
@@ -3709,22 +3889,40 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
     // ===== Keyboard Navigation System (v8.0新增) =====
     let keyboardSelectedIndex = -1;
     let currentVisibleItems = [];
+    let keyboardSelectedPrompt = '';
 
     function updateKeyboardSelection() {
         try {
             currentVisibleItems.forEach(item => {
                 item.classList.remove('keyboard-selected');
             });
-            
+
             if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
                 const selectedItem = currentVisibleItems[keyboardSelectedIndex];
                 selectedItem.classList.add('keyboard-selected');
+                // 记录选中项，用于在收藏/导航重渲染后恢复高亮
+                keyboardSelectedPrompt = selectedItem.dataset && selectedItem.dataset.prompt ? selectedItem.dataset.prompt : (keyboardSelectedPrompt || '');
                 selectedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }
         } catch (_) {}
     }
     
-    function handleKeyboardNavigation(e) {
+    
+    function restoreKeyboardSelection(panelEl) {
+        try {
+            if (!panelEl || !keyboardSelectedPrompt) return;
+
+            const items = Array.from(panelEl.querySelectorAll('.gemini-nav-item')).filter(item => item.offsetParent !== null);
+            const idx = items.findIndex(it => (it.dataset && it.dataset.prompt) === keyboardSelectedPrompt);
+            if (idx < 0) return;
+
+            keyboardSelectedIndex = idx;
+            currentVisibleItems = items;
+            updateKeyboardSelection();
+        } catch (_) {}
+    }
+
+function handleKeyboardNavigation(e) {
         try {
             if (!sidebar || !e) return;
             
@@ -3853,18 +4051,23 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         } catch (_) {}
     }
     
-    // 监听全局键盘事件
-    document.addEventListener('keydown', handleKeyboardNavigation, true);
-    
-    // 搜索框输入时重置键盘选中
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            keyboardSelectedIndex = -1;
-            updateKeyboardSelection();
-        });
-    }
+    // 监听全局键盘事件（防止重复绑定）
+    if (!window.__GNP_KEYBOARD_NAV_BOUND) {
+        window.__GNP_KEYBOARD_NAV_BOUND = true;
 
-    // ===== Theme Button Event Handler =====
+        document.addEventListener('keydown', handleKeyboardNavigation, true);
+
+        // 搜索框真实输入时重置键盘选中（程序触发 input 用于重建高亮/过滤，不应清空选中态）
+        if (searchInput) {
+            searchInput.addEventListener('input', (ev) => {
+                if (ev && ev.isTrusted === false) return;
+                keyboardSelectedIndex = -1;
+                keyboardSelectedPrompt = '';
+                updateKeyboardSelection();
+            });
+        }
+    }
+// ===== Theme Button Event Handler =====
     // NOTE: sidebar DOM is appended after 1500ms (see createSidebar), so bind after that.
     setTimeout(() => {
         const themeBtnElement = document.getElementById('gemini-nav-theme');
@@ -3990,164 +4193,6 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                 });
             }
         } catch (_) {}
-    }
-
-    // ===== Keyboard Navigation System (v8.0新增) =====
-    keyboardSelectedIndex = -1;
-    currentVisibleItems = [];
-
-    function updateKeyboardSelection() {
-        try {
-            currentVisibleItems.forEach(item => {
-                item.classList.remove('keyboard-selected');
-            });
-            
-            if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
-                const selectedItem = currentVisibleItems[keyboardSelectedIndex];
-                selectedItem.classList.add('keyboard-selected');
-                selectedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            }
-        } catch (_) {}
-    }
-    
-    function handleKeyboardNavigation(e) {
-        try {
-            if (!sidebar || !e) return;
-            
-            const activePanel = sidebar.querySelector('.content-panel.active');
-            if (!activePanel) return;
-            
-            const isSearchFocused = document.activeElement === searchInput;
-            
-            // Esc - 关闭弹窗/清除搜索/失去焦点
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (isSearchFocused && searchInput && searchInput.value) {
-                    searchInput.value = '';
-                    searchInput.dispatchEvent(new Event('input'));
-                    keyboardSelectedIndex = -1;
-                    updateKeyboardSelection();
-                } else if (isSearchFocused && searchInput) {
-                    searchInput.blur();
-                    keyboardSelectedIndex = -1;
-                    updateKeyboardSelection();
-                } else if (!sidebar.classList.contains('collapsed')) {
-                    sidebar.classList.add('collapsed');
-                    try { gnpOpenedByShortcut = false; } catch (_) {}
-                }
-                return;
-            }
-            
-            // Ctrl/Cmd + K - 聚焦搜索
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                e.stopPropagation();
-                if (searchInput) {
-                    searchInput.focus();
-                    searchInput.select();
-                }
-                keyboardSelectedIndex = -1;
-                updateKeyboardSelection();
-                return;
-            }
-            
-            if (!isSearchFocused && sidebar.classList.contains('collapsed')) {
-                return;
-            }
-            
-            // 上下键导航
-            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                currentVisibleItems = Array.from(activePanel.querySelectorAll('.gemini-nav-item')).filter(item => {
-                    return item.offsetParent !== null;
-                });
-                
-                if (currentVisibleItems.length === 0) return;
-                
-                if (e.key === 'ArrowDown') {
-                    keyboardSelectedIndex = Math.min(keyboardSelectedIndex + 1, currentVisibleItems.length - 1);
-                } else {
-                    keyboardSelectedIndex = Math.max(keyboardSelectedIndex - 1, 0);
-                }
-                
-                updateKeyboardSelection();
-                
-                if (isSearchFocused && searchInput) {
-                    searchInput.focus();
-                }
-                return;
-            }
-            
-            // Enter - 填入选中项
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
-                    const selectedItem = currentVisibleItems[keyboardSelectedIndex];
-                    const textEl = selectedItem.querySelector('.item-text');
-                    const text = textEl ? textEl.textContent : '';
-                    
-                    if (text) {
-                        const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
-                        if (inputEl) {
-                            setPromptValue(inputEl, text);
-                            keyboardSelectedIndex = -1;
-                            updateKeyboardSelection();
-                            if (searchInput) searchInput.blur();
-                            setTimeout(() => {
-                                inputEl.focus();
-                            }, 100);
-                        }
-                    }
-                }
-                return;
-            }
-            
-            // Shift + Enter - 直接发送
-            if (e.key === 'Enter' && e.shiftKey) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
-                    const selectedItem = currentVisibleItems[keyboardSelectedIndex];
-                    const textEl = selectedItem.querySelector('.item-text');
-                    const text = textEl ? textEl.textContent : '';
-                    
-                    if (text) {
-                        const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
-                        const sendBtn = qsAny(CURRENT_CONFIG.sendBtnSelector);
-                        
-                        if (inputEl && sendBtn) {
-                            setPromptValue(inputEl, text);
-                            
-                            setTimeout(() => {
-                                sendBtn.click();
-                                keyboardSelectedIndex = -1;
-                                updateKeyboardSelection();
-                                if (searchInput) searchInput.blur();
-                            }, 100);
-                        }
-                    }
-                }
-                return;
-            }
-        } catch (_) {}
-    }
-    
-    // 监听全局键盘事件
-    document.addEventListener('keydown', handleKeyboardNavigation, true);
-    
-    // 搜索框输入时重置键盘选中
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            keyboardSelectedIndex = -1;
-            updateKeyboardSelection();
-        });
     }
 
     // ===== Theme Button Event Handler =====

@@ -1,4 +1,4 @@
-
+/* Injected via MV3 content_scripts.css to bypass CSP (e.g., claude.ai) */
 :root {
     /* 浅色模式 */
     --gnp-bg: rgba(255, 255, 255, 0.88);
@@ -18,8 +18,9 @@
     --gnp-mini-active-bg: rgba(37, 99, 235, 0.14);
     --gnp-mini-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
 
-    --gnp-tab-active-bg: rgba(37, 99, 235, 0.14);
-    --gnp-tab-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
+    --gnp-tab-active-bg: rgba(239, 68, 68, 0.22);
+    --gnp-tab-active-fg: rgba(255, 255, 255, 0.95);
+    --gnp-tab-active-shadow: 0 10px 24px rgba(239, 68, 68, 0.18), 0 0 0 1px rgba(239, 68, 68, 0.24);
     --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
 
     --gnp-tab-icon: rgba(15, 23, 42, 0.55);
@@ -82,8 +83,9 @@
         --gnp-mini-active-bg: rgba(96, 165, 250, 0.18);
         --gnp-mini-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
 
-        --gnp-tab-active-bg: rgba(96, 165, 250, 0.18);
-        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
+        --gnp-tab-active-bg: rgba(239, 68, 68, 0.30);
+    --gnp-tab-active-fg: rgba(248, 250, 252, 0.95);
+        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(239, 68, 68, 0.26);
         --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
 
         --gnp-tab-icon: rgba(248, 250, 252, 0.62);
@@ -139,10 +141,7 @@
 }
 
 /* 键盘导航选中状态 (v8.0新增) */
-.gemini-nav-item.keyboard-selected {
-    background: var(--gnp-active-bg) !important;
-    box-shadow: inset 0 0 0 2px var(--gnp-active-border) !important;
-}
+.gemini-nav-item.keyboard-selected { background: var(--gnp-active-bg) !important; box-shadow: inset 0 0 0 2px var(--gnp-active-border) !important; border-left: 3px solid var(--gnp-active-border) !important; }
         --gnp-hover-preview-toolbar-bg: rgba(0, 0, 0, 0.22);
 
         --gnp-scroll-thumb: rgba(148, 163, 184, 0.28);
@@ -205,7 +204,7 @@
 
         #gemini-nav-sidebar.collapsed.snapped-left { width: 6px !important; border-radius: 0 6px 6px 0 !important; left: 0 !important; border-left: none; background: var(--gnp-scroll-thumb) !important; box-shadow: 0 0 0 1px var(--gnp-collapsed-border); }
         #gemini-nav-sidebar.collapsed.snapped-left:hover { background: color-mix(in srgb, var(--gnp-active-border) 80%, transparent) !important; width: 8px !important; }
-        
+
         .gemini-nav-item {
             position: relative; display: block;
             padding: 8px 12px;
@@ -220,11 +219,7 @@
         .gemini-nav-item:hover { background: var(--gnp-hover-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gnp-border) 60%, transparent); }
 
         /* 键盘导航选中态（↑/↓） */
-        .gemini-nav-item.keyboard-selected {
-            background: color-mix(in srgb, var(--gnp-active-bg) 85%, var(--gnp-hover-bg));
-            box-shadow: inset 0 0 0 2px var(--gnp-active-border);
-            border-left: 3px solid var(--gnp-active-border);
-        }
+        .gemini-nav-item.keyboard-selected { background: var(--gnp-active-bg) !important; box-shadow: inset 0 0 0 2px var(--gnp-active-border) !important; border-left: 3px solid var(--gnp-active-border) !important; }
         .gemini-nav-item.keyboard-selected .item-text { color: var(--gnp-active-text); }
         .gemini-nav-item.keyboard-selected .item-index { color: var(--gnp-active-border); }
 
@@ -236,7 +231,7 @@
             color: var(--gnp-active-text);
             font-weight: 500;
         }
-        
+
         /* 多选选中态 */
         .gemini-nav-item.multi-selected {
             background: var(--gnp-multi-select-bg) !important;
@@ -369,6 +364,27 @@
             flex: 0 0 auto;
         }
         .header-circle-btn:hover { transform: translateY(-1px); background: var(--gnp-btn-hover); color: var(--gnp-text-main); box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 8px 20px rgba(15,23,42,0.10); }
+
+        /* 收藏：手动添加 Prompt（更精致的主操作按钮） */
+        .header-circle-btn.gnp-add-prompt-btn {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+            min-height: 24px;
+            border-color: rgba(59, 130, 246, 0.55);
+            background: rgba(59, 130, 246, 0.10);
+            color: rgba(37, 99, 235, 0.95);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.70);
+        }
+        .header-circle-btn.gnp-add-prompt-btn:hover {
+            background: rgba(59, 130, 246, 0.16);
+            color: rgba(29, 78, 216, 1);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.80), 0 10px 22px rgba(59, 130, 246, 0.18);
+        }
+        .header-circle-btn.gnp-add-prompt-btn .icon-svg {
+            width: 12px;
+            height: 12px;
+        }
         #gemini-nav-lock.active { background: #34c759; color: #fff; box-shadow: 0 0 4px rgba(52, 199, 89, 0.4); }
         #gemini-nav-autosend.active { background: var(--gnp-autosend-color); color: #fff; box-shadow: 0 0 6px var(--gnp-autosend-color); }
         #gemini-nav-clear:hover { background: rgba(220, 38, 38, 0.14); color: var(--gnp-danger-text); }
@@ -392,13 +408,13 @@
             flex: 0 0 auto;
         }
         .nav-tab:hover { background: var(--gnp-tab-hover-bg); color: var(--gnp-tab-icon-active); }
-        .nav-tab.active { background: var(--gnp-tab-active-bg); color: var(--gnp-tab-icon-active); font-weight: 700; box-shadow: var(--gnp-tab-active-shadow); }
+        .nav-tab.active { background: var(--gnp-tab-active-bg); color: var(--gnp-tab-active-fg); font-weight: 700; box-shadow: var(--gnp-tab-active-shadow); }
 
-        .nav-tab.active:hover { background: var(--gnp-tab-active-bg); box-shadow: var(--gnp-tab-active-shadow); }
+        .nav-tab.active:hover { background: var(--gnp-tab-active-bg); color: var(--gnp-tab-active-fg); box-shadow: var(--gnp-tab-active-shadow); }
         .nav-tab .icon-svg { width: 11px; height: 11px; stroke-width: 2.5; stroke: currentColor !important; fill: none !important; }
         .nav-tab.active .icon-svg { stroke: currentColor !important; fill: none !important; }
         .header-circle-btn .icon-svg { width: 11px; height: 11px; }
-        
+
         #gemini-progress-container { width: 100%; height: 3px; background: rgba(0,0,0,0.05); border-radius: 2px; overflow: hidden; margin-top: 4px; }
         #gemini-progress-bar { height: 100%; width: 0%; background: var(--gnp-progress-bg); transition: width 0.3s; }
 
@@ -406,7 +422,7 @@
         #gemini-nav-content-wrapper::-webkit-scrollbar { width: 6px; } 
         #gemini-nav-content-wrapper::-webkit-scrollbar-thumb { background: var(--gnp-scroll-thumb); border-radius: 4px; transition: background 0.3s; }
         #gemini-nav-content-wrapper::-webkit-scrollbar-thumb:hover { background: var(--gnp-scroll-thumb-hover); }
-        
+
         .content-panel { display: none; }
         .content-panel.active { display: block; }
 
@@ -437,7 +453,9 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
         .gnp-confirm-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--gnp-modal-overlay); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .gnp-confirm-box { padding: 16px; background: var(--gnp-modal-bg); border: 1px solid var(--gnp-border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); max-width: 85%; text-align: center; }
-        .gnp-confirm-title { font-size: 15px; font-weight: 600; color: var(--gnp-text-main); margin-bottom: 4px; }
+
+.gnp-confirm-box.gnp-add-prompt { width: 420px; max-width: calc(100vw - 32px); }
+.gnp-confirm-title { font-size: 15px; font-weight: 600; color: var(--gnp-text-main); margin-bottom: 4px; }
         .gnp-confirm-desc { font-size: 12px; color: var(--gnp-text-sub); margin-bottom: 12px; }
         .gnp-btn-row { display: flex; gap: 8px; justify-content: center; }
         .gnp-btn-confirm { background: #d93025; color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -445,7 +463,7 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
         .gnp-btn-cancel { background: transparent; color: var(--gnp-text-main); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; border: 1px solid var(--gnp-border); }
         .gnp-btn-cancel:hover { background: var(--gnp-hover-bg); }
 
-        
+
         /* 全屏居中编辑弹窗（用于收藏编辑） */
         .gnp-global-overlay { position: fixed; inset: 0; background: var(--gnp-modal-overlay); z-index: 2147483647; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
         .gnp-global-box { width: min(760px, 86vw); max-height: 82vh; background: var(--gnp-modal-bg); border: 1px solid var(--gnp-border); border-radius: 14px; box-shadow: 0 22px 70px rgba(0,0,0,0.22); padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -469,7 +487,7 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
             z-index: 100000;
             pointer-events: none;
         }
-    
+
 
         /* 收藏：顶部操作图标按钮（避免文字层叠） */
         .gnp-danger-btn { color: var(--gnp-danger-text) !important; background: rgba(217,48,37,0.08) !important; }
@@ -513,7 +531,7 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
             #gemini-nav-tabs { background: rgba(148, 163, 184, 0.10); }
         }
 
-        
+
         /* 导航：使用时间徽标（顶部右侧，不占行） */
         .gnp-nav-use-meta{
             position: absolute;
