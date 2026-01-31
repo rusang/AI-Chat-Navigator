@@ -2481,7 +2481,13 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         // 清理已有弹层，避免叠加
         try {
             const existedGlobal = document.querySelector('.gnp-global-overlay');
-            if (existedGlobal) existedGlobal.remove();
+            if (existedGlobal) {
+                try {
+                    const cancel = existedGlobal.querySelector('.gnp-btn-cancel');
+                    if (cancel) cancel.click();
+                    else existedGlobal.remove();
+                } catch (_) { existedGlobal.remove(); }
+            }
         } catch (_) {}
         try {
             const existedSide = sidebar && sidebar.querySelector('.gnp-confirm-overlay');
@@ -2495,9 +2501,26 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         overlay.className = 'gnp-global-overlay';
 
         const closeOverlay = () => {
+
+            // Esc 关闭弹窗（全局捕获），关闭时移除监听
+            if (onDocKeyDown) { try { document.removeEventListener('keydown', onDocKeyDown, true); } catch (_) {} onDocKeyDown = null; }
             overlay.remove();
             if (isAutoHideEnabled && sidebar && !sidebar.matches(':hover')) scheduleAutoHide();
         };
+
+        // 允许在下拉框/按钮等任意位置按 Esc 关闭（捕获阶段，避免被页面吞掉）
+        let onDocKeyDown = (ev) => {
+            try {
+                if (!overlay || !overlay.isConnected) return;
+                if (ev && (ev.key === 'Escape' || ev.key === 'Esc')) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    closeOverlay();
+                }
+            } catch (_) {}
+        };
+        try { document.addEventListener('keydown', onDocKeyDown, true); } catch (_) {}
+
 
         const box = document.createElement('div');
         box.className = 'gnp-global-box';
@@ -2608,7 +2631,13 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
 function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText, onConfirm }) {
             // 移除已有全屏弹窗，避免叠加
             const existed = document.querySelector('.gnp-global-overlay');
-            if (existed) existed.remove();
+            if (existed) {
+                try {
+                    const cancel = existed.querySelector('.gnp-btn-cancel');
+                    if (cancel) cancel.click();
+                    else existed.remove();
+                } catch (_) { existed.remove(); }
+            }
 
             const overlay = document.createElement('div');
             overlay.className = 'gnp-global-overlay';
@@ -2645,7 +2674,13 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             btnConfirm.onmouseenter = () => { btnConfirm.style.background = '#0947a7'; };
             btnConfirm.onmouseleave = () => { btnConfirm.style.background = '#0b57d0'; };
 
-            const close = () => overlay.remove();
+            let onDocKeyDown = null;
+
+            const close = () => {
+                try { if (onDocKeyDown) document.removeEventListener('keydown', onDocKeyDown, true); } catch (_) {}
+                onDocKeyDown = null;
+                overlay.remove();
+            };
 
             const doConfirm = () => {
                 const val = (textarea.value || '').trim();
@@ -2660,6 +2695,20 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
 
             btnCancel.onclick = close;
             btnConfirm.onclick = doConfirm;
+
+            // 允许在任意位置按 Esc 关闭（捕获阶段，避免被页面吞掉）
+            onDocKeyDown = (ev) => {
+                try {
+                    if (!overlay || !overlay.isConnected) return;
+                    if (ev && (ev.key === 'Escape' || ev.key === 'Esc')) {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        close();
+                    }
+                } catch (_) {}
+            };
+            try { document.addEventListener('keydown', onDocKeyDown, true); } catch (_) {}
+
 
             // 键盘：Esc 取消；Cmd/Ctrl+Enter 保存
             textarea.addEventListener('keydown', (ev) => {
