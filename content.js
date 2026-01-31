@@ -2478,15 +2478,21 @@ function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText
 
 function showAddFavoritePromptInSidebar(defaultFolder) {
     try {
-        // 清理已有遮罩
-        const existed = sidebar && sidebar.querySelector('.gnp-confirm-overlay');
-        if (existed) existed.remove();
+        // 清理已有弹层，避免叠加
+        try {
+            const existedGlobal = document.querySelector('.gnp-global-overlay');
+            if (existedGlobal) existedGlobal.remove();
+        } catch (_) {}
+        try {
+            const existedSide = sidebar && sidebar.querySelector('.gnp-confirm-overlay');
+            if (existedSide) existedSide.remove();
+        } catch (_) {}
 
         // 打开输入弹层时：保持侧边栏展开，且暂停自动隐藏
         keepSidebarExpanded();
 
         const overlay = document.createElement('div');
-        overlay.className = 'gnp-confirm-overlay';
+        overlay.className = 'gnp-global-overlay';
 
         const closeOverlay = () => {
             overlay.remove();
@@ -2494,10 +2500,10 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         };
 
         const box = document.createElement('div');
-        box.className = 'gnp-confirm-box gnp-add-prompt';
+        box.className = 'gnp-global-box';
 
         const title = document.createElement('div');
-        title.className = 'gnp-confirm-title';
+        title.className = 'gnp-global-title';
         title.textContent = '手动添加 Prompt';
 
         const textarea = document.createElement('textarea');
@@ -2506,13 +2512,18 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         textarea.rows = 6;
 
         const folderRow = document.createElement('div');
-        folderRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:10px;';
+        folderRow.style.cssText = 'display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:space-between;';
+
+        const folderLeft = document.createElement('div');
+        folderLeft.style.cssText = 'display:flex; align-items:center; gap:8px;';
+
         const folderLabel = document.createElement('div');
-        folderLabel.style.cssText = 'font-size:12px; color: var(--gnp-text-sub); flex:0 0 auto;';
+        folderLabel.style.cssText = 'font-size:12px; color: var(--gnp-text-sub);';
         folderLabel.textContent = '文件夹';
+
         const folderSel = document.createElement('select');
         folderSel.className = 'gnp-folder-select';
-        folderSel.style.minWidth = '140px';
+        folderSel.style.minWidth = '160px';
 
         const folders = Array.from(new Set(favorites.map(f => f.folder || '默认')));
         if (!folders.includes('默认')) folders.unshift('默认');
@@ -2525,15 +2536,21 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
 
         const def = (defaultFolder && defaultFolder !== '全部') ? defaultFolder : '默认';
         folderSel.value = folders.includes(def) ? def : '默认';
-        folderRow.append(folderLabel, folderSel);
+
+        folderLeft.append(folderLabel, folderSel);
+        folderRow.append(folderLeft);
 
         const err = document.createElement('div');
-        err.className = 'gnp-prompt-error';
-        err.style.cssText = 'margin-top:8px;color:#d33;font-size:12px;display:none;';
-        const showErr = (msg) => { err.textContent = msg; err.style.display = 'block'; };
+        err.className = 'gnp-global-error';
+        err.textContent = '请输入有效内容';
+
+        const showErr = (msg) => {
+            err.textContent = msg || '请输入有效内容';
+            err.style.display = 'block';
+        };
 
         const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex; gap:8px; margin-top:12px; justify-content:flex-end;';
+        btnRow.className = 'gnp-global-btnrow';
 
         const btnCancel = document.createElement('button');
         btnCancel.className = 'gnp-btn-cancel';
@@ -2560,10 +2577,13 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         };
         btnAdd.onclick = doAdd;
 
+        // 键盘交互：Esc 取消；Cmd/Ctrl + Enter 快速添加
         textarea.addEventListener('keydown', (ev) => {
             if (ev.key === 'Escape') { ev.preventDefault(); closeOverlay(); }
+            if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); doAdd(); }
         });
 
+        // 遮罩交互：点击空白处关闭
         overlay.addEventListener('mousedown', (ev) => { ev.stopPropagation(); });
         overlay.addEventListener('click', (ev) => {
             ev.stopPropagation();
@@ -2573,9 +2593,11 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         btnRow.append(btnCancel, btnAdd);
         box.append(title, textarea, folderRow, err, btnRow);
         overlay.append(box);
-        sidebar.appendChild(overlay);
 
-        setTimeout(() => { try { textarea.focus(); } catch (e) {} }, 0);
+        // 挂载到页面，居中显示（不在侧边栏内部）
+        document.body.appendChild(overlay);
+
+        setTimeout(() => { try { textarea.focus(); } catch (_) {} }, 0);
     }
     catch (err) {
         try { console.error('[GNP] showAddFavoritePromptInSidebar error:', err); } catch (_) {}
@@ -3403,23 +3425,31 @@ rightBox.append(addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, cl
                     updateBatchBar();
                     return;
                 }
+                e.stopPropagation();
                 if (selectedItems.size > 0) { clearMultiSelection(); }
+                // 单击：仅同步键盘选中（与↑↓一致，不自动定位/填入）
                 syncKeyboardSelectionToClickedItem(item);
-                // 原有点击逻辑
-                const currentBlocks = qsaAll(CURRENT_CONFIG.promptSelector, getChatRoot());
-                const targetBlock = currentBlocks[originalIndex];
-                if (targetBlock) {
-                    targetBlock.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    currentActiveIndex = originalIndex;
-                    highlightActiveItem();
-                    const originalTransition = targetBlock.style.transition;
-                    targetBlock.style.transition = 'background 0.5s';
-                    targetBlock.style.background = 'rgba(26, 115, 232, 0.15)';
-                    setTimeout(() => {
-                        targetBlock.style.background = '';
-                        targetBlock.style.transition = originalTransition;
-                    }, 800);
-                }
+            };
+
+            // 双击：定位到对话中的原始位置（保留原功能）
+            item.ondblclick = (e) => {
+                try {
+                    if (e) e.stopPropagation();
+                    const currentBlocks = qsaAll(CURRENT_CONFIG.promptSelector, getChatRoot());
+                    const targetBlock = currentBlocks[originalIndex];
+                    if (targetBlock) {
+                        targetBlock.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        currentActiveIndex = originalIndex;
+                        highlightActiveItem();
+                        const originalTransition = targetBlock.style.transition;
+                        targetBlock.style.transition = 'background 0.5s';
+                        targetBlock.style.background = 'rgba(26, 115, 232, 0.15)';
+                        setTimeout(() => {
+                            targetBlock.style.background = '';
+                            targetBlock.style.transition = originalTransition;
+                        }, 800);
+                    }
+                } catch (_) {}
             };
 
             const toolbar = document.createElement('div');
@@ -3506,11 +3536,21 @@ rightBox.append(addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, cl
     sidebar.addEventListener('mouseenter', () => { 
         gnpSidebarHovering = true;
         gnpOpenedByShortcut = false;
-        if (isAutoHideEnabled) { 
-            clearTimeout(autoHideTimer); 
-            sidebar.classList.remove('collapsed'); 
+
+        // ✅ 修复：即使处于“锁定/不自动隐藏”模式，只要当前是折叠态（例如按 F1 折叠），
+        // 鼠标移入悬浮框也应该立即展开。
+        clearTimeout(autoHideTimer);
+        if (sidebar.classList.contains('collapsed')) {
+            sidebar.classList.remove('collapsed');
             scrollToActive();
-        } 
+            return;
+        }
+
+        // 自动隐藏模式下：移入即展开并取消计时
+        if (isAutoHideEnabled) {
+            sidebar.classList.remove('collapsed');
+            scrollToActive();
+        }
     });
 
     sidebar.addEventListener('mouseleave', () => {
@@ -3971,7 +4011,8 @@ function handleKeyboardNavigation(e) {
                 if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
                     const selectedItem = currentVisibleItems[keyboardSelectedIndex];
                     const textEl = selectedItem.querySelector('.item-text');
-                    const text = textEl ? textEl.textContent : '';
+                    let text = (selectedItem.dataset && selectedItem.dataset.prompt) ? selectedItem.dataset.prompt : (textEl ? textEl.textContent : '');
+                    try { text = (text || '').replace(/^\s*\d+\.\s*/, '').trim(); } catch (_) {}
                     
                     if (text) {
                         const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
@@ -3995,7 +4036,8 @@ function handleKeyboardNavigation(e) {
                 if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
                     const selectedItem = currentVisibleItems[keyboardSelectedIndex];
                     const textEl = selectedItem.querySelector('.item-text');
-                    const text = textEl ? textEl.textContent : '';
+                    let text = (selectedItem.dataset && selectedItem.dataset.prompt) ? selectedItem.dataset.prompt : (textEl ? textEl.textContent : '');
+                    try { text = (text || '').replace(/^\s*\d+\.\s*/, '').trim(); } catch (_) {}
                     
                     if (text) {
                         const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
@@ -4063,101 +4105,5 @@ function handleKeyboardNavigation(e) {
 
 
     window.addEventListener('resize', applyMagneticSnapping);
-
-    // ===== Theme Management System (v8.0新增) =====
-    currentThemeMode = currentThemeMode || 'auto'; // 'auto' | 'light' | 'dark'
-    
-    function detectPageTheme() {
-        const html = document.documentElement;
-        const body = document.body;
-        
-        const dataTheme = html.getAttribute('data-theme') || body.getAttribute('data-theme');
-        const dataColorMode = html.getAttribute('data-color-mode') || body.getAttribute('data-color-mode');
-        const htmlClass = (html.className || '').toLowerCase();
-        const bodyClass = (body.className || '').toLowerCase();
-        
-        if (dataTheme === 'dark' || dataColorMode === 'dark' || 
-            htmlClass.includes('dark') || bodyClass.includes('dark')) {
-            return 'dark';
-        }
-        
-        if (dataTheme === 'light' || dataColorMode === 'light' ||
-            htmlClass.includes('light') || bodyClass.includes('light')) {
-            return 'light';
-        }
-        
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            return 'dark';
-        }
-        
-        return 'light';
-    }
-    
-    function applyTheme(mode) {
-        if (!sidebar) return;
-        
-        if (mode === 'auto') {
-            sidebar.removeAttribute('data-gnp-theme');
-            document.documentElement.removeAttribute('data-gnp-theme');
-        } else {
-            sidebar.setAttribute('data-gnp-theme', mode);
-            document.documentElement.setAttribute('data-gnp-theme', mode);
-        }
-        
-        currentThemeMode = mode;
-        try {
-            localStorage.setItem(STORAGE_KEY_THEME, JSON.stringify(mode));
-        } catch (_) {}
-        updateThemeIcon();
-    }
-    
-    function cycleTheme() {
-        const modes = ['auto', 'light', 'dark'];
-        const currentIndex = modes.indexOf(currentThemeMode);
-        const nextMode = modes[(currentIndex + 1) % modes.length];
-        applyTheme(nextMode);
-    }
-    
-    function updateThemeIcon() {
-        const themeBtnEl = document.getElementById('gemini-nav-theme');
-        if (!themeBtnEl) return;
-        
-        const icons = {
-            'auto': '🌗',
-            'light': '☀️',
-            'dark': '🌙'
-        };
-        
-        themeBtnEl.textContent = icons[currentThemeMode] || '🌗';
-        themeBtnEl.title = `主题: ${currentThemeMode} (点击切换)`;
-    }
-    
-    function watchPageTheme() {
-        try {
-            const observer = new MutationObserver(() => {
-                if (currentThemeMode === 'auto') {
-                    detectPageTheme();
-                }
-            });
-            
-            observer.observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ['data-theme', 'data-color-mode', 'class']
-            });
-            
-            observer.observe(document.body, {
-                attributes: true,
-                attributeFilter: ['data-theme', 'data-color-mode', 'class']
-            });
-            
-            if (window.matchMedia) {
-                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-                    if (currentThemeMode === 'auto') {
-                        updateThemeIcon();
-                    }
-                });
-            }
-        } catch (_) {}
-    }
 
 })();
