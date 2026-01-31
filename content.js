@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         AI Chat Navigator
 // @namespace    http://tampermonkey.net/
-// @version      7.1
-// @description  支持Command/Ctrl多选 + 批量收藏/删除 + 靶向滚动 + 极致紧凑
+// @version      8.0
+// @description  支持Command/Ctrl多选 + 批量收藏/删除 + 靶向滚动 + 极致紧凑 + 键盘快捷键 + 主题切换 + Claude.ai兼容
 // @author       Chantec
 // @match        https://gemini.google.com/*
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
+// @match        https://claude.ai/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=google.com
 // @grant        GM_addStyle
 // @run-at       document-idle
@@ -16,8 +17,15 @@
 (function() {
     'use strict';
 
+    console.log('[GNP v8.0] Script loaded at:', new Date().toISOString());
+    console.log('[GNP] Location:', location.href);
+    console.log('[GNP] Document ready state:', document.readyState);
+
     // --- 0. 环境检测 ---
     const IS_CHATGPT = location.hostname.includes('chatgpt.com') || location.hostname.includes('openai.com');
+    const IS_CLAUDE = location.hostname.includes('claude.ai');
+    
+    console.log('[GNP] Environment:', { IS_CHATGPT, IS_CLAUDE, hostname: location.hostname });
     
     const SITE_CONFIG = {
         gemini: {
@@ -47,10 +55,38 @@
                 'button[aria-label*="Send"]',
                 'button[aria-label*="发送"]'
             ]
+        },
+        claude: {
+            // Claude 页面结构变动频繁：优先用 data-testid（更稳定），再回退到 class
+            // 参考：多款 Claude 脚本/扩展均使用 data-testid="user-message"、"user-human-turn"、"send-button" 等锚点。
+            promptSelector: [
+                '[data-testid="user-human-turn"]',
+                'div[data-testid="user-message"]',
+                '[data-testid="user-message"]',
+                'div.font-user-message',
+                'div[data-is-streaming="false"] div.font-user-message',
+                'div[data-test-render-count] div.font-user-message'
+            ],
+            inputSelector: [
+                'div[contenteditable="true"].ProseMirror',
+                'div[contenteditable="true"][role="textbox"]',
+                'fieldset div[contenteditable="true"]',
+                'div[contenteditable="true"]',
+                'textarea'
+            ],
+            sendBtnSelector: [
+                'button[data-testid="send-button"]',
+                'button[aria-label*="Send message" i]',
+                'button[aria-label*="Send Message" i]',
+                'button[aria-label="Send" i]',
+                'button[aria-label*="发送" i]',
+                'fieldset button[type="button"]',
+                'button[type="submit"]'
+            ]
         }
     };
     
-    const CURRENT_CONFIG = IS_CHATGPT ? SITE_CONFIG.chatgpt : SITE_CONFIG.gemini;
+    const CURRENT_CONFIG = IS_CLAUDE ? SITE_CONFIG.claude : (IS_CHATGPT ? SITE_CONFIG.chatgpt : SITE_CONFIG.gemini);
 
     // --- 0.1 选择器与注入工具函数（ChatGPT 兼容 & CSP 兼容） ---
     const toSelectorArray = (sel) => Array.isArray(sel) ? sel : [sel];
@@ -84,6 +120,9 @@
     }
 
     function getChatRoot() {
+        if (IS_CLAUDE) {
+            return document.querySelector('main') || document;
+        }
         if (!IS_CHATGPT) return document;
         // ChatGPT 通常将对话内容放在 main 内；限定 root 可减少误匹配/提升性能
         return document.querySelector('main') || document;
@@ -234,6 +273,49 @@
 
         --gnp-hover-preview-border: rgba(148, 163, 184, 0.24);
         --gnp-hover-preview-bg: linear-gradient(180deg, rgba(17, 24, 39, 0.92), rgba(15, 23, 42, 0.92));
+
+/* ===== 强制主题模式 (v8.0新增) ===== */
+[data-gnp-theme="dark"] {
+    --gnp-bg: rgba(17, 24, 39, 0.88);
+    --gnp-border: rgba(148, 163, 184, 0.22);
+    --gnp-shadow: 0 22px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(148, 163, 184, 0.10);
+    --gnp-text-main: rgba(248, 250, 252, 0.96);
+    --gnp-text-sub: rgba(248, 250, 252, 0.70);
+    --gnp-hover-bg: rgba(148, 163, 184, 0.14);
+    --gnp-active-bg: rgba(96, 165, 250, 0.18);
+    --gnp-active-border: #60a5fa;
+    --gnp-active-text: #93c5fd;
+    --gnp-input-bg: rgba(148, 163, 184, 0.14);
+    --gnp-input-text: rgba(248, 250, 252, 0.96);
+    --gnp-btn-bg: rgba(31, 41, 55, 0.82);
+    --gnp-btn-hover: rgba(55, 65, 81, 0.90);
+    --gnp-tab-icon: rgba(248, 250, 252, 0.62);
+    --gnp-tab-icon-active: rgba(248, 250, 252, 0.96);
+}
+
+[data-gnp-theme="light"] {
+    --gnp-bg: rgba(255, 255, 255, 0.88);
+    --gnp-border: rgba(15, 23, 42, 0.12);
+    --gnp-shadow: 0 18px 50px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.06);
+    --gnp-text-main: #0f172a;
+    --gnp-text-sub: rgba(15, 23, 42, 0.68);
+    --gnp-hover-bg: rgba(15, 23, 42, 0.04);
+    --gnp-active-bg: rgba(37, 99, 235, 0.12);
+    --gnp-active-border: #2563eb;
+    --gnp-active-text: #1d4ed8;
+    --gnp-input-bg: rgba(15, 23, 42, 0.045);
+    --gnp-input-text: #0f172a;
+    --gnp-btn-bg: rgba(255, 255, 255, 0.70);
+    --gnp-btn-hover: rgba(255, 255, 255, 0.92);
+    --gnp-tab-icon: rgba(15, 23, 42, 0.55);
+    --gnp-tab-icon-active: rgba(15, 23, 42, 0.94);
+}
+
+/* 键盘导航选中状态 (v8.0新增) */
+.gemini-nav-item.keyboard-selected {
+    background: var(--gnp-active-bg) !important;
+    box-shadow: inset 0 0 0 2px var(--gnp-active-border) !important;
+}
         --gnp-hover-preview-toolbar-bg: rgba(0, 0, 0, 0.22);
 
         --gnp-scroll-thumb: rgba(148, 163, 184, 0.28);
@@ -309,6 +391,16 @@
             border-left: 3px solid transparent;
         }
         .gemini-nav-item:hover { background: var(--gnp-hover-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gnp-border) 60%, transparent); }
+
+        /* 键盘导航选中态（↑/↓） */
+        .gemini-nav-item.keyboard-selected {
+            background: color-mix(in srgb, var(--gnp-active-bg) 85%, var(--gnp-hover-bg));
+            box-shadow: inset 0 0 0 2px var(--gnp-active-border);
+            border-left: 3px solid var(--gnp-active-border);
+        }
+        .gemini-nav-item.keyboard-selected .item-text { color: var(--gnp-active-text); }
+        .gemini-nav-item.keyboard-selected .item-index { color: var(--gnp-active-border); }
+
         .gemini-nav-item.dragging { opacity: 0.5; background: var(--gnp-hover-bg); border: 2px dashed var(--gnp-active-border); }
         .gemini-nav-item.drag-over { background: var(--gnp-active-bg); border-top: 2px solid var(--gnp-active-border); }
         .gemini-nav-item.active-current {
@@ -881,6 +973,7 @@ chatTop: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"c
 
     const sidebar = document.createElement('div');
     sidebar.id = 'gemini-nav-sidebar';
+    console.log('[GNP] Sidebar element created:', sidebar);
 
 // --- Hover preview: show full prompt content on hover ---
 let gnpHoverPreviewEl = null;
@@ -1460,7 +1553,15 @@ window.addEventListener('resize', repositionHoverPreview, true);
     clearBtn.title = '清空输入框';
     clearBtn.innerHTML = SVGS.clear;
 
-    headerControls.append(lockBtn, topBtn, bottomBtn, chatTopBtn, chatBottomBtn, autoSendBtn, clearBtn, locateBtn);
+    // v8.0新增：主题切换按钮
+    const themeBtn = document.createElement('div');
+    themeBtn.id = 'gemini-nav-theme';
+    themeBtn.className = 'header-circle-btn theme-btn';
+    themeBtn.textContent = '🌗';
+    themeBtn.title = '主题切换 (自动/浅色/深色)';
+    themeBtn.style.fontSize = '13px';
+
+    headerControls.append(lockBtn, topBtn, bottomBtn, chatTopBtn, chatBottomBtn, autoSendBtn, clearBtn, themeBtn, locateBtn);
 
     const tabsContainer = document.createElement('div');
     tabsContainer.id = 'gemini-nav-tabs';
@@ -1519,8 +1620,12 @@ window.addEventListener('resize', repositionHoverPreview, true);
     });
 
     setTimeout(() => {
+        console.log('[GNP] About to append sidebar to DOM...');
+        console.log('[GNP] Sidebar children:', { collapsedIcon, header, searchContainer, contentWrapper, resizers: resizers.length });
         sidebar.append(collapsedIcon, header, searchContainer, contentWrapper, ...resizers);
         document.body.appendChild(sidebar);
+        console.log('[GNP] ✅ Sidebar appended to body!');
+        console.log('[GNP] Sidebar in DOM:', document.getElementById('gemini-nav-sidebar'));
 
         // 修复：页面刷新后侧边栏初次注入不会自动触发 mouseleave，从而无法自动隐藏。
         // 注入完成后若鼠标不在侧边栏上，则主动触发一次自动隐藏计时。
@@ -1539,6 +1644,34 @@ window.addEventListener('resize', repositionHoverPreview, true);
     const STORAGE_KEY_HIDE = 'gemini-auto-hide';
     const STORAGE_KEY_AUTOSEND = 'gemini-auto-send-mode';
     const STORAGE_KEY_USAGE = 'gemini-nav-usage-stats-v1';
+    const STORAGE_KEY_THEME = 'gnp-theme-v8'; // v8.0新增：主题配置
+
+    // ===== Debounce Storage机制 (v8.0新增) =====
+    let storageQueue = {};
+    let storageFlushTimer = null;
+    
+    function debouncedSetStorage(key, value, delay = 300) {
+        storageQueue[key] = value;
+        clearTimeout(storageFlushTimer);
+        storageFlushTimer = setTimeout(() => {
+            flushStorage();
+        }, delay);
+    }
+    
+    function flushStorage() {
+        try {
+            for (const [key, value] of Object.entries(storageQueue)) {
+                localStorage.setItem(key, JSON.stringify(value));
+            }
+            storageQueue = {};
+        } catch (e) {
+            console.warn('[GNP] Storage flush failed:', e);
+        }
+    }
+    
+    // 确保页面卸载时写入
+    window.addEventListener('beforeunload', flushStorage);
+
 
     const STORAGE_KEY_FOLDERS = 'gemini-nav-pro-panel-fav-folders';
     const STORAGE_KEY_FAV_FOLDER_FILTER = 'gemini-nav-pro-panel-fav-folder-filter';
@@ -3476,5 +3609,574 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         } catch (_) {}
     }, true);
 
+
+    // ===== Theme Management System (v8.0新增) =====
+    let currentThemeMode = 'auto'; // 'auto' | 'light' | 'dark'
+    
+    function detectPageTheme() {
+        const html = document.documentElement;
+        const body = document.body;
+        
+        const dataTheme = html.getAttribute('data-theme') || body.getAttribute('data-theme');
+        const dataColorMode = html.getAttribute('data-color-mode') || body.getAttribute('data-color-mode');
+        const htmlClass = (html.className || '').toLowerCase();
+        const bodyClass = (body.className || '').toLowerCase();
+        
+        if (dataTheme === 'dark' || dataColorMode === 'dark' || 
+            htmlClass.includes('dark') || bodyClass.includes('dark')) {
+            return 'dark';
+        }
+        
+        if (dataTheme === 'light' || dataColorMode === 'light' ||
+            htmlClass.includes('light') || bodyClass.includes('light')) {
+            return 'light';
+        }
+        
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        
+        return 'light';
+    }
+    
+    function applyTheme(mode) {
+        if (!sidebar) return;
+        
+        if (mode === 'auto') {
+            sidebar.removeAttribute('data-gnp-theme');
+            document.documentElement.removeAttribute('data-gnp-theme');
+        } else {
+            sidebar.setAttribute('data-gnp-theme', mode);
+            document.documentElement.setAttribute('data-gnp-theme', mode);
+        }
+        
+        currentThemeMode = mode;
+        try {
+            localStorage.setItem(STORAGE_KEY_THEME, JSON.stringify(mode));
+        } catch (_) {}
+        updateThemeIcon();
+    }
+    
+    function cycleTheme() {
+        const modes = ['auto', 'light', 'dark'];
+        const currentIndex = modes.indexOf(currentThemeMode);
+        const nextMode = modes[(currentIndex + 1) % modes.length];
+        applyTheme(nextMode);
+    }
+    
+    function updateThemeIcon() {
+        const themeBtnEl = document.getElementById('gemini-nav-theme');
+        if (!themeBtnEl) return;
+        
+        const icons = {
+            'auto': '🌗',
+            'light': '☀️',
+            'dark': '🌙'
+        };
+        
+        themeBtnEl.textContent = icons[currentThemeMode] || '🌗';
+        themeBtnEl.title = `主题: ${currentThemeMode} (点击切换)`;
+    }
+    
+    function watchPageTheme() {
+        try {
+            const observer = new MutationObserver(() => {
+                if (currentThemeMode === 'auto') {
+                    detectPageTheme();
+                }
+            });
+            
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['data-theme', 'data-color-mode', 'class']
+            });
+            
+            observer.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['data-theme', 'data-color-mode', 'class']
+            });
+            
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                    if (currentThemeMode === 'auto') {
+                        updateThemeIcon();
+                    }
+                });
+            }
+        } catch (_) {}
+    }
+
+    // ===== Keyboard Navigation System (v8.0新增) =====
+    let keyboardSelectedIndex = -1;
+    let currentVisibleItems = [];
+
+    function updateKeyboardSelection() {
+        try {
+            currentVisibleItems.forEach(item => {
+                item.classList.remove('keyboard-selected');
+            });
+            
+            if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
+                const selectedItem = currentVisibleItems[keyboardSelectedIndex];
+                selectedItem.classList.add('keyboard-selected');
+                selectedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        } catch (_) {}
+    }
+    
+    function handleKeyboardNavigation(e) {
+        try {
+            if (!sidebar || !e) return;
+            
+            const activePanel = sidebar.querySelector('.content-panel.active');
+            if (!activePanel) return;
+            
+            const isSearchFocused = document.activeElement === searchInput;
+            
+            // Esc - 关闭弹窗/清除搜索/失去焦点
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (isSearchFocused && searchInput && searchInput.value) {
+                    searchInput.value = '';
+                    searchInput.dispatchEvent(new Event('input'));
+                    keyboardSelectedIndex = -1;
+                    updateKeyboardSelection();
+                } else if (isSearchFocused && searchInput) {
+                    searchInput.blur();
+                    keyboardSelectedIndex = -1;
+                    updateKeyboardSelection();
+                } else if (!sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.add('collapsed');
+                    try { gnpOpenedByShortcut = false; } catch (_) {}
+                }
+                return;
+            }
+            
+            // Ctrl/Cmd + K - 聚焦搜索
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+                keyboardSelectedIndex = -1;
+                updateKeyboardSelection();
+                return;
+            }
+            
+            if (!isSearchFocused && sidebar.classList.contains('collapsed')) {
+                return;
+            }
+            
+            // 上下键导航
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                currentVisibleItems = Array.from(activePanel.querySelectorAll('.gemini-nav-item')).filter(item => {
+                    return item.offsetParent !== null;
+                });
+                
+                if (currentVisibleItems.length === 0) return;
+                
+                if (e.key === 'ArrowDown') {
+                    keyboardSelectedIndex = Math.min(keyboardSelectedIndex + 1, currentVisibleItems.length - 1);
+                } else {
+                    keyboardSelectedIndex = Math.max(keyboardSelectedIndex - 1, 0);
+                }
+                
+                updateKeyboardSelection();
+                
+                if (isSearchFocused && searchInput) {
+                    searchInput.focus();
+                }
+                return;
+            }
+            
+            // Enter - 填入选中项
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
+                    const selectedItem = currentVisibleItems[keyboardSelectedIndex];
+                    const textEl = selectedItem.querySelector('.item-text');
+                    const text = textEl ? textEl.textContent : '';
+                    
+                    if (text) {
+                        const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
+                        if (inputEl) {
+                            setPromptValue(inputEl, text);
+                            keyboardSelectedIndex = -1;
+                            updateKeyboardSelection();
+                            if (searchInput) searchInput.blur();
+                            setTimeout(() => {
+                                inputEl.focus();
+                            }, 100);
+                        }
+                    }
+                }
+                return;
+            }
+            
+            // Shift + Enter - 直接发送
+            if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
+                    const selectedItem = currentVisibleItems[keyboardSelectedIndex];
+                    const textEl = selectedItem.querySelector('.item-text');
+                    const text = textEl ? textEl.textContent : '';
+                    
+                    if (text) {
+                        const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
+                        const sendBtn = qsAny(CURRENT_CONFIG.sendBtnSelector);
+                        
+                        if (inputEl && sendBtn) {
+                            setPromptValue(inputEl, text);
+                            
+                            setTimeout(() => {
+                                sendBtn.click();
+                                keyboardSelectedIndex = -1;
+                                updateKeyboardSelection();
+                                if (searchInput) searchInput.blur();
+                            }, 100);
+                        }
+                    }
+                }
+                return;
+            }
+        } catch (_) {}
+    }
+    
+    // 监听全局键盘事件
+    document.addEventListener('keydown', handleKeyboardNavigation, true);
+    
+    // 搜索框输入时重置键盘选中
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            keyboardSelectedIndex = -1;
+            updateKeyboardSelection();
+        });
+    }
+
+    // ===== Theme Button Event Handler =====
+    // NOTE: sidebar DOM is appended after 1500ms (see createSidebar), so bind after that.
+    setTimeout(() => {
+        const themeBtnElement = document.getElementById('gemini-nav-theme');
+        if (themeBtnElement && !themeBtnElement.dataset.gnpThemeBound) {
+            themeBtnElement.dataset.gnpThemeBound = '1';
+            themeBtnElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cycleTheme();
+            });
+        }
+        // applyTheme() may have run before DOM append; refresh icon once button is in DOM.
+        try { updateThemeIcon(); } catch (_) {}
+    }, 1700);
+// ===== Initialize Theme on Load =====
+    setTimeout(() => {
+        try {
+            const savedTheme = JSON.parse(localStorage.getItem(STORAGE_KEY_THEME));
+            if (savedTheme && ['auto', 'light', 'dark'].includes(savedTheme)) {
+                applyTheme(savedTheme);
+            } else {
+                applyTheme('auto');
+            }
+        } catch (_) {
+            applyTheme('auto');
+        }
+        watchPageTheme();
+    }, 800);
+
+
     window.addEventListener('resize', applyMagneticSnapping);
+
+    // ===== Theme Management System (v8.0新增) =====
+    currentThemeMode = currentThemeMode || 'auto'; // 'auto' | 'light' | 'dark'
+    
+    function detectPageTheme() {
+        const html = document.documentElement;
+        const body = document.body;
+        
+        const dataTheme = html.getAttribute('data-theme') || body.getAttribute('data-theme');
+        const dataColorMode = html.getAttribute('data-color-mode') || body.getAttribute('data-color-mode');
+        const htmlClass = (html.className || '').toLowerCase();
+        const bodyClass = (body.className || '').toLowerCase();
+        
+        if (dataTheme === 'dark' || dataColorMode === 'dark' || 
+            htmlClass.includes('dark') || bodyClass.includes('dark')) {
+            return 'dark';
+        }
+        
+        if (dataTheme === 'light' || dataColorMode === 'light' ||
+            htmlClass.includes('light') || bodyClass.includes('light')) {
+            return 'light';
+        }
+        
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        
+        return 'light';
+    }
+    
+    function applyTheme(mode) {
+        if (!sidebar) return;
+        
+        if (mode === 'auto') {
+            sidebar.removeAttribute('data-gnp-theme');
+            document.documentElement.removeAttribute('data-gnp-theme');
+        } else {
+            sidebar.setAttribute('data-gnp-theme', mode);
+            document.documentElement.setAttribute('data-gnp-theme', mode);
+        }
+        
+        currentThemeMode = mode;
+        try {
+            localStorage.setItem(STORAGE_KEY_THEME, JSON.stringify(mode));
+        } catch (_) {}
+        updateThemeIcon();
+    }
+    
+    function cycleTheme() {
+        const modes = ['auto', 'light', 'dark'];
+        const currentIndex = modes.indexOf(currentThemeMode);
+        const nextMode = modes[(currentIndex + 1) % modes.length];
+        applyTheme(nextMode);
+    }
+    
+    function updateThemeIcon() {
+        const themeBtnEl = document.getElementById('gemini-nav-theme');
+        if (!themeBtnEl) return;
+        
+        const icons = {
+            'auto': '🌗',
+            'light': '☀️',
+            'dark': '🌙'
+        };
+        
+        themeBtnEl.textContent = icons[currentThemeMode] || '🌗';
+        themeBtnEl.title = `主题: ${currentThemeMode} (点击切换)`;
+    }
+    
+    function watchPageTheme() {
+        try {
+            const observer = new MutationObserver(() => {
+                if (currentThemeMode === 'auto') {
+                    detectPageTheme();
+                }
+            });
+            
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['data-theme', 'data-color-mode', 'class']
+            });
+            
+            observer.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['data-theme', 'data-color-mode', 'class']
+            });
+            
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                    if (currentThemeMode === 'auto') {
+                        updateThemeIcon();
+                    }
+                });
+            }
+        } catch (_) {}
+    }
+
+    // ===== Keyboard Navigation System (v8.0新增) =====
+    keyboardSelectedIndex = -1;
+    currentVisibleItems = [];
+
+    function updateKeyboardSelection() {
+        try {
+            currentVisibleItems.forEach(item => {
+                item.classList.remove('keyboard-selected');
+            });
+            
+            if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
+                const selectedItem = currentVisibleItems[keyboardSelectedIndex];
+                selectedItem.classList.add('keyboard-selected');
+                selectedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        } catch (_) {}
+    }
+    
+    function handleKeyboardNavigation(e) {
+        try {
+            if (!sidebar || !e) return;
+            
+            const activePanel = sidebar.querySelector('.content-panel.active');
+            if (!activePanel) return;
+            
+            const isSearchFocused = document.activeElement === searchInput;
+            
+            // Esc - 关闭弹窗/清除搜索/失去焦点
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (isSearchFocused && searchInput && searchInput.value) {
+                    searchInput.value = '';
+                    searchInput.dispatchEvent(new Event('input'));
+                    keyboardSelectedIndex = -1;
+                    updateKeyboardSelection();
+                } else if (isSearchFocused && searchInput) {
+                    searchInput.blur();
+                    keyboardSelectedIndex = -1;
+                    updateKeyboardSelection();
+                } else if (!sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.add('collapsed');
+                    try { gnpOpenedByShortcut = false; } catch (_) {}
+                }
+                return;
+            }
+            
+            // Ctrl/Cmd + K - 聚焦搜索
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+                keyboardSelectedIndex = -1;
+                updateKeyboardSelection();
+                return;
+            }
+            
+            if (!isSearchFocused && sidebar.classList.contains('collapsed')) {
+                return;
+            }
+            
+            // 上下键导航
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                currentVisibleItems = Array.from(activePanel.querySelectorAll('.gemini-nav-item')).filter(item => {
+                    return item.offsetParent !== null;
+                });
+                
+                if (currentVisibleItems.length === 0) return;
+                
+                if (e.key === 'ArrowDown') {
+                    keyboardSelectedIndex = Math.min(keyboardSelectedIndex + 1, currentVisibleItems.length - 1);
+                } else {
+                    keyboardSelectedIndex = Math.max(keyboardSelectedIndex - 1, 0);
+                }
+                
+                updateKeyboardSelection();
+                
+                if (isSearchFocused && searchInput) {
+                    searchInput.focus();
+                }
+                return;
+            }
+            
+            // Enter - 填入选中项
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
+                    const selectedItem = currentVisibleItems[keyboardSelectedIndex];
+                    const textEl = selectedItem.querySelector('.item-text');
+                    const text = textEl ? textEl.textContent : '';
+                    
+                    if (text) {
+                        const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
+                        if (inputEl) {
+                            setPromptValue(inputEl, text);
+                            keyboardSelectedIndex = -1;
+                            updateKeyboardSelection();
+                            if (searchInput) searchInput.blur();
+                            setTimeout(() => {
+                                inputEl.focus();
+                            }, 100);
+                        }
+                    }
+                }
+                return;
+            }
+            
+            // Shift + Enter - 直接发送
+            if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
+                    const selectedItem = currentVisibleItems[keyboardSelectedIndex];
+                    const textEl = selectedItem.querySelector('.item-text');
+                    const text = textEl ? textEl.textContent : '';
+                    
+                    if (text) {
+                        const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
+                        const sendBtn = qsAny(CURRENT_CONFIG.sendBtnSelector);
+                        
+                        if (inputEl && sendBtn) {
+                            setPromptValue(inputEl, text);
+                            
+                            setTimeout(() => {
+                                sendBtn.click();
+                                keyboardSelectedIndex = -1;
+                                updateKeyboardSelection();
+                                if (searchInput) searchInput.blur();
+                            }, 100);
+                        }
+                    }
+                }
+                return;
+            }
+        } catch (_) {}
+    }
+    
+    // 监听全局键盘事件
+    document.addEventListener('keydown', handleKeyboardNavigation, true);
+    
+    // 搜索框输入时重置键盘选中
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            keyboardSelectedIndex = -1;
+            updateKeyboardSelection();
+        });
+    }
+
+    // ===== Theme Button Event Handler =====
+    // NOTE: sidebar DOM is appended after 1500ms (see createSidebar), so bind after that.
+    setTimeout(() => {
+        const themeBtnElement = document.getElementById('gemini-nav-theme');
+        if (themeBtnElement && !themeBtnElement.dataset.gnpThemeBound) {
+            themeBtnElement.dataset.gnpThemeBound = '1';
+            themeBtnElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cycleTheme();
+            });
+        }
+        // applyTheme() may have run before DOM append; refresh icon once button is in DOM.
+        try { updateThemeIcon(); } catch (_) {}
+    }, 1700);
+// ===== Initialize Theme on Load =====
+    setTimeout(() => {
+        try {
+            const savedTheme = JSON.parse(localStorage.getItem(STORAGE_KEY_THEME));
+            if (savedTheme && ['auto', 'light', 'dark'].includes(savedTheme)) {
+                applyTheme(savedTheme);
+            } else {
+                applyTheme('auto');
+            }
+        } catch (_) {
+            applyTheme('auto');
+        }
+        watchPageTheme();
+    }, 800);
+
 })();
