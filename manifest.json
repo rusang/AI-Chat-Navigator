@@ -30,7 +30,7 @@
   "commands": {
     "toggle-gnp-sidebar": {
       "suggested_key": {
-        "default": "F1"
+        "default": "Ctrl+Shift+S"
       },
       "description": "Toggle AI Chat Navigator sidebar"
     }
