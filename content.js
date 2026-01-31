@@ -187,8 +187,8 @@
     --gnp-mini-active-bg: rgba(37, 99, 235, 0.14);
     --gnp-mini-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
 
-    --gnp-tab-active-bg: rgba(239, 68, 68, 0.22);
-    --gnp-tab-active-shadow: 0 10px 24px rgba(239, 68, 68, 0.18), 0 0 0 1px rgba(239, 68, 68, 0.24);
+    --gnp-tab-active-bg: rgba(37, 99, 235, 0.14);
+    --gnp-tab-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
     --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
 
     --gnp-tab-icon: rgba(15, 23, 42, 0.55);
@@ -251,9 +251,9 @@
         --gnp-mini-active-bg: rgba(96, 165, 250, 0.18);
         --gnp-mini-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
 
-        --gnp-tab-active-bg: rgba(239, 68, 68, 0.30);
-    --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(239, 68, 68, 0.26);
-    --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
+        --gnp-tab-active-bg: rgba(96, 165, 250, 0.18);
+        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
+        --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
 
         --gnp-tab-icon: rgba(248, 250, 252, 0.62);
         --gnp-tab-icon-active: rgba(248, 250, 252, 0.96);
@@ -951,7 +951,7 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
         close: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
         edit: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
         copy: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
-        plus: `<svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 5a1 1 0 0 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5z"/></svg>`,
+        plus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
         pin: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`,
         folderPlus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="12" y1="12" x2="12" y2="18"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>`,
         folderX: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="10" y1="13" x2="14" y2="17"></line><line x1="14" y1="13" x2="10" y2="17"></line></svg>`,
@@ -1724,8 +1724,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
     // - chrome.storage 属于扩展级存储：同一 Chrome Profile 下所有标签页/窗口/不同站点都共享；
     //   若使用 storage.sync，则在同账号的不同 Chrome/设备间也可同步（受配额限制，超限自动降级 local）。
     const GNP_SHARED_STATE_KEY = 'ai-chat-navigator-shared-state-v1';
-    const GNP_LOCAL_JSON_FILE_KEY = 'ai-chat-navigator-favorites-json-file-v1';
-const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
+    const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
     const gnpStorageSync = gnpChrome && gnpChrome.storage && gnpChrome.storage.sync;
     const gnpStorageLocal = gnpChrome && gnpChrome.storage && gnpChrome.storage.local;
 
@@ -1733,47 +1732,6 @@ const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
     let gnpStorageArea = gnpStorageSync || gnpStorageLocal || null;
     let gnpSharedUpdatedAt = 0;
     let gnpApplyingSharedState = false;
-    // === Local JSON "file" backup (stored on disk via chrome.storage.local) ===
-    // 说明：
-    // - Chrome 扩展出于安全限制，无法在无用户交互的情况下读写任意本地文件。
-    // - 这里采用 chrome.storage.local 保存一份「JSON 字符串备份」（等价于落盘的本地 JSON 文件），
-    //   用于：扩展重启/更新后自动恢复收藏，避免丢失。
-    let gnpLocalJsonWriteTimer = null;
-
-    function gnpPersistLocalJsonFile(stateObj) {
-        if (!gnpStorageLocal || gnpApplyingSharedState) return;
-        try {
-            const jsonStr = (typeof stateObj === 'string') ? stateObj : JSON.stringify(stateObj);
-            clearTimeout(gnpLocalJsonWriteTimer);
-            gnpLocalJsonWriteTimer = setTimeout(() => {
-                try { gnpStorageLocal.set({ [GNP_LOCAL_JSON_FILE_KEY]: jsonStr }); } catch (_) {}
-            }, 200);
-        } catch (_) {}
-    }
-
-    function gnpBootstrapLocalJsonFile(done) {
-        if (!gnpStorageLocal) { try { done && done(); } catch (_) {} return; }
-        try {
-            gnpStorageLocal.get([GNP_LOCAL_JSON_FILE_KEY], (res) => {
-                try {
-                    const raw = res && res[GNP_LOCAL_JSON_FILE_KEY];
-                    if (raw && typeof raw === 'string') {
-                        const st = JSON.parse(raw);
-                        const ts = Number(st && st.updatedAt) || 0;
-                        if (st && st.favorites && (!ts || ts >= gnpSharedUpdatedAt)) {
-                            gnpApplyingSharedState = true;
-                            try { gnpApplySharedState(st); } finally { gnpApplyingSharedState = false; }
-                            gnpSharedUpdatedAt = ts || Date.now();
-                        }
-                    }
-                } catch (e) {
-                    console.warn('[GNP] local json backup parse failed:', e);
-                }
-                try { done && done(); } catch (_) {}
-            });
-        } catch (_) { try { done && done(); } catch (_) {} }
-    }
-
 
     function gnpBuildSharedState() {
         return {
@@ -1834,9 +1792,6 @@ const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
         const state = gnpBuildSharedState();
         gnpSharedUpdatedAt = state.updatedAt;
 
-
-        // 额外写入一份本地 JSON 字符串备份（用于重启/更新自动恢复）
-        gnpPersistLocalJsonFile(state);
         try {
             gnpStorageArea.set({ [GNP_SHARED_STATE_KEY]: state }, () => {
                 // 额外写入 local 作为持久化/大容量备份（即便主要使用 sync）
@@ -1866,35 +1821,19 @@ const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
         if (gnpStorageSync) {
             getFromArea(gnpStorageSync, (stSync) => {
                 if (stSync && stSync.favorites) {
-                    const ts = Number(stSync.updatedAt) || 0;
-                    // 若本地已有更新的数据（例如刚从本地 JSON 备份恢复），避免被较旧的 sync 覆盖
-                    if (ts && ts <= gnpSharedUpdatedAt) {
-                        if (gnpStorageLocal) { try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: stSync }); } catch (_) {} }
-                        gnpPersistLocalJsonFile(stSync);
-                    } else {
-                        gnpApplyingSharedState = true;
-                        try { gnpApplySharedState(stSync); } finally { gnpApplyingSharedState = false; }
-                        gnpSharedUpdatedAt = ts || Date.now();
-                        // 同步数据也写一份到 local（容量大，且保证重启后可用）
-                        if (gnpStorageLocal) { try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: stSync }); } catch (_) {} }
-                        gnpPersistLocalJsonFile(stSync);
-                    }
+                    gnpApplyingSharedState = true;
+                    try { gnpApplySharedState(stSync); } finally { gnpApplyingSharedState = false; }
+                    gnpSharedUpdatedAt = Number(stSync.updatedAt) || Date.now();
+                    // 同步数据也写一份到 local（容量大，且保证重启后可用）
+                    if (gnpStorageLocal) { try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: stSync }); } catch (_) {} }
                 } else if (gnpStorageLocal) {
                     getFromArea(gnpStorageLocal, (stLocal) => {
                         if (stLocal && stLocal.favorites) {
-                            const ts = Number(stLocal.updatedAt) || 0;
-                            if (ts && ts <= gnpSharedUpdatedAt) {
-                                // 本地已有更新数据：只做回填即可
-                                try { gnpStorageSync.set({ [GNP_SHARED_STATE_KEY]: stLocal }); } catch (_) {}
-                                gnpPersistLocalJsonFile(stLocal);
-                            } else {
-                                gnpApplyingSharedState = true;
-                                try { gnpApplySharedState(stLocal); } finally { gnpApplyingSharedState = false; }
-                                gnpSharedUpdatedAt = ts || Date.now();
-                                // 回填 sync（若可用）
-                                try { gnpStorageSync.set({ [GNP_SHARED_STATE_KEY]: stLocal }); } catch (_) {}
-                                gnpPersistLocalJsonFile(stLocal);
-                            }
+                            gnpApplyingSharedState = true;
+                            try { gnpApplySharedState(stLocal); } finally { gnpApplyingSharedState = false; }
+                            gnpSharedUpdatedAt = Number(stLocal.updatedAt) || Date.now();
+                            // 回填 sync（若可用）
+                            try { gnpStorageSync.set({ [GNP_SHARED_STATE_KEY]: stLocal }); } catch (_) {}
                         } else {
                             // 没有共享数据：用当前站点 localStorage 里的数据“初始化”共享区
                             gnpPersistSharedState();
@@ -1911,13 +1850,9 @@ const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
         } else {
             getFromArea(gnpStorageArea, (st) => {
                 if (st && st.favorites) {
-                    const ts = Number(st.updatedAt) || 0;
-                    if (!ts || ts > gnpSharedUpdatedAt) {
-                        gnpApplyingSharedState = true;
-                        try { gnpApplySharedState(st); } finally { gnpApplyingSharedState = false; }
-                        gnpSharedUpdatedAt = ts || Date.now();
-                    }
-                    gnpPersistLocalJsonFile(st);
+                    gnpApplyingSharedState = true;
+                    try { gnpApplySharedState(st); } finally { gnpApplyingSharedState = false; }
+                    gnpSharedUpdatedAt = Number(st.updatedAt) || Date.now();
                     try { renderFavorites(); } catch (_) {}
                     try { refreshNav(true); } catch (_) {}
                 } else {
@@ -1950,11 +1885,12 @@ const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
         }
     } catch (_) {}
 
-    // 启动：先从本地 JSON 备份恢复，再拉取共享收藏
-    gnpBootstrapLocalJsonFile(() => {
-        gnpBootstrapSharedState();
-    });
-const saveFavorites = () => {
+    // 启动：异步拉取共享收藏
+    gnpBootstrapSharedState();
+
+
+
+    const saveFavorites = () => {
         const payload = favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 }));
         localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(payload));
         gnpPersistSharedState();
@@ -2537,6 +2473,9 @@ function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText
             // 自动聚焦
             setTimeout(() => { try { input.focus(); input.select(); } catch (e) {} }, 0);
 
+
+}
+
 function showAddFavoritePromptInSidebar(defaultFolder) {
     try {
         // 清理已有遮罩
@@ -2637,13 +2576,12 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         sidebar.appendChild(overlay);
 
         setTimeout(() => { try { textarea.focus(); } catch (e) {} }, 0);
-    } catch (e) { console.error('[GNP] showAddFavoritePromptInSidebar failed:', e); }
+    }
+    catch (err) {
+        try { console.error('[GNP] showAddFavoritePromptInSidebar error:', err); } catch (_) {}
+        try { showSidebarToast('手动添加 Prompt 打开失败（请查看控制台）'); } catch (_) {}
+    }
 }
-
-
-}
-
-
 
 function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText, onConfirm }) {
             // 移除已有全屏弹窗，避免叠加
@@ -3141,15 +3079,30 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         };
 
         
-        const addPromptBtn = document.createElement('button');
+        const addPromptBtn = document.createElement('div');
         addPromptBtn.className = 'header-circle-btn gnp-add-prompt-btn';
         addPromptBtn.title = '手动添加 Prompt';
-        addPromptBtn.innerHTML = SVGS.plus || SVGS.folderPlus;
-        addPromptBtn.onclick = (e) => {
-            e.stopPropagation();
-            showAddFavoritePromptInSidebar(favFolderFilter);
+        addPromptBtn.setAttribute('role', 'button');
+        addPromptBtn.setAttribute('tabindex', '0');
+        addPromptBtn.setAttribute('aria-label', '手动添加 Prompt');
+        addPromptBtn.innerHTML = SVGS.plus;
+
+        const openAddPrompt = (e) => {
+            try {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                showAddFavoritePromptInSidebar(favFolderFilter);
+            } catch (err) {
+                try { console.error('[GNP] openAddPrompt failed:', err); } catch (_) {}
+                try { showSidebarToast('打开“手动添加 Prompt”失败（请查看控制台）'); } catch (_) {}
+            }
         };
-        addPromptBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+
+        // 用 mousedown 捕获阶段打开，避免某些站点/拖拽逻辑吃掉 click
+        addPromptBtn.addEventListener('mousedown', openAddPrompt, true);
+        addPromptBtn.addEventListener('click', (e) => { try { e.preventDefault(); e.stopPropagation(); } catch (_) {} }, true);
+        addPromptBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') openAddPrompt(e);
+        });
 
 rightBox.append(addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, clearAllBtn);
         favHeader.append(leftBox, rightBox);
@@ -3199,7 +3152,7 @@ rightBox.append(addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, cl
                 }
                 e.stopPropagation();
                 if (selectedItems.size > 0) { clearMultiSelection(); }
-                fillInput(favText);
+                syncKeyboardSelectionToClickedItem(item);
             };
 
             item.ondragstart = (e) => {
@@ -3451,6 +3404,7 @@ rightBox.append(addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, cl
                     return;
                 }
                 if (selectedItems.size > 0) { clearMultiSelection(); }
+                syncKeyboardSelectionToClickedItem(item);
                 // 原有点击逻辑
                 const currentBlocks = qsaAll(CURRENT_CONFIG.promptSelector, getChatRoot());
                 const targetBlock = currentBlocks[originalIndex];
@@ -3891,6 +3845,21 @@ rightBox.append(addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, cl
     let currentVisibleItems = [];
     let keyboardSelectedPrompt = '';
 
+
+    function syncKeyboardSelectionToClickedItem(itemEl) {
+        try {
+            if (!itemEl || !sidebar) return;
+            const activePanel = sidebar.querySelector('.content-panel.active');
+            if (!activePanel) return;
+            currentVisibleItems = Array.from(activePanel.querySelectorAll('.gemini-nav-item')).filter(it => it.offsetParent !== null);
+            const idx = currentVisibleItems.indexOf(itemEl);
+            if (idx < 0) return;
+            keyboardSelectedIndex = idx;
+            keyboardSelectedPrompt = itemEl.dataset && itemEl.dataset.prompt ? itemEl.dataset.prompt : '';
+            updateKeyboardSelection();
+        } catch (_) {}
+    }
+
     function updateKeyboardSelection() {
         try {
             currentVisibleItems.forEach(item => {
@@ -4008,8 +3977,6 @@ function handleKeyboardNavigation(e) {
                         const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
                         if (inputEl) {
                             setPromptValue(inputEl, text);
-                            keyboardSelectedIndex = -1;
-                            updateKeyboardSelection();
                             if (searchInput) searchInput.blur();
                             setTimeout(() => {
                                 inputEl.focus();
@@ -4039,8 +4006,6 @@ function handleKeyboardNavigation(e) {
                             
                             setTimeout(() => {
                                 sendBtn.click();
-                                keyboardSelectedIndex = -1;
-                                updateKeyboardSelection();
                                 if (searchInput) searchInput.blur();
                             }, 100);
                         }
@@ -4194,34 +4159,5 @@ function handleKeyboardNavigation(e) {
             }
         } catch (_) {}
     }
-
-    // ===== Theme Button Event Handler =====
-    // NOTE: sidebar DOM is appended after 1500ms (see createSidebar), so bind after that.
-    setTimeout(() => {
-        const themeBtnElement = document.getElementById('gemini-nav-theme');
-        if (themeBtnElement && !themeBtnElement.dataset.gnpThemeBound) {
-            themeBtnElement.dataset.gnpThemeBound = '1';
-            themeBtnElement.addEventListener('click', (e) => {
-                e.stopPropagation();
-                cycleTheme();
-            });
-        }
-        // applyTheme() may have run before DOM append; refresh icon once button is in DOM.
-        try { updateThemeIcon(); } catch (_) {}
-    }, 1700);
-// ===== Initialize Theme on Load =====
-    setTimeout(() => {
-        try {
-            const savedTheme = JSON.parse(localStorage.getItem(STORAGE_KEY_THEME));
-            if (savedTheme && ['auto', 'light', 'dark'].includes(savedTheme)) {
-                applyTheme(savedTheme);
-            } else {
-                applyTheme('auto');
-            }
-        } catch (_) {
-            applyTheme('auto');
-        }
-        watchPageTheme();
-    }, 800);
 
 })();
