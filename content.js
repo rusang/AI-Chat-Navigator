@@ -1830,24 +1830,38 @@ window.addEventListener('resize', repositionHoverPreview, true);
             if (gnpManifestCfgPromise) return gnpManifestCfgPromise;
 
             gnpManifestCfgPromise = (async () => {
+                const applyFromManifestObj = (mj) => {
+                    try {
+                        if (!mj || typeof mj !== 'object') return;
+                        // 1) description marker (preferred)
+                        const desc = String(mj.description || '');
+                        const mPath = desc.match(/\bGNP_JSON_PATH\s*=\s*([^;\)\n\r]+)/i);
+                        const mHost = desc.match(/\bGNP_NATIVE_HOST\s*=\s*([^;\)\n\r]+)/i);
+                        const pDesc = (mPath && mPath[1]) ? String(mPath[1]).trim() : '';
+                        const hDesc = (mHost && mHost[1]) ? String(mHost[1]).trim() : '';
+                        if (hDesc) GNP_NATIVE_HOST_NAME = hDesc;
+                        if (pDesc) GNP_FAV_JSON_PATH = pDesc;
+
+                        // 2) legacy custom keys (back-compat)
+                        const p = String(mj?.gnp_favorites_json_path || '').trim();
+                        const h = String(mj?.gnp_native_host_name || '').trim();
+                        if (h) GNP_NATIVE_HOST_NAME = h;
+                        if (p) GNP_FAV_JSON_PATH = p;
+                    } catch (_) {}
+                };
+
                 // 1) 读取“原始 manifest.json”（包含自定义字段）
                 try {
                     const url = chrome.runtime.getURL('manifest.json');
                     const resp = await fetch(url, { cache: 'no-store' });
                     const raw = await resp.json();
-                    const p = String(raw?.gnp_favorites_json_path || '').trim();
-                    const h = String(raw?.gnp_native_host_name || 'ai_chat_navigator_native').trim();
-                    if (h) GNP_NATIVE_HOST_NAME = h;
-                    if (p) GNP_FAV_JSON_PATH = p;
+                    applyFromManifestObj(raw);
                 } catch (_) {}
 
                 // 2) fallback：若 fetch 失败，则尝试 getManifest（但多数情况下取不到自定义字段）
                 try {
                     const mj = chrome.runtime.getManifest?.() || {};
-                    const p2 = String(mj?.gnp_favorites_json_path || '').trim();
-                    const h2 = String(mj?.gnp_native_host_name || '').trim();
-                    if (h2) GNP_NATIVE_HOST_NAME = h2;
-                    if (p2) GNP_FAV_JSON_PATH = p2;
+                    applyFromManifestObj(mj);
                 } catch (_) {}
 
                 return { path: GNP_FAV_JSON_PATH, host: GNP_NATIVE_HOST_NAME };
@@ -2060,14 +2074,25 @@ window.addEventListener('resize', repositionHoverPreview, true);
                             gnpFileSyncWarned = true;
                             gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
                         }
-                        try { console.warn('[GNP] Fav JSON write failed:', resp); } catch (_) {}
+                        // 在扩展错误页里直接显示对象会变成 [object Object]，这里转成字符串更直观
+                        try {
+                            const s = (resp && typeof resp === 'object') ? JSON.stringify(resp) : String(resp);
+                            console.warn('[GNP] Fav JSON write failed:', s);
+                        } catch (_) {
+                            try { console.warn('[GNP] Fav JSON write failed'); } catch (_) {}
+                        }
                     }
                 } catch (e) {
                     if (!gnpFileSyncWarned) {
                         gnpFileSyncWarned = true;
                         gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
                     }
-                    try { console.warn('[GNP] Fav JSON write exception:', e); } catch (_) {}
+                    try {
+                        const s = (e && typeof e === 'object') ? (e.stack || e.message || JSON.stringify(e)) : String(e);
+                        console.warn('[GNP] Fav JSON write exception:', s);
+                    } catch (_) {
+                        try { console.warn('[GNP] Fav JSON write exception'); } catch (_) {}
+                    }
                 }
             }, 650);
         } catch (_) {}
@@ -2087,8 +2112,16 @@ window.addEventListener('resize', repositionHoverPreview, true);
             // 仅在 Host 可用但文件不存在时，Host 会返回 ok:false + code='ENOENT'
             // 我们这里直接尝试写一次，不阻塞主逻辑。
             try { gnpScheduleWriteFavoritesJsonFile('bootstrap-init'); } catch (_) {}
-            if (resp && resp.error) {
-                try { console.warn('[GNP] Fav JSON read failed:', resp); } catch (_) {}
+            // 文件不存在属于“正常首启”场景，不要在错误页里刷屏
+            const maybeErr = String(resp?.error || '').toUpperCase();
+            const isENOENT = (resp && resp.code === 'ENOENT') || maybeErr.includes('ENOENT') || maybeErr.includes('NO SUCH FILE');
+            if (resp && resp.error && !isENOENT) {
+                try {
+                    const s = (resp && typeof resp === 'object') ? JSON.stringify(resp) : String(resp);
+                    console.warn('[GNP] Fav JSON read failed:', s);
+                } catch (_) {
+                    try { console.warn('[GNP] Fav JSON read failed'); } catch (_) {}
+                }
             }
             return;
         }

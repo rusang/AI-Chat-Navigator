@@ -1,7 +1,9 @@
 // MV3 service worker for keyboard shortcuts (chrome.commands) + local JSON sync (native messaging)
-
-// manifest.json 顶层不允许自定义 key，因此 getManifest() 会丢掉 gnp_* 字段。
-// 这里用 fetch 读取原始 manifest.json，确保能取到你配置的绝对路径与 Host 名称。
+//
+// 配置读取：
+// - 为避免 manifest 顶层自定义 key 导致的 Chrome Warnings，本项目将配置写在 description 里：
+//   (GNP_JSON_PATH=/abs/path/favorites.json;GNP_NATIVE_HOST=ai_chat_navigator_native)
+// - 同时兼容旧版的 gnp_* 自定义字段（若你仍保留它们）。
 let GNP_NATIVE_HOST = 'ai_chat_navigator_native';
 let GNP_FAV_JSON_PATH = '';
 let gnpCfgPromise = null;
@@ -9,24 +11,38 @@ let gnpCfgPromise = null;
 async function gnpLoadCfg() {
   if (gnpCfgPromise) return gnpCfgPromise;
   gnpCfgPromise = (async () => {
+    const applyFromManifestObj = (mj) => {
+      try {
+        if (!mj || typeof mj !== 'object') return;
+        // 1) description marker (preferred)
+        const desc = String(mj.description || '');
+        const mPath = desc.match(/\bGNP_JSON_PATH\s*=\s*([^;\)\n\r]+)/i);
+        const mHost = desc.match(/\bGNP_NATIVE_HOST\s*=\s*([^;\)\n\r]+)/i);
+        const pDesc = (mPath && mPath[1]) ? String(mPath[1]).trim() : '';
+        const hDesc = (mHost && mHost[1]) ? String(mHost[1]).trim() : '';
+        if (hDesc) GNP_NATIVE_HOST = hDesc;
+        if (pDesc) GNP_FAV_JSON_PATH = pDesc;
+
+        // 2) legacy custom keys (back-compat)
+        const h = String(mj.gnp_native_host_name || '').trim();
+        const p = String(mj.gnp_favorites_json_path || '').trim();
+        if (h) GNP_NATIVE_HOST = h;
+        if (p) GNP_FAV_JSON_PATH = p;
+      } catch (_) {}
+    };
+
     // 1) raw manifest
     try {
       const url = chrome.runtime.getURL('manifest.json');
       const resp = await fetch(url, { cache: 'no-store' });
       const raw = await resp.json();
-      const h = String(raw?.gnp_native_host_name || 'ai_chat_navigator_native').trim();
-      const p = String(raw?.gnp_favorites_json_path || '').trim();
-      if (h) GNP_NATIVE_HOST = h;
-      if (p) GNP_FAV_JSON_PATH = p;
+      applyFromManifestObj(raw);
     } catch (_) {}
 
     // 2) fallback
     try {
       const mj = chrome?.runtime?.getManifest?.() || {};
-      const h2 = String(mj?.gnp_native_host_name || '').trim();
-      const p2 = String(mj?.gnp_favorites_json_path || '').trim();
-      if (h2) GNP_NATIVE_HOST = h2;
-      if (p2) GNP_FAV_JSON_PATH = p2;
+      applyFromManifestObj(mj);
     } catch (_) {}
 
     return { host: GNP_NATIVE_HOST, path: GNP_FAV_JSON_PATH };
@@ -46,10 +62,19 @@ async function sendNativeMessage(payload) {
         const err = chrome.runtime.lastError;
         if (err) return resolve({ ok: false, error: err.message || String(err) });
         if (!resp) return resolve({ ok: false, error: 'Empty native host response' });
-        // normalize
-        if (typeof resp === 'object' && resp.ok === true) return resolve(resp);
-        if (typeof resp === 'object' && resp.ok === false) return resolve(resp);
-        return resolve({ ok: true, ...resp });
+        // normalize: ensure ok is a *boolean* and never被覆盖
+        try {
+          if (resp && typeof resp === 'object') {
+            if (resp.ok === true || resp.ok === false) return resolve(resp);
+            if (typeof resp.success === 'boolean') return resolve({ ...resp, ok: resp.success });
+            // IMPORTANT: ok 要放在最后，避免被 resp.ok: 'true' 覆盖
+            return resolve({ ...resp, ok: true });
+          }
+          // 非对象响应（极少数 host 实现）：包一层
+          return resolve({ ok: true, data: resp });
+        } catch (_) {
+          return resolve({ ok: true, data: resp });
+        }
       });
     } catch (e) {
       resolve({ ok: false, error: e?.message || String(e) });
@@ -59,13 +84,13 @@ async function sendNativeMessage(payload) {
 
 async function handleFavFileRead() {
   const cfg = await gnpLoadCfg();
-  if (!cfg.path) return { ok: false, error: 'gnp_favorites_json_path is not set in manifest.json' };
+  if (!cfg.path) return { ok: false, error: 'GNP_JSON_PATH is not set in manifest.json description' };
   return await sendNativeMessage({ op: 'read', path: cfg.path });
 }
 
 async function handleFavFileWrite(text) {
   const cfg = await gnpLoadCfg();
-  if (!cfg.path) return { ok: false, error: 'gnp_favorites_json_path is not set in manifest.json' };
+  if (!cfg.path) return { ok: false, error: 'GNP_JSON_PATH is not set in manifest.json description' };
   const data = (typeof text === 'string') ? text : JSON.stringify(text ?? {}, null, 2);
   return await sendNativeMessage({ op: 'write', path: cfg.path, data });
 }
