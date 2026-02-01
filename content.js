@@ -966,6 +966,7 @@ chatTop: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"c
         
         nav: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>`,
         
+        fileImport: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12 18v-6"></path><polyline points="9 15 12 12 15 15"></polyline></svg>`,
         starTab: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`
     };
 
@@ -1680,6 +1681,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
     const saveFolders = () => {
         localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders));
         gnpPersistSharedState();
+        try { gnpScheduleWriteFavoritesJsonFile("folders"); } catch (_) {}
     };
 
     // 收藏：兼容旧版本（string 数组）与新版本（对象数组）
@@ -1784,6 +1786,8 @@ window.addEventListener('resize', repositionHoverPreview, true);
         try { localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter); } catch (_) {}
         try { localStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(usageStats)); } catch (_) {}
 
+        try { gnpScheduleWriteFavoritesJsonFile('shared'); } catch (_) {}
+
         return true;
     }
 
@@ -1808,7 +1812,364 @@ window.addEventListener('resize', repositionHoverPreview, true);
         } catch (_) {}
     }
 
-    function gnpBootstrapSharedState() {
+    // === Favorites JSON file sync (Local file via Native Messaging) ===
+    // 重要说明：
+    // - Chrome 扩展无法直接按“绝对路径”读写本地文件；这里采用 Native Messaging Host 作为桥接。
+    // - manifest.json 顶层不允许自定义 key，因此 chrome.runtime.getManifest() 会“丢掉” gnp_* 字段。
+    //   为了兼容你的“在 manifest.json 里写绝对路径”的需求，我们改为 fetch 读取原始 manifest.json。
+
+    let GNP_FAV_JSON_PATH = '';
+    let GNP_NATIVE_HOST_NAME = 'ai_chat_navigator_native';
+    let gnpManifestCfgPromise = null;
+
+    function gnpLoadManifestCfg() {
+        try {
+            if (!IS_EXTENSION || typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+                return Promise.resolve({ path: GNP_FAV_JSON_PATH, host: GNP_NATIVE_HOST_NAME });
+            }
+            if (gnpManifestCfgPromise) return gnpManifestCfgPromise;
+
+            gnpManifestCfgPromise = (async () => {
+                // 1) 读取“原始 manifest.json”（包含自定义字段）
+                try {
+                    const url = chrome.runtime.getURL('manifest.json');
+                    const resp = await fetch(url, { cache: 'no-store' });
+                    const raw = await resp.json();
+                    const p = String(raw?.gnp_favorites_json_path || '').trim();
+                    const h = String(raw?.gnp_native_host_name || 'ai_chat_navigator_native').trim();
+                    if (h) GNP_NATIVE_HOST_NAME = h;
+                    if (p) GNP_FAV_JSON_PATH = p;
+                } catch (_) {}
+
+                // 2) fallback：若 fetch 失败，则尝试 getManifest（但多数情况下取不到自定义字段）
+                try {
+                    const mj = chrome.runtime.getManifest?.() || {};
+                    const p2 = String(mj?.gnp_favorites_json_path || '').trim();
+                    const h2 = String(mj?.gnp_native_host_name || '').trim();
+                    if (h2) GNP_NATIVE_HOST_NAME = h2;
+                    if (p2) GNP_FAV_JSON_PATH = p2;
+                } catch (_) {}
+
+                return { path: GNP_FAV_JSON_PATH, host: GNP_NATIVE_HOST_NAME };
+            })();
+
+            return gnpManifestCfgPromise;
+        } catch (_) {
+            return Promise.resolve({ path: GNP_FAV_JSON_PATH, host: GNP_NATIVE_HOST_NAME });
+        }
+    }
+
+    function gnpGetFavJsonPath() { return String(GNP_FAV_JSON_PATH || '').trim(); }
+    function gnpGetNativeHostName() { return String(GNP_NATIVE_HOST_NAME || 'ai_chat_navigator_native').trim(); }
+
+    // 预热加载一次（不阻塞主逻辑）
+    try { gnpLoadManifestCfg(); } catch (_) {}
+
+
+    let gnpFileBootstrapDone = false;
+    let gnpFileSyncWarned = false;
+    let gnpFavFileWriteTimer = null;
+    let gnpFavFileLastSnapshot = '';
+
+    function gnpToastSafe(msg) {
+        try {
+            if (typeof showSidebarToast === 'function') showSidebarToast(msg);
+            else console.warn('[GNP] ' + msg);
+        } catch (_) {}
+    }
+
+    function gnpSendMessagePromise(message) {
+        return new Promise((resolve) => {
+            try {
+                if (!IS_EXTENSION || !chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+                    return resolve({ ok: false, error: 'Not in extension context' });
+                }
+                chrome.runtime.sendMessage(message, (resp) => {
+                    const err = chrome.runtime.lastError;
+                    if (err) return resolve({ ok: false, error: err.message || String(err) });
+                    resolve(resp || { ok: false, error: 'Empty response' });
+                });
+            } catch (e) {
+                resolve({ ok: false, error: e && e.message ? e.message : String(e) });
+            }
+        });
+    }
+
+    function gnpNormalizeFavoriteItem(it) {
+        if (!it) return null;
+        if (typeof it === 'string') {
+            const t = String(it || '').trim();
+            return t ? { text: t, folder: '默认', useCount: 0, lastUsed: 0 } : null;
+        }
+        if (typeof it !== 'object') return null;
+
+        const t = String((it.text ?? it.t ?? it.prompt ?? it.p ?? it.content ?? it.c ?? '') || '').trim();
+        if (!t) return null;
+        const folder = String((it.folder ?? it.f ?? it.category ?? it.cat ?? '默认') || '默认').trim() || '默认';
+        const useCount = parseInt((it.useCount ?? it.uc ?? it.count ?? it.cnt ?? 0) || 0, 10) || 0;
+        const lastUsed = Number((it.lastUsed ?? it.lu ?? it.last ?? it.updatedAt ?? it.u ?? 0) || 0) || 0;
+        return { text: t, folder, useCount, lastUsed };
+    }
+
+    function gnpExtractFavoritesFromAnyJson(obj) {
+        // 允许以下输入：
+        // 1) ["prompt1", "prompt2"]
+        // 2) [{text, folder, useCount, lastUsed}, ...]
+        // 3) { favorites:[...], folders:[...] }
+        // 4) { prompts:[...]} / { items:[...]} 等
+        let favArr = null;
+        let folderArr = null;
+
+        if (Array.isArray(obj)) {
+            favArr = obj;
+        } else if (obj && typeof obj === 'object') {
+            favArr = obj.favorites || obj.prompts || obj.items || obj.data || obj.list || obj.favs || null;
+            folderArr = obj.folders || obj.folderList || obj.cats || obj.categories || null;
+
+            // 兼容：{ v, updatedAt, sharedState: {...} }
+            if (!favArr && obj.sharedState && typeof obj.sharedState === 'object') {
+                favArr = obj.sharedState.favorites || obj.sharedState.prompts || null;
+                folderArr = folderArr || obj.sharedState.folders || null;
+            }
+        }
+
+        const favoritesOut = [];
+        const seen = new Set();
+        if (Array.isArray(favArr)) {
+            favArr.forEach((it) => {
+                const f = gnpNormalizeFavoriteItem(it);
+                if (!f) return;
+                const key = f.text;
+                if (seen.has(key)) return;
+                seen.add(key);
+                favoritesOut.push(f);
+            });
+        }
+
+        const foldersOut = [];
+        if (Array.isArray(folderArr)) {
+            folderArr.forEach((x) => {
+                const f = String(x || '').trim();
+                if (f) foldersOut.push(f);
+            });
+        }
+
+        return { favorites: favoritesOut, folders: foldersOut };
+    }
+
+    function gnpMergeFavoritesIntoCurrent(incoming) {
+        const incFav = (incoming && Array.isArray(incoming.favorites)) ? incoming.favorites : [];
+        const incFolders = (incoming && Array.isArray(incoming.folders)) ? incoming.folders : [];
+
+        const existingMap = new Map();
+        favorites.forEach((f) => existingMap.set(String(f.text || '').trim(), f));
+
+        let added = 0;
+        let updated = 0;
+
+        // folders union
+        const folderSet = new Set((folders || []).map((x) => String(x || '').trim()).filter(Boolean));
+        incFolders.forEach((x) => { const v = String(x || '').trim(); if (v) folderSet.add(v); });
+        incFav.forEach((f) => { const v = String(f.folder || '').trim(); if (v) folderSet.add(v); });
+
+        if (!folderSet.has('默认')) folderSet.add('默认');
+        const nextFolders = Array.from(folderSet);
+        // 确保“默认”在最前
+        nextFolders.sort((a,b)=> (a==='默认'?-1:(b==='默认'?1:0)));
+        if (JSON.stringify(nextFolders) !== JSON.stringify(folders)) {
+            folders = nextFolders;
+        }
+
+        // merge favorites with dedupe
+        // 新导入的放到前面（保持导入列表顺序）
+        for (let i = incFav.length - 1; i >= 0; i--) {
+            const it = incFav[i];
+            const t = String(it.text || '').trim();
+            if (!t) continue;
+
+            const folder = String(it.folder || '默认').trim() || '默认';
+            const useCount = Number(it.useCount) || 0;
+            const lastUsed = Number(it.lastUsed) || 0;
+
+            const existing = existingMap.get(t);
+            if (!existing) {
+                favorites.unshift({ text: t, folder, useCount, lastUsed });
+                existingMap.set(t, favorites[0]);
+                added++;
+                continue;
+            }
+
+            // 元数据合并：不丢失更大的 useCount / 更近的 lastUsed
+            const beforeFolder = existing.folder;
+            const beforeUc = Number(existing.useCount) || 0;
+            const beforeLu = Number(existing.lastUsed) || 0;
+
+            // folder：若现有为默认且导入非默认，则采用导入；否则保留现有（避免覆盖用户本地整理）
+            if ((beforeFolder === '默认' || !beforeFolder) && folder && folder !== '默认') {
+                existing.folder = folder;
+            }
+
+            existing.useCount = Math.max(beforeUc, useCount);
+            existing.lastUsed = Math.max(beforeLu, lastUsed);
+
+            if (beforeFolder !== existing.folder || beforeUc !== existing.useCount || beforeLu !== existing.lastUsed) updated++;
+        }
+
+        // folders 中出现的新 folder，确保存在
+        favorites.forEach((f) => {
+            const ff = String(f.folder || '默认').trim() || '默认';
+            if (!folders.includes(ff)) folders.push(ff);
+        });
+
+        const changed = (added > 0 || updated > 0);
+        return { added, updated, changed };
+    }
+
+    function gnpBuildFavoritesFilePayload() {
+        // 文件里存一份“可读性较好”的 JSON（方便手工编辑/备份）
+        return {
+            v: 1,
+            updatedAt: Date.now(),
+            favorites: favorites.map(f => ({
+                text: String(f.text || '').trim(),
+                folder: String(f.folder || '默认').trim() || '默认',
+                useCount: Number(f.useCount) || 0,
+                lastUsed: Number(f.lastUsed) || 0
+            })),
+            folders: Array.isArray(folders) ? folders.slice() : ['默认']
+        };
+    }
+
+    function gnpScheduleWriteFavoritesJsonFile(reason = '') {
+        try {
+            if (!IS_EXTENSION) return;
+            try { gnpLoadManifestCfg(); } catch (_) {}
+            if (!gnpGetFavJsonPath()) return; // 未配置路径则不写
+            // 频繁使用 prompt 会触发 recordFavoriteUse -> saveFavorites；这里统一 debounce
+            clearTimeout(gnpFavFileWriteTimer);
+            gnpFavFileWriteTimer = setTimeout(async () => {
+                try {
+                    const payload = gnpBuildFavoritesFilePayload();
+                    const nextText = JSON.stringify(payload, null, 2);
+                    if (nextText === gnpFavFileLastSnapshot) return;
+                    gnpFavFileLastSnapshot = nextText;
+
+                    const resp = await gnpSendMessagePromise({ type: 'GNP_FAV_FILE_WRITE', text: nextText });
+                    if (!resp || resp.ok !== true) {
+                        if (!gnpFileSyncWarned) {
+                            gnpFileSyncWarned = true;
+                            gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
+                        }
+                        try { console.warn('[GNP] Fav JSON write failed:', resp); } catch (_) {}
+                    }
+                } catch (e) {
+                    if (!gnpFileSyncWarned) {
+                        gnpFileSyncWarned = true;
+                        gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
+                    }
+                    try { console.warn('[GNP] Fav JSON write exception:', e); } catch (_) {}
+                }
+            }, 650);
+        } catch (_) {}
+    }
+
+    async function gnpBootstrapFavoritesFromJsonFileOnce(trigger = '') {
+        if (!IS_EXTENSION) return;
+        try { await gnpLoadManifestCfg(); } catch (_) {}
+        if (gnpFileBootstrapDone) return;
+        gnpFileBootstrapDone = true;
+
+        if (!gnpGetFavJsonPath()) return; // 未配置路径则跳过（保持现有行为）
+
+        const resp = await gnpSendMessagePromise({ type: 'GNP_FAV_FILE_READ' });
+        if (!resp || resp.ok !== true) {
+            // 读取失败/文件不存在：尝试把当前收藏写一份出去（首次使用）
+            // 仅在 Host 可用但文件不存在时，Host 会返回 ok:false + code='ENOENT'
+            // 我们这里直接尝试写一次，不阻塞主逻辑。
+            try { gnpScheduleWriteFavoritesJsonFile('bootstrap-init'); } catch (_) {}
+            if (resp && resp.error) {
+                try { console.warn('[GNP] Fav JSON read failed:', resp); } catch (_) {}
+            }
+            return;
+        }
+
+        const text = String(resp.data || resp.text || '').trim();
+        if (!text) return;
+
+        try {
+            const obj = JSON.parse(text);
+            const incoming = gnpExtractFavoritesFromAnyJson(obj);
+            const merged = gnpMergeFavoritesIntoCurrent(incoming);
+
+            if (merged.changed) {
+                // 同步回 localStorage + sharedState
+                try { saveFolders(); } catch (_) {}
+                try { saveFavorites(); } catch (_) {}
+                try { renderFavorites(); } catch (_) {}
+                gnpToastSafe(`已从本地JSON加载收藏：新增 ${merged.added}，更新 ${merged.updated}`);
+            }
+
+            // 无论是否变化，都保证文件回写为“统一格式”
+            try { gnpScheduleWriteFavoritesJsonFile('bootstrap-normalize'); } catch (_) {}
+        } catch (e) {
+            try { console.warn('[GNP] Fav JSON parse failed:', e); } catch (_) {}
+            gnpToastSafe('本地JSON文件解析失败：请检查 JSON 格式。');
+        }
+    }
+
+    function gnpPickAndImportFavoritesJsonFile() {
+        try {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json,.json';
+            input.style.display = 'none';
+            document.body.appendChild(input);
+
+            input.addEventListener('change', () => {
+                const file = input.files && input.files[0];
+                if (!file) { input.remove(); return; }
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    try {
+                        const raw = String(reader.result || '').trim();
+                        const obj = JSON.parse(raw);
+                        const incoming = gnpExtractFavoritesFromAnyJson(obj);
+                        const merged = gnpMergeFavoritesIntoCurrent(incoming);
+
+                        if (merged.changed) {
+                            try { saveFolders(); } catch (_) {}
+                            try { saveFavorites(); } catch (_) {}
+                            try { renderFavorites(); } catch (_) {}
+                            gnpToastSafe(`已导入JSON：新增 ${merged.added}，更新 ${merged.updated}`);
+                        } else {
+                            gnpToastSafe('导入完成：未发现新的 Prompt（已自动去重）。');
+                        }
+
+                        // 变更后立即回写到“manifest 指定的本地JSON”
+                        try { gnpScheduleWriteFavoritesJsonFile('import'); } catch (_) {}
+                    } catch (e) {
+                        try { console.warn('[GNP] Import JSON failed:', e); } catch (_) {}
+                        gnpToastSafe('导入失败：JSON格式不正确。');
+                    } finally {
+                        input.remove();
+                    }
+                };
+                reader.onerror = () => {
+                    input.remove();
+                    gnpToastSafe('导入失败：读取文件失败。');
+                };
+                reader.readAsText(file, 'utf-8');
+            });
+
+            input.click();
+        } catch (e) {
+            try { console.warn('[GNP] Pick import file failed:', e); } catch (_) {}
+            gnpToastSafe('打开文件选择器失败。');
+        }
+    }
+
+
+function gnpBootstrapSharedState() {
         if (!gnpStorageArea) return;
 
         const getFromArea = (area, cb) => {
@@ -1837,15 +2198,18 @@ window.addEventListener('resize', repositionHoverPreview, true);
                         } else {
                             // 没有共享数据：用当前站点 localStorage 里的数据“初始化”共享区
                             gnpPersistSharedState();
+                            try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
                         }
                     });
                 } else {
                     gnpPersistSharedState();
+                    try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
                 }
 
                 // UI 若已就绪，尽量刷新一次（函数声明可提前调用）
                 try { renderFavorites(); } catch (_) {}
                 try { refreshNav(true); } catch (_) {}
+                try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
             });
         } else {
             getFromArea(gnpStorageArea, (st) => {
@@ -1855,8 +2219,10 @@ window.addEventListener('resize', repositionHoverPreview, true);
                     gnpSharedUpdatedAt = Number(st.updatedAt) || Date.now();
                     try { renderFavorites(); } catch (_) {}
                     try { refreshNav(true); } catch (_) {}
+                    try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
                 } else {
                     gnpPersistSharedState();
+                    try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
                 }
             });
         }
@@ -1894,6 +2260,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
         const payload = favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 }));
         localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(payload));
         gnpPersistSharedState();
+        try { gnpScheduleWriteFavoritesJsonFile("favorites"); } catch (_) {}
     };
 
     const getFavoriteIndex = (t) => favorites.findIndex(f => f.text === t);
@@ -3150,6 +3517,30 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         };
 
         
+
+        const importJsonBtn = document.createElement('div');
+        importJsonBtn.className = 'header-circle-btn gnp-import-json-btn';
+        importJsonBtn.title = '从JSON导入收藏（自动去重并回写到本地JSON）';
+        importJsonBtn.setAttribute('role', 'button');
+        importJsonBtn.setAttribute('tabindex', '0');
+        importJsonBtn.setAttribute('aria-label', '从JSON导入收藏');
+        importJsonBtn.innerHTML = SVGS.fileImport;
+
+        const openImportJson = (e) => {
+            try {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                gnpPickAndImportFavoritesJsonFile();
+            } catch (err) {
+                try { console.error('[GNP] openImportJson failed:', err); } catch (_) {}
+                try { showSidebarToast('打开“导入JSON”失败（请查看控制台）'); } catch (_) {}
+            }
+        };
+        importJsonBtn.addEventListener('mousedown', openImportJson, true);
+        importJsonBtn.addEventListener('click', (e) => { try { e.preventDefault(); e.stopPropagation(); } catch (_) {} }, true);
+        importJsonBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') openImportJson(e);
+        });
+
         const addPromptBtn = document.createElement('div');
         addPromptBtn.className = 'header-circle-btn gnp-add-prompt-btn';
         addPromptBtn.title = '手动添加 Prompt';
@@ -3175,7 +3566,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             if (e.key === 'Enter' || e.key === ' ') openAddPrompt(e);
         });
 
-rightBox.append(addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, clearAllBtn);
+rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, deleteFolderBtn, clearAllBtn);
         favHeader.append(leftBox, rightBox);
         panelFav.append(favHeader);
 

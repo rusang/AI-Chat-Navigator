@@ -1,0 +1,9 @@
+{
+  "name": "ai_chat_navigator_native",
+  "description": "AI Chat Navigator native messaging host (read/write favorites JSON)",
+  "path": "/Users/REPLACE_ME/.ai-chat-navigator/ai_chat_navigator_native.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://REPLACE_EXTENSION_ID/"
+  ]
+}

@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "AI Chat Navigator",
-  "version": "2.1",
+  "version": "2.1.2",
   "description": "为Gemini/ChatGPT/Claude等AI对话添加带有搜索和收藏功能的高级导航面板,支持键盘快捷键和主题切换",
   "permissions": [
     "tabs",
-    "storage"
+    "storage",
+    "nativeMessaging"
   ],
   "content_scripts": [
     {
@@ -34,5 +35,7 @@
       },
       "description": "Toggle AI Chat Navigator sidebar"
     }
-  }
+  },
+  "gnp_favorites_json_path": "/Users/shengshiliao/.ai-chat-navigator/AI-Chat-Navigator/favorites.json",
+  "gnp_native_host_name": "ai_chat_navigator_native"
 }
