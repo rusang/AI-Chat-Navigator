@@ -1129,13 +1129,13 @@ function enterHoverPreviewEditMode(favText) {
                     selectedItems.delete(oldText);
                     selectedItems.add(newText);
                 }
-                favorites[idx].text = newText;
+                renameFavorite(oldText, newText);
                 saveFavorites();
             }
         } else {
             // 已存在：合并（删除当前条）
             const idx = getFavoriteIndex(oldText);
-            if (idx > -1) favorites.splice(idx, 1);
+            if (idx > -1) removeFavorite(oldText);
             if (selectedItems && selectedItems.has(oldText)) selectedItems.delete(oldText);
             saveFavorites();
         }
@@ -1257,7 +1257,7 @@ function renderHoverPreviewContent(anchorEl, text) {
             onClick: () => {
                 const idx = getFavoriteIndex(t);
                 if (idx > -1) {
-                    favorites.splice(idx, 1);
+                    removeFavorite(t);
                     if (selectedItems && selectedItems.has(t)) selectedItems.delete(t);
                     saveFavorites();
                     if (panelFav && panelFav.classList.contains('active')) renderFavorites();
@@ -1680,7 +1680,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
     if (!folders.includes('默认')) folders.unshift('默认');
     const saveFolders = () => {
         localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders));
-        gnpPersistSharedState();
+        gnpPersistSharedState('folders');
         try { gnpScheduleWriteFavoritesJsonFile("folders"); } catch (_) {}
     };
 
@@ -1721,98 +1721,427 @@ window.addEventListener('resize', repositionHoverPreview, true);
     if (!usageStats || typeof usageStats !== 'object' || Array.isArray(usageStats)) usageStats = {};
 
     // === Shared favorites across tabs / origins / Chrome instances (via chrome.storage) ===
-    // 说明：
-    // - 现有实现使用 localStorage（按站点域隔离），因此 Gemini/ChatGPT 等不同域名之间不会共享收藏。
-    // - chrome.storage 属于扩展级存储：同一 Chrome Profile 下所有标签页/窗口/不同站点都共享；
-    //   若使用 storage.sync，则在同账号的不同 Chrome/设备间也可同步（受配额限制，超限自动降级 local）。
+    // 目标：同一 Chrome Profile 下，多个标签页/窗口（甚至不同站点：Gemini/ChatGPT/Claude）收藏实时一致。
+    // 修复点：旧实现用单个 updatedAt 判断，usageStats 等“无关字段写入”会让其它标签页忽略收藏更新，
+    // 甚至用旧快照覆盖新收藏，导致“新增/删除不同步、删除被复活”。
+    // v2 方案：
+    // 1) 分区时间戳：favList / favMeta / folders / filter / usage 各自独立
+    // 2) 写入采用“读-合并-写”(merge)，避免旧快照覆盖
+    // 3) 删除 tombstone（deletedFavorites）保证删除不会被旧数据复活
+
     const GNP_SHARED_STATE_KEY = 'ai-chat-navigator-shared-state-v1';
     const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
     const gnpStorageSync = gnpChrome && gnpChrome.storage && gnpChrome.storage.sync;
     const gnpStorageLocal = gnpChrome && gnpChrome.storage && gnpChrome.storage.local;
 
-    // 默认优先使用 sync（跨“Chrome 实例/设备”），如果不可用或超限会自动降级 local（容量更大、同机稳定共享）
+    // 默认优先使用 sync（跨设备/不同 Chrome 实例）；若不可用或超限则降级 local
     let gnpStorageArea = gnpStorageSync || gnpStorageLocal || null;
-    let gnpSharedUpdatedAt = 0;
+
     let gnpApplyingSharedState = false;
 
-    function gnpBuildSharedState() {
-        return {
-            v: 1,
-            updatedAt: Date.now(),
-            favorites: favorites.map(f => ({
-                text: f.text,
-                folder: f.folder,
-                useCount: Number(f.useCount) || 0,
-                lastUsed: Number(f.lastUsed) || 0
-            })),
-            folders: Array.isArray(folders) ? folders.slice() : ['默认'],
-            favFolderFilter: String(favFolderFilter || '全部'),
-            usageStats: (usageStats && typeof usageStats === 'object' && !Array.isArray(usageStats)) ? usageStats : {}
-        };
+    // 分区更新时间戳（本标签页已应用到的最大值）
+    let gnpSharedFavListAt = 0;
+    let gnpSharedFavMetaAt = 0;
+    let gnpSharedFoldersAt = 0;
+    let gnpSharedFilterAt = 0;
+    let gnpSharedUsageAt = 0;
+
+    // 删除墓碑：text -> deletedAt（删除必须全局一致，且不得被旧快照复活）
+    let deletedFavorites = {};
+
+    function gnpNow() { return Date.now(); }
+
+    function gnpNormalizeSharedState(st) {
+        const out = (st && typeof st === 'object') ? { ...st } : {};
+        const v = Number(out.v || 1) || 1;
+        const legacyTs = Number(out.updatedAt || 0) || 0;
+
+        // v1 兼容：没有分区字段时，用 updatedAt 填充
+        if (!('favListUpdatedAt' in out)) out.favListUpdatedAt = legacyTs;
+        if (!('favMetaUpdatedAt' in out)) out.favMetaUpdatedAt = legacyTs;
+        if (!('foldersUpdatedAt' in out)) out.foldersUpdatedAt = legacyTs;
+        if (!('filterUpdatedAt' in out)) out.filterUpdatedAt = legacyTs;
+        if (!('usageUpdatedAt' in out)) out.usageUpdatedAt = legacyTs;
+
+        // 数据结构兜底
+        if (!Array.isArray(out.favorites)) out.favorites = [];
+        if (!Array.isArray(out.folders)) out.folders = ['默认'];
+        if (typeof out.favFolderFilter !== 'string') out.favFolderFilter = '全部';
+        if (!out.usageStats || typeof out.usageStats !== 'object' || Array.isArray(out.usageStats)) out.usageStats = {};
+        if (!out.deletedFavorites || typeof out.deletedFavorites !== 'object' || Array.isArray(out.deletedFavorites)) out.deletedFavorites = {};
+
+        // 计算总 updatedAt（用于调试/兼容）
+        out.updatedAt = Math.max(
+            Number(out.updatedAt || 0) || 0,
+            Number(out.favListUpdatedAt || 0) || 0,
+            Number(out.favMetaUpdatedAt || 0) || 0,
+            Number(out.foldersUpdatedAt || 0) || 0,
+            Number(out.filterUpdatedAt || 0) || 0,
+            Number(out.usageUpdatedAt || 0) || 0,
+        );
+
+        out.v = (v >= 2) ? v : 2;
+        return out;
     }
 
-    function gnpApplySharedState(state) {
-        if (!state || typeof state !== 'object') return false;
-
-        const raw = Array.isArray(state.favorites) ? state.favorites : [];
-        const nextFav = [];
-        const seen = new Set();
-        raw.forEach(it => {
-            if (!it) return;
-            const t = String((it.text ?? it.t) || '').trim();
-            if (!t || seen.has(t)) return;
-            seen.add(t);
-            const folder = String((it.folder ?? it.f) || '默认').trim() || '默认';
-            const useCount = parseInt((it.useCount ?? it.uc) || 0, 10) || 0;
-            const lastUsed = Number((it.lastUsed ?? it.lu) || 0) || 0;
-            nextFav.push({ text: t, folder, useCount, lastUsed });
-        });
-
-        let nextFolders = Array.isArray(state.folders) ? state.folders : ['默认'];
-        nextFolders = [...new Set(nextFolders.map(f => String(f || '').trim()).filter(Boolean))];
-        if (!nextFolders.includes('默认')) nextFolders.unshift('默认');
-
-        // 收藏里出现的新文件夹，自动补齐
-        nextFav.forEach(f => { if (!nextFolders.includes(f.folder)) nextFolders.push(f.folder); });
-
-        favorites = nextFav;
-        folders = nextFolders;
-        favFolderFilter = String(state.favFolderFilter || '全部');
-        usageStats = (state.usageStats && typeof state.usageStats === 'object' && !Array.isArray(state.usageStats)) ? state.usageStats : {};
-
-        // 同步回 localStorage（作为各站点的“本地缓存”），保证旧逻辑/兼容性
-        try { localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(gnpBuildSharedState().favorites)); } catch (_) {}
-        try { localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders)); } catch (_) {}
-        try { localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter); } catch (_) {}
-        try { localStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(usageStats)); } catch (_) {}
-
-        try { gnpScheduleWriteFavoritesJsonFile('shared'); } catch (_) {}
-
-        return true;
-    }
-
-    function gnpPersistSharedState() {
-        if (!gnpStorageArea || gnpApplyingSharedState) return;
-        const state = gnpBuildSharedState();
-        gnpSharedUpdatedAt = state.updatedAt;
-
+    function gnpPruneByTsMap(mapObj, maxItems = 3000) {
         try {
-            gnpStorageArea.set({ [GNP_SHARED_STATE_KEY]: state }, () => {
-                // 额外写入 local 作为持久化/大容量备份（即便主要使用 sync）
-                if (gnpStorageArea === gnpStorageSync && gnpStorageLocal) {
-                    try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: state }); } catch (_) {}
-                }
-                const err = gnpChrome && gnpChrome.runtime && gnpChrome.runtime.lastError;
-                // sync 额度不足时降级到 local，保证“共享”可用
-                if (err && gnpStorageArea === gnpStorageSync && gnpStorageLocal) {
-                    gnpStorageArea = gnpStorageLocal;
-                    try { gnpStorageArea.set({ [GNP_SHARED_STATE_KEY]: state }); } catch (_) {}
-                }
-            });
-        } catch (_) {}
+            const entries = Object.entries(mapObj || {}).map(([k, v]) => [k, Number(v) || 0]).filter(([,ts]) => ts > 0);
+            if (entries.length <= maxItems) return Object.fromEntries(entries);
+            entries.sort((a,b)=>b[1]-a[1]);
+            return Object.fromEntries(entries.slice(0, maxItems));
+        } catch (_) { return mapObj || {}; }
     }
 
-    // === Favorites JSON file sync (Local file via Native Messaging) ===
+    function gnpMergeTombstones(a, b) {
+        const out = { ...(a && typeof a === 'object' ? a : {}) };
+        if (b && typeof b === 'object') {
+            for (const [k, v] of Object.entries(b)) {
+                const t = String(k || '').trim();
+                if (!t) continue;
+                const ts = Number(v) || 0;
+                if (!ts) continue;
+                const prev = Number(out[t]) || 0;
+                if (ts > prev) out[t] = ts;
+            }
+        }
+        return out;
+    }
+
+    function gnpNormalizeFavItem(it) {
+        if (!it) return null;
+        const t = String((it.text ?? it.t) || '').trim();
+        if (!t) return null;
+        const folder = String((it.folder ?? it.f) || '默认').trim() || '默认';
+        const useCount = parseInt((it.useCount ?? it.uc) || 0, 10) || 0;
+        const lastUsed = Number((it.lastUsed ?? it.lu) || 0) || 0;
+        return { text: t, folder, useCount, lastUsed };
+    }
+
+    function gnpMergeFavorites(baseArr, localArr, tombstones) {
+        const base = Array.isArray(baseArr) ? baseArr : [];
+        const local = Array.isArray(localArr) ? localArr : [];
+        const tomb = (tombstones && typeof tombstones === 'object') ? tombstones : {};
+
+        const map = new Map();
+        const baseOrder = [];
+        const localOrder = [];
+
+        for (const it of base) {
+            const obj = gnpNormalizeFavItem(it);
+            if (!obj) continue;
+            if (map.has(obj.text)) continue;
+            map.set(obj.text, obj);
+            baseOrder.push(obj.text);
+        }
+
+        for (const it of local) {
+            const obj = gnpNormalizeFavItem(it);
+            if (!obj) continue;
+            localOrder.push(obj.text);
+            if (!map.has(obj.text)) {
+                map.set(obj.text, obj);
+            } else {
+                const prev = map.get(obj.text);
+                // 冲突策略：folder 取 local；useCount/lastUsed 取最大
+                prev.folder = obj.folder || prev.folder || '默认';
+                prev.useCount = Math.max(Number(prev.useCount)||0, Number(obj.useCount)||0);
+                prev.lastUsed = Math.max(Number(prev.lastUsed)||0, Number(obj.lastUsed)||0);
+                map.set(obj.text, prev);
+            }
+        }
+
+        // 过滤 tombstone
+        const alive = (t) => !(tomb && tomb[t] && Number(tomb[t]) > 0);
+
+        const out = [];
+        const added = new Set();
+        for (const t of localOrder) {
+            if (added.has(t)) continue;
+            if (!alive(t)) continue;
+            const obj = map.get(t);
+            if (!obj) continue;
+            out.push(obj);
+            added.add(t);
+        }
+        for (const t of baseOrder) {
+            if (added.has(t)) continue;
+            if (!alive(t)) continue;
+            const obj = map.get(t);
+            if (!obj) continue;
+            out.push(obj);
+            added.add(t);
+        }
+
+        return out;
+    }
+
+    function gnpNormalizeFolders(list) {
+        let arr = Array.isArray(list) ? list : ['默认'];
+        arr = [...new Set(arr.map(f => String(f || '').trim()).filter(Boolean))];
+        if (!arr.includes('默认')) arr.unshift('默认');
+        return arr;
+    }
+
+    function gnpMergeFolders(baseFolders, localFolders, favArr) {
+        const out = [];
+        const seen = new Set();
+        const push = (f) => {
+            const s = String(f || '').trim();
+            if (!s) return;
+            if (seen.has(s)) return;
+            seen.add(s);
+            out.push(s);
+        };
+        gnpNormalizeFolders(baseFolders).forEach(push);
+        gnpNormalizeFolders(localFolders).forEach(push);
+        (Array.isArray(favArr) ? favArr : []).forEach(it => {
+            const obj = gnpNormalizeFavItem(it);
+            if (obj) push(obj.folder || '默认');
+        });
+        if (!out.includes('默认')) out.unshift('默认');
+        // 确保“默认”在首位
+        const idx = out.indexOf('默认');
+        if (idx > 0) { out.splice(idx,1); out.unshift('默认'); }
+        return out;
+    }
+
+    function gnpMergeUsage(baseUsage, localUsage) {
+        const out = { ...(baseUsage && typeof baseUsage === 'object' ? baseUsage : {}) };
+        const src = (localUsage && typeof localUsage === 'object') ? localUsage : {};
+        for (const [k, v] of Object.entries(src)) {
+            const ts = Number(v) || 0;
+            if (!ts) continue;
+            const prev = Number(out[k]) || 0;
+            if (ts > prev) out[k] = ts;
+        }
+        // 裁剪，避免爆表
+        return gnpPruneByTsMap(out, 2000);
+    }
+
+    function gnpApplySharedState(state, force = false) {
+        const st = gnpNormalizeSharedState(state);
+        let changed = false;
+
+        // favorites（list/meta 任一更新都需要同步 favorites + tombstone）
+        if (force || (Number(st.favListUpdatedAt)||0) > gnpSharedFavListAt || (Number(st.favMetaUpdatedAt)||0) > gnpSharedFavMetaAt) {
+            deletedFavorites = gnpPruneByTsMap(st.deletedFavorites || {}, 5000);
+
+            const mergedFav = gnpMergeFavorites(st.favorites || [], st.favorites || [], deletedFavorites);
+            favorites = mergedFav;
+
+            // folders 可能由 fav 引入新 folder：先不改 foldersAt，这里只补齐
+            let nextFolders = gnpNormalizeFolders(st.folders || ['默认']);
+            mergedFav.forEach(f => { if (f && f.folder && !nextFolders.includes(f.folder)) nextFolders.push(f.folder); });
+            folders = nextFolders;
+
+            gnpSharedFavListAt = Math.max(gnpSharedFavListAt, Number(st.favListUpdatedAt)||0);
+            gnpSharedFavMetaAt = Math.max(gnpSharedFavMetaAt, Number(st.favMetaUpdatedAt)||0);
+            changed = true;
+
+            // 回写 localStorage（站点缓存/兼容旧逻辑）
+            try { localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 })))); } catch (_) {}
+            try { localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders)); } catch (_) {}
+        }
+
+        // folders
+        if (force || (Number(st.foldersUpdatedAt)||0) > gnpSharedFoldersAt) {
+            let nextFolders = gnpNormalizeFolders(st.folders || ['默认']);
+            favorites.forEach(f => { if (f && f.folder && !nextFolders.includes(f.folder)) nextFolders.push(f.folder); });
+            folders = nextFolders;
+            gnpSharedFoldersAt = Math.max(gnpSharedFoldersAt, Number(st.foldersUpdatedAt)||0);
+            changed = true;
+            try { localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders)); } catch (_) {}
+        }
+
+        // filter
+        if (force || (Number(st.filterUpdatedAt)||0) > gnpSharedFilterAt) {
+            favFolderFilter = String(st.favFolderFilter || '全部');
+            gnpSharedFilterAt = Math.max(gnpSharedFilterAt, Number(st.filterUpdatedAt)||0);
+            changed = true;
+            try { localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter); } catch (_) {}
+        }
+
+        // usageStats
+        if (force || (Number(st.usageUpdatedAt)||0) > gnpSharedUsageAt) {
+            usageStats = (st.usageStats && typeof st.usageStats === 'object' && !Array.isArray(st.usageStats)) ? st.usageStats : {};
+            gnpSharedUsageAt = Math.max(gnpSharedUsageAt, Number(st.usageUpdatedAt)||0);
+            changed = true;
+            try { localStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(usageStats)); } catch (_) {}
+        }
+
+        if (changed) {
+            try { gnpScheduleWriteFavoritesJsonFile('shared'); } catch (_) {}
+        }
+        return changed;
+    }
+
+    function gnpStorageGet(area) {
+        return new Promise((resolve) => {
+            if (!area) return resolve(null);
+            try {
+                area.get([GNP_SHARED_STATE_KEY], (res) => resolve(res && res[GNP_SHARED_STATE_KEY]));
+            } catch (_) { resolve(null); }
+        });
+    }
+
+    function gnpStorageSet(area, state) {
+        return new Promise((resolve) => {
+            if (!area) return resolve({ ok: false, error: 'no_storage' });
+            try {
+                area.set({ [GNP_SHARED_STATE_KEY]: state }, () => {
+                    const err = gnpChrome && gnpChrome.runtime && gnpChrome.runtime.lastError;
+                    if (err) return resolve({ ok: false, error: String(err && err.message || err) });
+                    resolve({ ok: true });
+                });
+            } catch (e) {
+                resolve({ ok: false, error: String(e && e.message || e) });
+            }
+        });
+    }
+
+    async function gnpPersistSharedState(mode = 'all') {
+        if (!gnpStorageArea || gnpApplyingSharedState) return;
+
+        const now = gnpNow();
+
+        // 读：以 sync 优先
+        let base = null;
+        if (gnpStorageSync) {
+            base = await gnpStorageGet(gnpStorageSync);
+            if (!base && gnpStorageLocal) base = await gnpStorageGet(gnpStorageLocal);
+        } else {
+            base = await gnpStorageGet(gnpStorageArea);
+        }
+
+        base = gnpNormalizeSharedState(base);
+
+        // 合并 tombstones（无论 mode，都要带上 base 的 tombstone，避免复活）
+        const mergedTombs = gnpPruneByTsMap(gnpMergeTombstones(base.deletedFavorites, deletedFavorites), 5000);
+
+        const next = { ...base, v: 2, deletedFavorites: mergedTombs };
+
+        // 根据 mode 仅更新对应分区，其他分区使用 base 值，避免旧快照覆盖
+        if (mode === 'usage') {
+            next.usageStats = gnpMergeUsage(base.usageStats, usageStats);
+            next.usageUpdatedAt = now;
+        } else if (mode === 'folders') {
+            next.folders = gnpMergeFolders(base.folders, folders, base.favorites);
+            next.foldersUpdatedAt = now;
+        } else if (mode === 'filter') {
+            next.favFolderFilter = String(favFolderFilter || '全部');
+            next.filterUpdatedAt = now;
+        } else if (mode === 'fav_meta') {
+            // meta 更新：不改变列表结构，但会更新 useCount/lastUsed 等
+            next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
+            next.favMetaUpdatedAt = now;
+        } else if (mode === 'fav_list') {
+            // list 更新：合并（避免丢失其它标签页新增） + tombstone 防复活
+            next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
+            next.favListUpdatedAt = now;
+            // list 变化通常也会影响 meta（例如 folder 变更），顺带更新 meta 时间戳
+            next.favMetaUpdatedAt = Math.max(Number(base.favMetaUpdatedAt)||0, now);
+            // folders 可能扩充
+            next.folders = gnpMergeFolders(base.folders, folders, next.favorites);
+            next.foldersUpdatedAt = Math.max(Number(base.foldersUpdatedAt)||0, now);
+        } else {
+            // all
+            next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
+            next.folders = gnpMergeFolders(base.folders, folders, next.favorites);
+            next.favFolderFilter = String(favFolderFilter || '全部');
+            next.usageStats = gnpMergeUsage(base.usageStats, usageStats);
+            next.favListUpdatedAt = now;
+            next.favMetaUpdatedAt = now;
+            next.foldersUpdatedAt = now;
+            next.filterUpdatedAt = now;
+            next.usageUpdatedAt = now;
+        }
+
+        next.updatedAt = Math.max(
+            Number(next.favListUpdatedAt||0),
+            Number(next.favMetaUpdatedAt||0),
+            Number(next.foldersUpdatedAt||0),
+            Number(next.filterUpdatedAt||0),
+            Number(next.usageUpdatedAt||0),
+            now
+        );
+
+        // 写：优先 sync，并备份到 local；若 sync 失败则降级 local
+        let ok = { ok: false };
+        if (gnpStorageSync) {
+            ok = await gnpStorageSet(gnpStorageSync, next);
+            if (!ok.ok && gnpStorageLocal) {
+                gnpStorageArea = gnpStorageLocal;
+                ok = await gnpStorageSet(gnpStorageLocal, next);
+            } else {
+                // 同步一份到 local 作为大容量备份
+                if (gnpStorageLocal) { try { await gnpStorageSet(gnpStorageLocal, next); } catch (_) {} }
+            }
+        } else {
+            ok = await gnpStorageSet(gnpStorageArea, next);
+        }
+
+        // 更新本标签页已应用的时间戳（避免后续重复 apply）
+        if (ok && ok.ok) {
+            gnpSharedFavListAt = Math.max(gnpSharedFavListAt, Number(next.favListUpdatedAt)||0);
+            gnpSharedFavMetaAt = Math.max(gnpSharedFavMetaAt, Number(next.favMetaUpdatedAt)||0);
+            gnpSharedFoldersAt = Math.max(gnpSharedFoldersAt, Number(next.foldersUpdatedAt)||0);
+            gnpSharedFilterAt = Math.max(gnpSharedFilterAt, Number(next.filterUpdatedAt)||0);
+            gnpSharedUsageAt = Math.max(gnpSharedUsageAt, Number(next.usageUpdatedAt)||0);
+        }
+    }
+
+    function gnpBootstrapSharedState() {
+        if (!gnpStorageArea) return;
+        (async () => {
+            let st = null;
+            if (gnpStorageSync) {
+                st = await gnpStorageGet(gnpStorageSync);
+                if (!st && gnpStorageLocal) st = await gnpStorageGet(gnpStorageLocal);
+            } else {
+                st = await gnpStorageGet(gnpStorageArea);
+            }
+
+            if (st && st.favorites) {
+                gnpApplyingSharedState = true;
+                try { gnpApplySharedState(st, true); } finally { gnpApplyingSharedState = false; }
+            } else {
+                // 没有共享数据：用当前站点 localStorage 的数据初始化共享区
+                await gnpPersistSharedState('all');
+                try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
+            }
+
+            try { renderFavorites(); } catch (_) {}
+            try { refreshNav(true); } catch (_) {}
+            try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
+        })();
+    }
+
+    // 监听其他标签页/窗口对共享收藏的修改，并实时刷新当前面板
+    try {
+        if (gnpChrome && gnpChrome.storage && gnpChrome.storage.onChanged) {
+            gnpChrome.storage.onChanged.addListener((changes, areaName) => {
+                if (!changes || !changes[GNP_SHARED_STATE_KEY]) return;
+                if (areaName !== 'sync' && areaName !== 'local') return;
+
+                const next = changes[GNP_SHARED_STATE_KEY].newValue;
+                if (!next) return;
+
+                gnpApplyingSharedState = true;
+                try {
+                    const changed = gnpApplySharedState(next, false);
+                    if (changed) {
+                        try { renderFavorites(); } catch (_) {}
+                        try { refreshNav(true); } catch (_) {}
+                    }
+                } finally { gnpApplyingSharedState = false; }
+            });
+        }
+    } catch (_) {}
+
+    // 启动：异步拉取共享收藏
+    gnpBootstrapSharedState();
+// === Favorites JSON file sync (Local file via Native Messaging) ===
     // 重要说明：
     // - Chrome 扩展无法直接按“绝对路径”读写本地文件；这里采用 Native Messaging Host 作为桥接。
     // - manifest.json 顶层不允许自定义 key，因此 chrome.runtime.getManifest() 会“丢掉” gnp_* 字段。
@@ -1830,38 +2159,24 @@ window.addEventListener('resize', repositionHoverPreview, true);
             if (gnpManifestCfgPromise) return gnpManifestCfgPromise;
 
             gnpManifestCfgPromise = (async () => {
-                const applyFromManifestObj = (mj) => {
-                    try {
-                        if (!mj || typeof mj !== 'object') return;
-                        // 1) description marker (preferred)
-                        const desc = String(mj.description || '');
-                        const mPath = desc.match(/\bGNP_JSON_PATH\s*=\s*([^;\)\n\r]+)/i);
-                        const mHost = desc.match(/\bGNP_NATIVE_HOST\s*=\s*([^;\)\n\r]+)/i);
-                        const pDesc = (mPath && mPath[1]) ? String(mPath[1]).trim() : '';
-                        const hDesc = (mHost && mHost[1]) ? String(mHost[1]).trim() : '';
-                        if (hDesc) GNP_NATIVE_HOST_NAME = hDesc;
-                        if (pDesc) GNP_FAV_JSON_PATH = pDesc;
-
-                        // 2) legacy custom keys (back-compat)
-                        const p = String(mj?.gnp_favorites_json_path || '').trim();
-                        const h = String(mj?.gnp_native_host_name || '').trim();
-                        if (h) GNP_NATIVE_HOST_NAME = h;
-                        if (p) GNP_FAV_JSON_PATH = p;
-                    } catch (_) {}
-                };
-
                 // 1) 读取“原始 manifest.json”（包含自定义字段）
                 try {
                     const url = chrome.runtime.getURL('manifest.json');
                     const resp = await fetch(url, { cache: 'no-store' });
                     const raw = await resp.json();
-                    applyFromManifestObj(raw);
+                    const p = String(raw?.gnp_favorites_json_path || '').trim();
+                    const h = String(raw?.gnp_native_host_name || 'ai_chat_navigator_native').trim();
+                    if (h) GNP_NATIVE_HOST_NAME = h;
+                    if (p) GNP_FAV_JSON_PATH = p;
                 } catch (_) {}
 
                 // 2) fallback：若 fetch 失败，则尝试 getManifest（但多数情况下取不到自定义字段）
                 try {
                     const mj = chrome.runtime.getManifest?.() || {};
-                    applyFromManifestObj(mj);
+                    const p2 = String(mj?.gnp_favorites_json_path || '').trim();
+                    const h2 = String(mj?.gnp_native_host_name || '').trim();
+                    if (h2) GNP_NATIVE_HOST_NAME = h2;
+                    if (p2) GNP_FAV_JSON_PATH = p2;
                 } catch (_) {}
 
                 return { path: GNP_FAV_JSON_PATH, host: GNP_NATIVE_HOST_NAME };
@@ -2074,25 +2389,14 @@ window.addEventListener('resize', repositionHoverPreview, true);
                             gnpFileSyncWarned = true;
                             gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
                         }
-                        // 在扩展错误页里直接显示对象会变成 [object Object]，这里转成字符串更直观
-                        try {
-                            const s = (resp && typeof resp === 'object') ? JSON.stringify(resp) : String(resp);
-                            console.warn('[GNP] Fav JSON write failed:', s);
-                        } catch (_) {
-                            try { console.warn('[GNP] Fav JSON write failed'); } catch (_) {}
-                        }
+                        try { console.warn('[GNP] Fav JSON write failed:', resp); } catch (_) {}
                     }
                 } catch (e) {
                     if (!gnpFileSyncWarned) {
                         gnpFileSyncWarned = true;
                         gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
                     }
-                    try {
-                        const s = (e && typeof e === 'object') ? (e.stack || e.message || JSON.stringify(e)) : String(e);
-                        console.warn('[GNP] Fav JSON write exception:', s);
-                    } catch (_) {
-                        try { console.warn('[GNP] Fav JSON write exception'); } catch (_) {}
-                    }
+                    try { console.warn('[GNP] Fav JSON write exception:', e); } catch (_) {}
                 }
             }, 650);
         } catch (_) {}
@@ -2112,16 +2416,8 @@ window.addEventListener('resize', repositionHoverPreview, true);
             // 仅在 Host 可用但文件不存在时，Host 会返回 ok:false + code='ENOENT'
             // 我们这里直接尝试写一次，不阻塞主逻辑。
             try { gnpScheduleWriteFavoritesJsonFile('bootstrap-init'); } catch (_) {}
-            // 文件不存在属于“正常首启”场景，不要在错误页里刷屏
-            const maybeErr = String(resp?.error || '').toUpperCase();
-            const isENOENT = (resp && resp.code === 'ENOENT') || maybeErr.includes('ENOENT') || maybeErr.includes('NO SUCH FILE');
-            if (resp && resp.error && !isENOENT) {
-                try {
-                    const s = (resp && typeof resp === 'object') ? JSON.stringify(resp) : String(resp);
-                    console.warn('[GNP] Fav JSON read failed:', s);
-                } catch (_) {
-                    try { console.warn('[GNP] Fav JSON read failed'); } catch (_) {}
-                }
+            if (resp && resp.error) {
+                try { console.warn('[GNP] Fav JSON read failed:', resp); } catch (_) {}
             }
             return;
         }
@@ -2202,97 +2498,10 @@ window.addEventListener('resize', repositionHoverPreview, true);
     }
 
 
-function gnpBootstrapSharedState() {
-        if (!gnpStorageArea) return;
-
-        const getFromArea = (area, cb) => {
-            try {
-                area.get([GNP_SHARED_STATE_KEY], (res) => cb(res && res[GNP_SHARED_STATE_KEY]));
-            } catch (_) { cb(null); }
-        };
-
-        // 优先 sync（跨设备/不同 Chrome 实例），其次 local（容量更大）
-        if (gnpStorageSync) {
-            getFromArea(gnpStorageSync, (stSync) => {
-                if (stSync && stSync.favorites) {
-                    gnpApplyingSharedState = true;
-                    try { gnpApplySharedState(stSync); } finally { gnpApplyingSharedState = false; }
-                    gnpSharedUpdatedAt = Number(stSync.updatedAt) || Date.now();
-                    // 同步数据也写一份到 local（容量大，且保证重启后可用）
-                    if (gnpStorageLocal) { try { gnpStorageLocal.set({ [GNP_SHARED_STATE_KEY]: stSync }); } catch (_) {} }
-                } else if (gnpStorageLocal) {
-                    getFromArea(gnpStorageLocal, (stLocal) => {
-                        if (stLocal && stLocal.favorites) {
-                            gnpApplyingSharedState = true;
-                            try { gnpApplySharedState(stLocal); } finally { gnpApplyingSharedState = false; }
-                            gnpSharedUpdatedAt = Number(stLocal.updatedAt) || Date.now();
-                            // 回填 sync（若可用）
-                            try { gnpStorageSync.set({ [GNP_SHARED_STATE_KEY]: stLocal }); } catch (_) {}
-                        } else {
-                            // 没有共享数据：用当前站点 localStorage 里的数据“初始化”共享区
-                            gnpPersistSharedState();
-                            try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
-                        }
-                    });
-                } else {
-                    gnpPersistSharedState();
-                    try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
-                }
-
-                // UI 若已就绪，尽量刷新一次（函数声明可提前调用）
-                try { renderFavorites(); } catch (_) {}
-                try { refreshNav(true); } catch (_) {}
-                try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
-            });
-        } else {
-            getFromArea(gnpStorageArea, (st) => {
-                if (st && st.favorites) {
-                    gnpApplyingSharedState = true;
-                    try { gnpApplySharedState(st); } finally { gnpApplyingSharedState = false; }
-                    gnpSharedUpdatedAt = Number(st.updatedAt) || Date.now();
-                    try { renderFavorites(); } catch (_) {}
-                    try { refreshNav(true); } catch (_) {}
-                    try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
-                } else {
-                    gnpPersistSharedState();
-                    try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
-                }
-            });
-        }
-    }
-
-    // 监听其他标签页/窗口（或 sync 同步）对共享收藏的修改，并实时刷新当前面板
-    try {
-        if (gnpChrome && gnpChrome.storage && gnpChrome.storage.onChanged) {
-            gnpChrome.storage.onChanged.addListener((changes, areaName) => {
-                if (!changes || !changes[GNP_SHARED_STATE_KEY]) return;
-                if (areaName !== 'sync' && areaName !== 'local') return;
-
-                const next = changes[GNP_SHARED_STATE_KEY].newValue;
-                if (!next) return;
-
-                const ts = Number(next.updatedAt) || 0;
-                if (ts && ts <= gnpSharedUpdatedAt) return;
-
-                gnpSharedUpdatedAt = ts || Date.now();
-                gnpApplyingSharedState = true;
-                try { gnpApplySharedState(next); } finally { gnpApplyingSharedState = false; }
-
-                try { renderFavorites(); } catch (_) {}
-                try { refreshNav(true); } catch (_) {}
-            });
-        }
-    } catch (_) {}
-
-    // 启动：异步拉取共享收藏
-    gnpBootstrapSharedState();
-
-
-
-    const saveFavorites = () => {
+const saveFavorites = (mode = 'fav_list') => {
         const payload = favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 }));
         localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(payload));
-        gnpPersistSharedState();
+        gnpPersistSharedState(mode);
         try { gnpScheduleWriteFavoritesJsonFile("favorites"); } catch (_) {}
     };
 
@@ -2320,7 +2529,7 @@ function gnpBootstrapSharedState() {
     const f = favorites[idx];
     f.useCount = (Number(f.useCount) || 0) + 1;
     f.lastUsed = Date.now();
-    saveFavorites();
+    saveFavorites('fav_meta');
 
     // 若当前正在显示收藏面板，则就地更新该条的统计信息，避免整列表重渲染导致闪烁/滚动跳动
     try {
@@ -2354,7 +2563,7 @@ function gnpBootstrapSharedState() {
 
     const saveUsageStats = () => {
         try { localStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(usageStats)); } catch (_) {}
-        gnpPersistSharedState();
+        gnpPersistSharedState('usage');
     };
 
     const getPromptLastUsed = (t) => {
@@ -2413,6 +2622,8 @@ function gnpBootstrapSharedState() {
         const text = String(t || '').trim();
         const f = String(folder || '默认').trim() || '默认';
         if (!text) return false;
+        // 重新添加时，清除 tombstone（允许恢复）
+        try { if (deletedFavorites && deletedFavorites[text]) delete deletedFavorites[text]; } catch (_) {}
         if (hasFavorite(text)) return false;
         if (!folders.includes(f)) { folders.push(f); saveFolders(); }
         favorites.unshift({ text, folder: f, useCount: 0, lastUsed: 0 }); // 新收藏置顶：保持原行为
@@ -2420,10 +2631,30 @@ function gnpBootstrapSharedState() {
     };
 
     const removeFavorite = (t) => {
-        const idx = getFavoriteIndex(String(t || '').trim());
+        const text = String(t || '').trim();
+        if (!text) return;
+        const idx = getFavoriteIndex(text);
         if (idx > -1) favorites.splice(idx, 1);
+        // 写 tombstone，避免删除被旧快照复活
+        try {
+            deletedFavorites = (deletedFavorites && typeof deletedFavorites === 'object') ? deletedFavorites : {};
+            deletedFavorites[text] = Date.now();
+        } catch (_) {}
     };
 
+
+    const renameFavorite = (oldText, newText) => {
+        const o = String(oldText || '').trim();
+        const n = String(newText || '').trim();
+        if (!o || !n) return false;
+        if (o === n) return true;
+        const idx = getFavoriteIndex(o);
+        if (idx === -1) return false;
+        // tombstone old name, clear tombstone for new name
+        try { deletedFavorites = (deletedFavorites && typeof deletedFavorites === 'object') ? deletedFavorites : {}; deletedFavorites[o] = Date.now(); if (deletedFavorites[n]) delete deletedFavorites[n]; } catch (_) {}
+        favorites[idx].text = n;
+        return true;
+    };
     const ensureFolderExists = (name) => {
         const f = String(name || '').trim();
         if (!f) return '默认';
@@ -3741,12 +3972,12 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                                 selectedItems.delete(favText);
                                 selectedItems.add(trimmedNew);
                             }
-                            favObj.text = trimmedNew;
+                            renameFavorite(favText, trimmedNew);
                             saveFavorites();
                             renderFavorites();
                         } else {
                             // 已存在：合并（删除当前条）
-                            favorites.splice(itemIndex, 1);
+                            removeFavorite(favText);
                             if (selectedItems.has(favText)) selectedItems.delete(favText);
                             saveFavorites();
                             renderFavorites();
@@ -3763,8 +3994,9 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             pinBtn.onclick = (e) => {
                 e.stopPropagation();
                 if (itemIndex > 0) {
+                    const obj = favorites[itemIndex];
                     favorites.splice(itemIndex, 1);
-                    favorites.unshift(favObj);
+                    favorites.unshift(obj);
                     saveFavorites();
                     renderFavorites();
                 }
@@ -3776,7 +4008,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             delBtn.title = '删除';
             delBtn.onclick = (e) => {
                 e.stopPropagation();
-                favorites.splice(itemIndex, 1);
+                removeFavorite(favText);
                 if (selectedItems.has(favText)) selectedItems.delete(favText);
                 saveFavorites();
                 renderFavorites();
