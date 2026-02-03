@@ -187,8 +187,9 @@
     --gnp-mini-active-bg: rgba(37, 99, 235, 0.14);
     --gnp-mini-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
 
-    --gnp-tab-active-bg: rgba(37, 99, 235, 0.14);
-    --gnp-tab-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
+    --gnp-tab-active-bg: rgba(99, 102, 241, 0.30);
+    --gnp-tab-active-fg: rgba(30, 27, 75, 0.98);
+    --gnp-tab-active-shadow: 0 10px 22px rgba(99, 102, 241, 0.24), 0 0 0 2px rgba(99, 102, 241, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.75);
     --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
 
     --gnp-tab-icon: rgba(15, 23, 42, 0.55);
@@ -251,8 +252,9 @@
         --gnp-mini-active-bg: rgba(96, 165, 250, 0.18);
         --gnp-mini-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
 
-        --gnp-tab-active-bg: rgba(96, 165, 250, 0.18);
-        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
+        --gnp-tab-active-bg: rgba(129, 140, 248, 0.30);
+        --gnp-tab-active-fg: rgba(238, 242, 255, 0.98);
+        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(129, 140, 248, 0.70), 0 10px 26px rgba(129, 140, 248, 0.22);
         --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
 
         --gnp-tab-icon: rgba(248, 250, 252, 0.62);
@@ -287,7 +289,11 @@
     --gnp-btn-hover: rgba(55, 65, 81, 0.90);
     --gnp-tab-icon: rgba(248, 250, 252, 0.62);
     --gnp-tab-icon-active: rgba(248, 250, 252, 0.96);
-}
+    --gnp-tab-active-bg: rgba(129, 140, 248, 0.30);
+    --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(129, 140, 248, 0.70), 0 10px 26px rgba(129, 140, 248, 0.22);
+    --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
+
+    --gnp-tab-active-fg: rgba(238, 242, 255, 0.98);}
 
 [data-gnp-theme="light"] {
     --gnp-bg: rgba(255, 255, 255, 0.88);
@@ -305,7 +311,11 @@
     --gnp-btn-hover: rgba(255, 255, 255, 0.92);
     --gnp-tab-icon: rgba(15, 23, 42, 0.55);
     --gnp-tab-icon-active: rgba(15, 23, 42, 0.94);
-}
+    --gnp-tab-active-bg: rgba(99, 102, 241, 0.30);
+    --gnp-tab-active-shadow: 0 10px 22px rgba(99, 102, 241, 0.24), 0 0 0 2px rgba(99, 102, 241, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
+
+    --gnp-tab-active-fg: rgba(30, 27, 75, 0.98);}
 
 /* 键盘导航选中状态 (v8.0新增) */
 .gemini-nav-item.keyboard-selected {
@@ -3144,88 +3154,20 @@ function gnpScheduleWriteFavoritesJsonFile(reason = '') {
 
         try {
             const obj = JSON.parse(text);
+            const incoming = gnpExtractFavoritesFromAnyJson(obj);
+            const merged = gnpMergeFavoritesIntoCurrent(incoming);
 
-            // Build snapshot from file (including tombstones), and apply it deterministically.
-            // IMPORTANT: On bootstrap we treat the file as the source of truth when it is not older than the shared-state,
-            // otherwise stale localStorage can keep showing deleted items after refresh.
-            const snap = gnpBuildFileSnapshotFromObj(obj);
-            const fileUpdatedAt = Number(obj.updatedAt || 0) || 0;
-            const sharedAt = Math.max(Number(gnpSharedFavListAt)||0, Number(gnpSharedFavMetaAt)||0);
-            const fileHasMeaning = (snap.favorites && snap.favorites.length) ||
-                                   (snap.folders && snap.folders.length) ||
-                                   (snap.deletedFavorites && Object.keys(snap.deletedFavorites||{}).length) ||
-                                   (snap.restoredFavorites && Object.keys(snap.restoredFavorites||{}).length) ||
-                                   (snap.deletedFolders && Object.keys(snap.deletedFolders||{}).length) ||
-                                   (snap.restoredFolders && Object.keys(snap.restoredFolders||{}).length);
-            const preferFile = fileHasMeaning && (fileUpdatedAt === 0 || fileUpdatedAt >= sharedAt);
-
-            const fileTombs = gnpPruneByTsMap((snap.deletedFavorites && typeof snap.deletedFavorites === 'object') ? snap.deletedFavorites : {}, 5000);
-            const fileRestores = gnpPruneByTsMap((snap.restoredFavorites && typeof snap.restoredFavorites === 'object') ? snap.restoredFavorites : {}, 5000);
-            const fileFolderTombs = gnpPruneByTsMap((snap.deletedFolders && typeof snap.deletedFolders === 'object') ? snap.deletedFolders : {}, 2000);
-            const fileFolderRestores = gnpPruneByTsMap((snap.restoredFolders && typeof snap.restoredFolders === 'object') ? snap.restoredFolders : {}, 2000);
-
-            const mergedRestores = gnpPruneByTsMap(gnpMergeTombstones(fileRestores, restoredFavorites), 5000);
-            const mergedTombsRaw = gnpPruneByTsMap(gnpMergeTombstones(fileTombs, deletedFavorites), 5000);
-            const mergedTombs = gnpApplyRestoresToTombstones(mergedTombsRaw, mergedRestores);
-
-            const mergedFolderTombs = gnpPruneByTsMap(gnpMergeTombstones(fileFolderTombs, deletedFolders), 2000);
-            const mergedFolderRestores = gnpPruneByTsMap(gnpMergeTombstones(fileFolderRestores, restoredFolders), 2000);
-
-            const beforeFav = favorites || [];
-            const nextFav = preferFile
-                ? gnpMergeFavorites(snap.favorites || [], snap.favorites || [], mergedTombs)   // authoritative
-                : gnpMergeFavorites(snap.favorites || [], beforeFav, mergedTombs);            // merge (file base)
-
-            const beforeFolders = folders || ['默认'];
-            const nextFolders = gnpMergeFolders(snap.folders || [], beforeFolders, nextFav, mergedFolderTombs, mergedFolderRestores);
-
-            const changedFav = !gnpEqualFavArrays(nextFav, beforeFav);
-            const changedFolders = !gnpEqualStringArrays(nextFolders, beforeFolders);
-            const changedTombs = !gnpEqualTsMap(mergedTombs, deletedFavorites || {});
-            const changedRestores = !gnpEqualTsMap(mergedRestores, restoredFavorites || {});
-            const changedFolderTombs = !gnpEqualTsMap(mergedFolderTombs, deletedFolders || {});
-            const changedFolderRestores = !gnpEqualTsMap(mergedFolderRestores, restoredFolders || {});
-
-            if (changedFav || changedFolders || changedTombs || changedRestores || changedFolderTombs || changedFolderRestores) {
-                gnpApplyingFileSnapshot = true;
-                try {
-                    favorites = nextFav;
-                    folders = nextFolders;
-                    deletedFavorites = mergedTombs;
-                    restoredFavorites = mergedRestores;
-                    deletedFolders = mergedFolderTombs;
-                    restoredFolders = mergedFolderRestores;
-
-                    try { saveFolders(); } catch (_) {}
-                    try { saveFavorites('fav_list'); } catch (_) {}
-                    try { renderFavorites(); } catch (_) {}
-                    try { refreshNav(true); } catch (_) {}
-
-                    // toast
-                    try {
-                        const added = Math.max(0, nextFav.length - beforeFav.length);
-                        const removed = Math.max(0, beforeFav.length - nextFav.length);
-                        if (added || removed) gnpToastSafe(`已从本地JSON加载收藏：新增 ${added}，移除 ${removed}`);
-                    } catch (_) {}
-                } finally {
-                    setTimeout(() => {
-                        gnpApplyingFileSnapshot = false;
-                        if (gnpFavFileWritePendingReason) {
-                            const r = String(gnpFavFileWritePendingReason || 'pending');
-                            gnpFavFileWritePendingReason = null;
-                            try { gnpScheduleWriteFavoritesJsonFile(r); } catch (_) {}
-                        }
-                    }, 80);
-                }
+            if (merged.changed) {
+                // 同步回 localStorage + sharedState
+                try { saveFolders(); } catch (_) {}
+                try { saveFavorites(); } catch (_) {}
+                try { renderFavorites(); } catch (_) {}
+                gnpToastSafe(`已从本地JSON加载收藏：新增 ${merged.added}，更新 ${merged.updated}`);
             }
 
-            // Normalize: mark this file content as seen and write back unified format once.
-            try {
-                const h = gnpHashText(text);
-                if (h) gnpFavFileLastSeenHash = h;
-            } catch (_) {}
+            // 无论是否变化，都保证文件回写为“统一格式”
             try { gnpScheduleWriteFavoritesJsonFile('bootstrap-normalize'); } catch (_) {}
-} catch (e) {
+        } catch (e) {
             try { console.warn('[GNP] Fav JSON parse failed:', e); } catch (_) {}
             gnpToastSafe('本地JSON文件解析失败：请检查 JSON 格式。');
         }
@@ -3438,13 +3380,6 @@ function gnpPickAndImportFavoritesJsonFile() {
 
 
 const saveFavorites = (mode = 'fav_list') => {
-        // Ensure localStorage reflects the effective favorites after applying tombstones,
-        // otherwise a stale tab may re-write removed items back into localStorage on refresh.
-        try {
-            const eff = gnpMergeFavorites([], favorites || [], deletedFavorites || {});
-            if (!gnpEqualFavArrays(eff, favorites || [])) favorites = eff;
-        } catch (_) {}
-
         const payload = favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 }));
         localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(payload));
         gnpPersistSharedState(mode);
@@ -5679,7 +5614,10 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             const content = block.innerText.replace(/\n+/g, ' ').trim();
             if (!content) return;
 
-            const isFav = hasFavorite(content);
+            // 收藏判断：同时拿到所属文件夹（用于导航面板展示“收藏到哪个文件夹”）
+            const favIdx = getFavoriteIndex(content);
+            const isFav = favIdx !== -1;
+            const favFolderName = isFav ? String((favorites[favIdx] && favorites[favIdx].folder) || '').trim() : '';
 
             const item = document.createElement('div');
             item.className = 'gemini-nav-item';
@@ -5744,6 +5682,30 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             toolbar.className = 'bottom-toolbar';
             toolbar.addEventListener('mousedown', (e) => e.stopPropagation()); 
 
+            // 已收藏：显示所属文件夹名称（放在“使用时间”左侧）
+            const folderBadge = document.createElement('span');
+            folderBadge.className = 'gnp-nav-folder-badge';
+            folderBadge.addEventListener('mousedown', (e) => e.stopPropagation());
+            folderBadge.addEventListener('click', (e) => e.stopPropagation());
+
+            const setFolderBadge = (folderName) => {
+                try {
+                    const full = String(folderName || '').trim();
+                    if (!full) {
+                        folderBadge.style.display = 'none';
+                        folderBadge.textContent = '';
+                        folderBadge.title = '';
+                        return;
+                    }
+                    const short = (full.length > 4) ? (full.slice(0, 4) + '…') : full;
+                    folderBadge.textContent = short;
+                    folderBadge.title = full;
+                    folderBadge.style.display = 'inline-flex';
+                } catch (_) {}
+            };
+
+            setFolderBadge(favFolderName);
+
             const useTime = document.createElement('span');
             useTime.className = 'gnp-nav-use-time';
             useTime.textContent = formatRelativeTimeNav(lastUsed);
@@ -5787,6 +5749,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                             if (!addFavorite(content, folder)) return;
                             saveFavorites();
                             showSidebarToast(`已收藏到「${folder}」`);
+                            setFolderBadge(folder);
                             starBtn.textContent = '★';
                             starBtn.classList.add('is-fav');
                             item.classList.add('is-favorite');
@@ -5799,6 +5762,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                     removeFavorite(content);
                     saveFavorites();
                     showSidebarToast('已取消收藏');
+                    setFolderBadge('');
                     starBtn.textContent = '☆';
                     starBtn.classList.remove('is-fav');
                     item.classList.remove('is-favorite');
@@ -5806,8 +5770,8 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                     if (panelFav && panelFav.classList.contains('active')) renderFavorites();
                 }
             };
-            
-            toolbar.append(useTime, useBtn, copyBtn, starBtn);
+
+            toolbar.append(folderBadge, useTime, useBtn, copyBtn, starBtn);
             item.append(txt, toolbar); 
             panelNav.append(item);
         });

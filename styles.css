@@ -22,9 +22,9 @@
     --gnp-mini-active-bg: rgba(37, 99, 235, 0.14);
     --gnp-mini-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
 
-    --gnp-tab-active-bg: rgba(15, 23, 42, 0.28);
-    --gnp-tab-active-fg: rgba(255, 255, 255, 0.95);
-    --gnp-tab-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
+    --gnp-tab-active-bg: rgba(99, 102, 241, 0.30);
+    --gnp-tab-active-fg: rgba(30, 27, 75, 0.98);
+    --gnp-tab-active-shadow: 0 10px 22px rgba(99, 102, 241, 0.24), 0 0 0 2px rgba(99, 102, 241, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.75);
     --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
 
     --gnp-tab-icon: rgba(15, 23, 42, 0.55);
@@ -97,9 +97,9 @@
         --gnp-mini-active-bg: rgba(96, 165, 250, 0.18);
         --gnp-mini-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
 
-        --gnp-tab-active-bg: rgba(0, 0, 0, 0.45);
-    --gnp-tab-active-fg: rgba(248, 250, 252, 0.95);
-        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
+        --gnp-tab-active-bg: rgba(129, 140, 248, 0.30);
+        --gnp-tab-active-fg: rgba(238, 242, 255, 0.98);
+        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(129, 140, 248, 0.70), 0 10px 26px rgba(129, 140, 248, 0.22);
         --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
 
         --gnp-tab-icon: rgba(248, 250, 252, 0.62);
@@ -142,6 +142,10 @@
     --gnp-popover-input-bg: rgba(31, 41, 55, 0.94);
     --gnp-tab-icon: rgba(248, 250, 252, 0.62);
     --gnp-tab-icon-active: rgba(248, 250, 252, 0.96);
+    --gnp-tab-active-bg: rgba(129, 140, 248, 0.30);
+    --gnp-tab-active-fg: rgba(238, 242, 255, 0.98);
+    --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(129, 140, 248, 0.70), 0 10px 26px rgba(129, 140, 248, 0.22);
+    --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
 }
 
 [data-gnp-theme="light"] {
@@ -168,6 +172,10 @@
     --gnp-popover-input-bg: rgba(248, 250, 252, 0.96);
     --gnp-tab-icon: rgba(15, 23, 42, 0.55);
     --gnp-tab-icon-active: rgba(15, 23, 42, 0.94);
+    --gnp-tab-active-bg: rgba(99, 102, 241, 0.30);
+    --gnp-tab-active-fg: rgba(30, 27, 75, 0.98);
+    --gnp-tab-active-shadow: 0 10px 22px rgba(99, 102, 241, 0.24), 0 0 0 2px rgba(99, 102, 241, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
 }
 
 /* 键盘导航选中状态 (v8.0新增) */
@@ -338,6 +346,35 @@
         }
         @media (prefers-color-scheme: dark){
             .gnp-nav-use-time{ background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); }
+        }
+
+        /* 导航：已收藏的“文件夹名称”徽标（位于使用时间左侧） */
+        .gnp-nav-folder-badge{
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            padding: 0 7px;
+            border-radius: 999px;
+            font-size: 11px;
+            line-height: 1;
+            color: var(--gnp-text-sub);
+            background: rgba(16,185,129,0.12);
+            border: 1px solid rgba(16,185,129,0.22);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            white-space: nowrap;
+            user-select: none;
+            pointer-events: auto;
+            max-width: 110px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @media (prefers-color-scheme: dark){
+            .gnp-nav-folder-badge{ background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.28); color: rgba(255,255,255,0.84); }
+        }
+        html[data-theme="dark"] .gnp-nav-folder-badge{
+            background: rgba(52,211,153,0.18);
+            border-color: rgba(52,211,153,0.30);
+            color: rgba(248,250,252,0.86);
         }
 
 
