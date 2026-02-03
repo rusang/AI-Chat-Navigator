@@ -3144,20 +3144,88 @@ function gnpScheduleWriteFavoritesJsonFile(reason = '') {
 
         try {
             const obj = JSON.parse(text);
-            const incoming = gnpExtractFavoritesFromAnyJson(obj);
-            const merged = gnpMergeFavoritesIntoCurrent(incoming);
 
-            if (merged.changed) {
-                // 同步回 localStorage + sharedState
-                try { saveFolders(); } catch (_) {}
-                try { saveFavorites(); } catch (_) {}
-                try { renderFavorites(); } catch (_) {}
-                gnpToastSafe(`已从本地JSON加载收藏：新增 ${merged.added}，更新 ${merged.updated}`);
+            // Build snapshot from file (including tombstones), and apply it deterministically.
+            // IMPORTANT: On bootstrap we treat the file as the source of truth when it is not older than the shared-state,
+            // otherwise stale localStorage can keep showing deleted items after refresh.
+            const snap = gnpBuildFileSnapshotFromObj(obj);
+            const fileUpdatedAt = Number(obj.updatedAt || 0) || 0;
+            const sharedAt = Math.max(Number(gnpSharedFavListAt)||0, Number(gnpSharedFavMetaAt)||0);
+            const fileHasMeaning = (snap.favorites && snap.favorites.length) ||
+                                   (snap.folders && snap.folders.length) ||
+                                   (snap.deletedFavorites && Object.keys(snap.deletedFavorites||{}).length) ||
+                                   (snap.restoredFavorites && Object.keys(snap.restoredFavorites||{}).length) ||
+                                   (snap.deletedFolders && Object.keys(snap.deletedFolders||{}).length) ||
+                                   (snap.restoredFolders && Object.keys(snap.restoredFolders||{}).length);
+            const preferFile = fileHasMeaning && (fileUpdatedAt === 0 || fileUpdatedAt >= sharedAt);
+
+            const fileTombs = gnpPruneByTsMap((snap.deletedFavorites && typeof snap.deletedFavorites === 'object') ? snap.deletedFavorites : {}, 5000);
+            const fileRestores = gnpPruneByTsMap((snap.restoredFavorites && typeof snap.restoredFavorites === 'object') ? snap.restoredFavorites : {}, 5000);
+            const fileFolderTombs = gnpPruneByTsMap((snap.deletedFolders && typeof snap.deletedFolders === 'object') ? snap.deletedFolders : {}, 2000);
+            const fileFolderRestores = gnpPruneByTsMap((snap.restoredFolders && typeof snap.restoredFolders === 'object') ? snap.restoredFolders : {}, 2000);
+
+            const mergedRestores = gnpPruneByTsMap(gnpMergeTombstones(fileRestores, restoredFavorites), 5000);
+            const mergedTombsRaw = gnpPruneByTsMap(gnpMergeTombstones(fileTombs, deletedFavorites), 5000);
+            const mergedTombs = gnpApplyRestoresToTombstones(mergedTombsRaw, mergedRestores);
+
+            const mergedFolderTombs = gnpPruneByTsMap(gnpMergeTombstones(fileFolderTombs, deletedFolders), 2000);
+            const mergedFolderRestores = gnpPruneByTsMap(gnpMergeTombstones(fileFolderRestores, restoredFolders), 2000);
+
+            const beforeFav = favorites || [];
+            const nextFav = preferFile
+                ? gnpMergeFavorites(snap.favorites || [], snap.favorites || [], mergedTombs)   // authoritative
+                : gnpMergeFavorites(snap.favorites || [], beforeFav, mergedTombs);            // merge (file base)
+
+            const beforeFolders = folders || ['默认'];
+            const nextFolders = gnpMergeFolders(snap.folders || [], beforeFolders, nextFav, mergedFolderTombs, mergedFolderRestores);
+
+            const changedFav = !gnpEqualFavArrays(nextFav, beforeFav);
+            const changedFolders = !gnpEqualStringArrays(nextFolders, beforeFolders);
+            const changedTombs = !gnpEqualTsMap(mergedTombs, deletedFavorites || {});
+            const changedRestores = !gnpEqualTsMap(mergedRestores, restoredFavorites || {});
+            const changedFolderTombs = !gnpEqualTsMap(mergedFolderTombs, deletedFolders || {});
+            const changedFolderRestores = !gnpEqualTsMap(mergedFolderRestores, restoredFolders || {});
+
+            if (changedFav || changedFolders || changedTombs || changedRestores || changedFolderTombs || changedFolderRestores) {
+                gnpApplyingFileSnapshot = true;
+                try {
+                    favorites = nextFav;
+                    folders = nextFolders;
+                    deletedFavorites = mergedTombs;
+                    restoredFavorites = mergedRestores;
+                    deletedFolders = mergedFolderTombs;
+                    restoredFolders = mergedFolderRestores;
+
+                    try { saveFolders(); } catch (_) {}
+                    try { saveFavorites('fav_list'); } catch (_) {}
+                    try { renderFavorites(); } catch (_) {}
+                    try { refreshNav(true); } catch (_) {}
+
+                    // toast
+                    try {
+                        const added = Math.max(0, nextFav.length - beforeFav.length);
+                        const removed = Math.max(0, beforeFav.length - nextFav.length);
+                        if (added || removed) gnpToastSafe(`已从本地JSON加载收藏：新增 ${added}，移除 ${removed}`);
+                    } catch (_) {}
+                } finally {
+                    setTimeout(() => {
+                        gnpApplyingFileSnapshot = false;
+                        if (gnpFavFileWritePendingReason) {
+                            const r = String(gnpFavFileWritePendingReason || 'pending');
+                            gnpFavFileWritePendingReason = null;
+                            try { gnpScheduleWriteFavoritesJsonFile(r); } catch (_) {}
+                        }
+                    }, 80);
+                }
             }
 
-            // 无论是否变化，都保证文件回写为“统一格式”
+            // Normalize: mark this file content as seen and write back unified format once.
+            try {
+                const h = gnpHashText(text);
+                if (h) gnpFavFileLastSeenHash = h;
+            } catch (_) {}
             try { gnpScheduleWriteFavoritesJsonFile('bootstrap-normalize'); } catch (_) {}
-        } catch (e) {
+} catch (e) {
             try { console.warn('[GNP] Fav JSON parse failed:', e); } catch (_) {}
             gnpToastSafe('本地JSON文件解析失败：请检查 JSON 格式。');
         }
@@ -3370,6 +3438,13 @@ function gnpPickAndImportFavoritesJsonFile() {
 
 
 const saveFavorites = (mode = 'fav_list') => {
+        // Ensure localStorage reflects the effective favorites after applying tombstones,
+        // otherwise a stale tab may re-write removed items back into localStorage on refresh.
+        try {
+            const eff = gnpMergeFavorites([], favorites || [], deletedFavorites || {});
+            if (!gnpEqualFavArrays(eff, favorites || [])) favorites = eff;
+        } catch (_) {}
+
         const payload = favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 }));
         localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(payload));
         gnpPersistSharedState(mode);
