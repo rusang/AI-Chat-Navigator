@@ -4030,7 +4030,8 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
 
     const preview = document.createElement('div');
     preview.className = 'gnp-fav-prompt-preview';
-    preview.textContent = String(promptText || '').trim().slice(0, 220);
+    // 预览尽量显示更多内容（容器可滚动）
+    preview.textContent = String(promptText || '').trim().slice(0, 1200);
 
     const row = document.createElement('div');
     row.className = 'gnp-fav-folder-picker-row';
@@ -4061,6 +4062,45 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
 
     const allFolders = folderOptions.slice();
 
+    // 实时匹配结果：展示为“下拉列表”（无需点开原生 select）
+    const suggestBox = document.createElement('div');
+    suggestBox.className = 'gnp-folder-suggest-box';
+    let suggestActiveIndex = -1;
+
+    const renderSuggest = (list, keyword) => {
+        try { suggestBox.innerHTML = ''; } catch (_) { suggestBox.textContent = ''; }
+        const kw = String(keyword || '').trim();
+        if (!kw) { suggestBox.style.display = 'none'; suggestActiveIndex = -1; return; }
+        suggestBox.style.display = 'block';
+        if (!list || !list.length) {
+            const empty = document.createElement('div');
+            empty.className = 'gnp-folder-suggest-empty';
+            empty.textContent = '（无匹配）';
+            suggestBox.appendChild(empty);
+            suggestActiveIndex = -1;
+            return;
+        }
+        list.forEach((fn, idx) => {
+            const item = document.createElement('div');
+            item.className = 'gnp-folder-suggest-item';
+            if (fn === folderSel.value) item.classList.add('active');
+            item.textContent = fn;
+            item.addEventListener('mousedown', (ev) => {
+                // 用 mousedown 避免输入框 blur 导致列表提前消失
+                try { ev.preventDefault(); ev.stopPropagation(); } catch (_) {}
+                try { folderSel.value = fn; } catch (_) {}
+                try { suggestActiveIndex = idx; } catch (_) {}
+            }, true);
+            item.addEventListener('click', (ev) => {
+                try { ev.preventDefault(); ev.stopPropagation(); } catch (_) {}
+                try { folderSel.value = fn; } catch (_) {}
+            }, true);
+            suggestBox.appendChild(item);
+        });
+        // 默认高亮第一项
+        if (suggestActiveIndex < 0) suggestActiveIndex = 0;
+    };
+
     const rebuildOptions = (keyword) => {
         const kw = String(keyword || '').trim().toLowerCase();
         const prev = folderSel.value;
@@ -4076,6 +4116,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
             opt.disabled = true;
             folderSel.append(opt);
             folderSel.value = '';
+            renderSuggest([], keyword);
             return;
         }
 
@@ -4089,6 +4130,9 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
         // 尽量保留原选择
         if (prev && list.includes(prev)) folderSel.value = prev;
         else folderSel.value = list[0];
+
+        // 同步渲染实时匹配列表
+        renderSuggest(list, keyword);
     };
 
     rebuildOptions('');
@@ -4097,6 +4141,38 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
     if (allFolders.includes(def)) folderSel.value = def;
 
     search.addEventListener('input', () => rebuildOptions(search.value));
+    // 键盘：上下选择匹配项，Enter 直接确认收藏
+    search.addEventListener('keydown', (ev) => {
+        try {
+            if (ev.key === 'ArrowDown' || ev.key === 'Down') {
+                const items = suggestBox.querySelectorAll('.gnp-folder-suggest-item');
+                if (!items || !items.length) return;
+                ev.preventDefault();
+                suggestActiveIndex = Math.min(items.length - 1, (suggestActiveIndex < 0 ? 0 : suggestActiveIndex + 1));
+                const target = items[suggestActiveIndex];
+                if (target) {
+                    items.forEach(it => it.classList.remove('kbd'));
+                    target.classList.add('kbd');
+                    const val = target.textContent;
+                    if (val) folderSel.value = val;
+                    try { target.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+                }
+            } else if (ev.key === 'ArrowUp' || ev.key === 'Up') {
+                const items = suggestBox.querySelectorAll('.gnp-folder-suggest-item');
+                if (!items || !items.length) return;
+                ev.preventDefault();
+                suggestActiveIndex = Math.max(0, (suggestActiveIndex < 0 ? 0 : suggestActiveIndex - 1));
+                const target = items[suggestActiveIndex];
+                if (target) {
+                    items.forEach(it => it.classList.remove('kbd'));
+                    target.classList.add('kbd');
+                    const val = target.textContent;
+                    if (val) folderSel.value = val;
+                    try { target.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+                }
+            }
+        } catch (_) {}
+    });
 
     const btnRow = document.createElement('div');
     btnRow.className = 'gnp-btn-row';
@@ -4150,7 +4226,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
         if (ev.target === overlay) closeOverlay();
     });
 
-    row.append(search, folderSel);
+    row.append(search, suggestBox, folderSel);
     btnRow.append(btnCancel, btnConfirm);
 
     box.append(title, desc, preview, row, btnRow);
@@ -4593,6 +4669,10 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             (t.closest && t.closest('.gnp-folder-select'))) {
             return;
         }
+        // 文件夹搜索建议列表交互时不取消（否则点击会被全局逻辑清掉）
+        if (t.closest && t.closest('#gnp-folder-filter-suggest')) return;
+        if (t.closest && t.closest('.gnp-folder-filter-suggest')) return;
+        if (t.closest && t.closest('.gnp-folder-filter-search-input')) return;
         // 收藏头部区域交互（下拉/按钮等）不取消
         if (t.closest && t.closest('#gemini-fav-header')) return;
         // 点击 prompt 条目本身，交给条目 click 逻辑处理
@@ -4629,12 +4709,250 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
 
     let dragSrcEl = null;
 
+    // 收藏：文件夹筛选 - 搜索建议列表（避免文件夹很多时原生下拉难选）
+    let gnpFolderFilterSuggestEl = null;
+    let gnpFolderFilterSuggestOnDocDown = null;
+    let gnpFolderFilterSuggestValues = [];
+    let gnpFolderFilterSuggestActiveIndex = -1;
+
+    // 收藏：文件夹筛选 - 临时弹出搜索框（仅在需要切换目录时出现，避免与工具栏/图表重叠）
+    let gnpFolderFilterPopupInputEl = null;
+    let gnpFolderFilterPopupOnDocDown = null;
+
+    function gnpCloseFolderFilterSuggest() {
+        try {
+            if (gnpFolderFilterSuggestOnDocDown) {
+                document.removeEventListener('mousedown', gnpFolderFilterSuggestOnDocDown, true);
+                gnpFolderFilterSuggestOnDocDown = null;
+            }
+        } catch (_) {}
+        try { if (gnpFolderFilterSuggestEl) gnpFolderFilterSuggestEl.remove(); } catch (_) {}
+        gnpFolderFilterSuggestEl = null;
+        gnpFolderFilterSuggestValues = [];
+        gnpFolderFilterSuggestActiveIndex = -1;
+    }
+
+    function gnpCloseFolderFilterPopup() {
+        try {
+            if (gnpFolderFilterPopupOnDocDown) {
+                document.removeEventListener('mousedown', gnpFolderFilterPopupOnDocDown, true);
+                gnpFolderFilterPopupOnDocDown = null;
+            }
+        } catch (_) {}
+        try { if (gnpFolderFilterPopupInputEl) gnpFolderFilterPopupInputEl.remove(); } catch (_) {}
+        gnpFolderFilterPopupInputEl = null;
+        try { gnpCloseFolderFilterSuggest(); } catch (_) {}
+        // 弹层关闭后允许恢复自动隐藏/重绘
+        try { isSelectInteracting = false; } catch (_) {}
+        // 若交互期间有刷新请求被抑制，则在关闭弹层后补一次重绘
+        try {
+            if (typeof gnpPendingFavRerender !== 'undefined' && gnpPendingFavRerender) {
+                gnpPendingFavRerender = false;
+                renderFavorites();
+            }
+        } catch (_) {}
+    }
+
+    function gnpOpenFolderFilterSuggest(anchorEl, keyword, allItems, currentValue, onPick) {
+        try { gnpCloseFolderFilterSuggest(); } catch (_) {}
+        if (!sidebar || !anchorEl) return;
+
+        const kw = String(keyword || '').trim().toLowerCase();
+        let items = Array.isArray(allItems) ? allItems.slice() : [];
+        if (kw) items = items.filter(x => String(x).toLowerCase().includes(kw));
+
+        // 若无匹配，也显示一个“无匹配”占位
+        gnpFolderFilterSuggestValues = items;
+        gnpFolderFilterSuggestActiveIndex = 0;
+
+        const suggest = document.createElement('div');
+        suggest.id = 'gnp-folder-filter-suggest';
+        suggest.className = 'gnp-folder-filter-suggest';
+
+        // 定位：锚点输入框下方
+        try {
+            const a = anchorEl.getBoundingClientRect();
+            const s = sidebar.getBoundingClientRect();
+            const left = Math.max(12, Math.min(s.width - 12, (a.left - s.left)));
+            const top = Math.max(12, (a.bottom - s.top) + 6);
+            const minW = Math.max(180, Math.floor(a.width));
+            const maxW = Math.max(220, Math.floor(s.width - 24));
+            suggest.style.left = `${Math.min(left, s.width - 12)}px`;
+            suggest.style.top = `${top}px`;
+            suggest.style.minWidth = `${Math.min(minW, maxW)}px`;
+            suggest.style.maxWidth = `${maxW}px`;
+        } catch (_) {}
+
+        const render = () => {
+            suggest.innerHTML = '';
+            if (!gnpFolderFilterSuggestValues.length) {
+                const empty = document.createElement('div');
+                empty.className = 'gnp-folder-filter-empty';
+                empty.textContent = '（无匹配）';
+                suggest.appendChild(empty);
+                return;
+            }
+            gnpFolderFilterSuggestValues.forEach((val, idx) => {
+                const item = document.createElement('div');
+                item.className = 'gnp-folder-filter-item';
+                if (val === currentValue) item.classList.add('active');
+                if (idx === gnpFolderFilterSuggestActiveIndex) item.classList.add('kbd');
+                item.textContent = val;
+                item.addEventListener('mousedown', (ev) => {
+                    try { ev.preventDefault(); ev.stopPropagation(); } catch (_) {}
+                    try { onPick && onPick(val); } catch (_) {}
+                }, true);
+                suggest.appendChild(item);
+            });
+        };
+
+        render();
+
+        // 点击外部关闭
+        gnpFolderFilterSuggestOnDocDown = (ev) => {
+            try {
+                const t = ev && ev.target;
+                if (!t) return;
+                if (t === anchorEl || (anchorEl.contains && anchorEl.contains(t))) return;
+                if (suggest.contains && suggest.contains(t)) return;
+                gnpCloseFolderFilterSuggest();
+            } catch (_) { gnpCloseFolderFilterSuggest(); }
+        };
+        try { document.addEventListener('mousedown', gnpFolderFilterSuggestOnDocDown, true); } catch (_) {}
+
+        gnpFolderFilterSuggestEl = suggest;
+        sidebar.appendChild(suggest);
+    }
+
+    // 仅在“需要切换目录”时弹出搜索框：点击文件夹下拉即可出现（避免常驻输入框与工具栏/图表重叠）
+    function gnpOpenFolderFilterPopup(anchorEl, currentValue, allItems, onPick) {
+        try { gnpCloseFolderFilterPopup(); } catch (_) {}
+        if (!sidebar || !anchorEl) return;
+
+        // 打开时保持侧边栏展开，暂停自动隐藏
+        try { keepSidebarExpanded(); } catch (_) {}
+        try { isSelectInteracting = true; } catch (_) {}
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'gnp-folder-filter-search-input gnp-folder-filter-search-popup';
+        input.placeholder = '搜索文件夹...';
+        input.title = '搜索文件夹（实时匹配）';
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+
+        // 定位在 anchor 下方（侧边栏内部）
+        try {
+            const a = anchorEl.getBoundingClientRect();
+            const s = sidebar.getBoundingClientRect();
+            const left = Math.max(12, Math.min(s.width - 12, (a.left - s.left)));
+            const top = Math.max(12, (a.bottom - s.top) + 6);
+            const minW = Math.max(200, Math.floor(a.width));
+            const maxW = Math.max(220, Math.floor(s.width - 24));
+            input.style.left = `${Math.min(left, s.width - 12)}px`;
+            input.style.top = `${top}px`;
+            input.style.minWidth = `${Math.min(minW, maxW)}px`;
+            input.style.maxWidth = `${maxW}px`;
+        } catch (_) {}
+
+        // 阻止被多选取消/拖拽等逻辑抢事件
+        input.addEventListener('mousedown', (e) => { try { e.stopPropagation(); } catch (_) {} }, true);
+        input.addEventListener('click', (e) => { try { e.stopPropagation(); } catch (_) {} }, true);
+
+        const openSuggest = () => {
+            const kw = String(input.value || '');
+            // kw 为空也展示全量列表，便于直接点选
+            gnpOpenFolderFilterSuggest(input, kw, allItems, currentValue, (val) => {
+                try { onPick && onPick(val); } catch (_) {}
+                try { gnpCloseFolderFilterPopup(); } catch (_) {}
+            });
+        };
+
+        input.addEventListener('input', openSuggest);
+        input.addEventListener('keydown', (ev) => {
+            try {
+                if (!ev) return;
+                if (ev.key === 'Escape' || ev.key === 'Esc') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    gnpCloseFolderFilterPopup();
+                    return;
+                }
+                if (!gnpFolderFilterSuggestEl || !gnpFolderFilterSuggestEl.isConnected) return;
+                const items = gnpFolderFilterSuggestEl.querySelectorAll('.gnp-folder-filter-item');
+                if (!items || !items.length) return;
+                if (ev.key === 'ArrowDown' || ev.key === 'Down') {
+                    ev.preventDefault();
+                    gnpFolderFilterSuggestActiveIndex = Math.min(items.length - 1, (gnpFolderFilterSuggestActiveIndex < 0 ? 0 : gnpFolderFilterSuggestActiveIndex + 1));
+                } else if (ev.key === 'ArrowUp' || ev.key === 'Up') {
+                    ev.preventDefault();
+                    gnpFolderFilterSuggestActiveIndex = Math.max(0, (gnpFolderFilterSuggestActiveIndex < 0 ? 0 : gnpFolderFilterSuggestActiveIndex - 1));
+                } else if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    const v = gnpFolderFilterSuggestValues[gnpFolderFilterSuggestActiveIndex];
+                    if (v) {
+                        try { onPick && onPick(v); } catch (_) {}
+                        try { gnpCloseFolderFilterPopup(); } catch (_) {}
+                    }
+                    return;
+                } else {
+                    return;
+                }
+                items.forEach((it, idx) => it.classList.toggle('kbd', idx === gnpFolderFilterSuggestActiveIndex));
+                try {
+                    const target = items[gnpFolderFilterSuggestActiveIndex];
+                    if (target) target.scrollIntoView({ block: 'nearest' });
+                } catch (_) {}
+            } catch (_) {}
+        });
+
+        input.addEventListener('blur', () => {
+            // 点击建议项时由 mousedown 处理，这里延迟关闭。
+            // 注意：在某些浏览器/站点组合下，点击 select 会把焦点抢回给 select，
+            // 如果此时立刻关闭，会表现为“搜索框/下拉闪退”。因此当焦点回到 anchorEl 时不自动关闭。
+            setTimeout(() => {
+                try {
+                    const ae = document.activeElement;
+                    if (ae && (ae === input || (gnpFolderFilterSuggestEl && gnpFolderFilterSuggestEl.contains && gnpFolderFilterSuggestEl.contains(ae)))) return;
+                    if (ae && (ae === anchorEl || (anchorEl.contains && anchorEl.contains(ae)))) return;
+                } catch (_) {}
+                gnpCloseFolderFilterPopup();
+            }, 160);
+        });
+
+        // 点击外部关闭（但点击 anchor/select 不关闭，便于再次打开）
+        gnpFolderFilterPopupOnDocDown = (ev) => {
+            try {
+                const t = ev && ev.target;
+                if (!t) return;
+                if (t === anchorEl || (anchorEl.contains && anchorEl.contains(t))) return;
+                if (t === input || (input.contains && input.contains(t))) return;
+                if (gnpFolderFilterSuggestEl && gnpFolderFilterSuggestEl.contains && gnpFolderFilterSuggestEl.contains(t)) return;
+                gnpCloseFolderFilterPopup();
+            } catch (_) { gnpCloseFolderFilterPopup(); }
+        };
+        try { document.addEventListener('mousedown', gnpFolderFilterPopupOnDocDown, true); } catch (_) {}
+
+        gnpFolderFilterPopupInputEl = input;
+        sidebar.appendChild(input);
+
+        // 默认展示全量列表
+        openSuggest();
+        // 尽量在当前事件周期内抢到焦点，避免被 select 的默认聚焦行为抢回导致“闪退”
+        try { input.focus(); } catch (_) {}
+        try { anchorEl.blur(); } catch (_) {}
+        setTimeout(() => { try { input.focus(); input.select(); } catch (_) {} }, 0);
+    }
+
     function renderFavorites() {
         if (!panelFav.classList.contains('active')) return;
 		// 下拉菜单交互中暂停重绘，避免被 MutationObserver 的 2s 刷新销毁并自动关闭
 		if (isSelectInteracting) { gnpPendingFavRerender = true; return; }
 		gnpPendingFavRerender = false;
         panelFav.replaceChildren();
+        // 每次重绘前清理文件夹搜索建议列表（避免残留在侧边栏中）
+        try { gnpCloseFolderFilterSuggest(); } catch (_) {}
+        try { gnpCloseFolderFilterPopup(); } catch (_) {}
 
         const totalCount = favorites.length;
 
@@ -4671,6 +4989,11 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             if (isAutoHideEnabled) { clearTimeout(autoHideTimer); sidebar.classList.remove('collapsed'); }
         });
 		folderSelect.addEventListener('blur', () => {
+			// 若已弹出“搜索切换目录”的浮层，焦点会从 select 转移到浮层 input，
+			// 这里不能立刻结束交互状态，否则会触发重绘把浮层销毁，表现为“闪退”。
+			try {
+				if (gnpFolderFilterPopupInputEl && gnpFolderFilterPopupInputEl.isConnected) return;
+			} catch (_) {}
 			isSelectInteracting = false;
 			// 若交互期间有刷新请求被抑制，则在关闭下拉后补一次重绘
 			if (gnpPendingFavRerender) { gnpPendingFavRerender = false; renderFavorites(); }
@@ -4700,14 +5023,49 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         });
 
         folderSelect.value = favFolderFilter;
-        folderSelect.onchange = () => {
+        const applyFolderFilterSelection = (val) => {
             isSelectInteracting = false;
-            favFolderFilter = folderSelect.value;
+            favFolderFilter = String(val || '全部');
             gnpSetTabFavFolderFilter(favFolderFilter);
             selectedItems.clear();
             updateBatchBar();
             renderFavorites();
         };
+        folderSelect.onchange = () => applyFolderFilterSelection(folderSelect.value);
+
+        // 仅在需要切换目录时显示搜索框：点击“切换目录”下拉框时弹出可搜索列表
+        const openFolderFilterPopup = (ev) => {
+            try {
+                if (ev) {
+                    ev.preventDefault();
+                    // 阻止同一事件链路的其它监听器（避免 mousedown/click/key 连续触发导致反复开关）
+                    if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+                    ev.stopPropagation();
+                }
+            } catch (_) {}
+
+            // 若已打开浮层，重复触发只需把焦点拉回即可，避免“闪一下又重建”
+            try {
+                if (gnpFolderFilterPopupInputEl && gnpFolderFilterPopupInputEl.isConnected) {
+                    gnpFolderFilterPopupInputEl.focus();
+                    return;
+                }
+            } catch (_) {}
+            const allItems = ['全部', ...(Array.isArray(folders) ? folders : [])];
+            gnpOpenFolderFilterPopup(folderSelect, folderSelect.value, allItems, (val) => {
+                applyFolderFilterSelection(val);
+            });
+        };
+        // 捕获阶段拦截，避免原生 select 打开导致遮挡/冲突
+        // pointerdown 比 mousedown 更早，能更稳地阻止原生 select 下拉闪现
+        folderSelect.addEventListener('pointerdown', openFolderFilterPopup, true);
+        folderSelect.addEventListener('mousedown', openFolderFilterPopup, true);
+        folderSelect.addEventListener('click', openFolderFilterPopup, true);
+        folderSelect.addEventListener('keydown', (ev) => {
+            try {
+                if (ev && (ev.key === 'Enter' || ev.key === ' ')) openFolderFilterPopup(ev);
+            } catch (_) {}
+        }, true);
 
         leftBox.append(favCount, folderSelect);
 
@@ -5738,6 +6096,21 @@ function handleKeyboardNavigation(e) {
             const activePanel = sidebar.querySelector('.content-panel.active');
             if (!activePanel) return;
             
+            const __ae = document.activeElement;
+            const __folderSwitchActive = (
+                (!!gnpFolderFilterPopupInputEl && gnpFolderFilterPopupInputEl.isConnected) ||
+                (!!gnpFolderFilterSuggestEl && gnpFolderFilterSuggestEl.isConnected) ||
+                (__ae && __ae.classList && (__ae.classList.contains('gnp-folder-select') || __ae.classList.contains('gnp-folder-filter-search-input'))) ||
+                (__ae && __ae.tagName === 'SELECT' && __ae.closest && __ae.closest('#panel-fav')) ||
+                (__ae && __ae.closest && __ae.closest('.gnp-folder-filter-suggest'))
+            );
+            if (__folderSwitchActive) {
+                // 切换目录/选择文件夹交互中：方向键/回车/ESC 交给下拉/搜索浮层处理，避免误选中 prompt
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Escape' || e.key === 'Esc') {
+                    return;
+                }
+            }
+
             const isSearchFocused = document.activeElement === searchInput;
             
             // Esc - 关闭弹窗/清除搜索/失去焦点
