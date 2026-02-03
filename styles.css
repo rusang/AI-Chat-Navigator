@@ -490,6 +490,14 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
         .gnp-btn-cancel { background: transparent; color: var(--gnp-text-main); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; border: 1px solid var(--gnp-border); }
         .gnp-btn-cancel:hover { background: var(--gnp-hover-bg); }
 
+        /* 导航：收藏文件夹选择弹层（显示在插件窗口内） */
+        .gnp-confirm-box.gnp-fav-folder-picker { width: 440px; max-width: calc(100% - 28px); text-align: left; }
+        .gnp-fav-prompt-preview { margin-top: 6px; font-size: 12px; line-height: 1.45; color: var(--gnp-text-sub); background: var(--gnp-input-bg); border: 1px dashed var(--gnp-border); border-radius: 10px; padding: 8px 10px; max-height: 84px; overflow: auto; white-space: pre-wrap; }
+        .gnp-fav-folder-picker-row { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 12px; }
+        .gnp-folder-search-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--gnp-border); outline: none; font-size: 13px; background: var(--gnp-input-bg); color: var(--gnp-input-text); caret-color: var(--gnp-input-text); }
+        .gnp-folder-search-input::placeholder { color: var(--gnp-text-sub); }
+
+
         
         /* 全屏居中编辑弹窗（用于收藏编辑） */
         .gnp-global-overlay { position: fixed; inset: 0; background: var(--gnp-modal-overlay); z-index: 2147483647; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
