@@ -1675,6 +1675,25 @@ window.addEventListener('resize', repositionHoverPreview, true);
     const STORAGE_KEY_FOLDERS = 'gemini-nav-pro-panel-fav-folders';
     const STORAGE_KEY_FAV_FOLDER_FILTER = 'gemini-nav-pro-panel-fav-folder-filter';
 
+// 收藏面板：文件夹筛选属于“标签页级别”的 UI 状态（每个标签页可独立切换）
+// 注意：不得写入 localStorage 或 shared-state，否则会导致“一个标签页切换文件夹，所有标签页一起切换”
+const STORAGE_KEY_FAV_FOLDER_FILTER_SESSION = 'gnp-fav-folder-filter-session-v1';
+
+function gnpGetTabFavFolderFilter() {
+    try {
+        const v = sessionStorage.getItem(STORAGE_KEY_FAV_FOLDER_FILTER_SESSION);
+        return String(v || '').trim();
+    } catch (_) { return ''; }
+}
+
+function gnpSetTabFavFolderFilter(v) {
+    try {
+        const s = String(v || '').trim() || '全部';
+        sessionStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER_SESSION, s);
+    } catch (_) {}
+}
+
+
     let folders = JSON.parse(localStorage.getItem(STORAGE_KEY_FOLDERS)) || ['默认'];
     folders = [...new Set(folders.map(f => String(f || '').trim()).filter(Boolean))];
     if (!folders.includes('默认')) folders.unshift('默认');
@@ -1710,7 +1729,13 @@ window.addEventListener('resize', repositionHoverPreview, true);
         favorites.push({ text: t, folder, useCount, lastUsed });
     });
 
-    let favFolderFilter = localStorage.getItem(STORAGE_KEY_FAV_FOLDER_FILTER) || '全部';
+    let favFolderFilter = gnpGetTabFavFolderFilter() || '';
+if (!favFolderFilter) {
+    // 兼容旧版本：曾经把筛选写进 localStorage（会跨标签页共享），这里仅作为“本标签页初始值”读取一次
+    try { favFolderFilter = localStorage.getItem(STORAGE_KEY_FAV_FOLDER_FILTER) || ''; } catch (_) { favFolderFilter = ''; }
+    favFolderFilter = String(favFolderFilter || '').trim() || '全部';
+    gnpSetTabFavFolderFilter(favFolderFilter);
+}
 
 
     // 导航使用记录（用于在“目录”面板展示最近使用时间；key 为 prompt 的哈希，避免把长文本直接当作对象 key）
@@ -1730,6 +1755,37 @@ window.addEventListener('resize', repositionHoverPreview, true);
     // 3) 删除 tombstone（deletedFavorites）保证删除不会被旧数据复活
 
     const GNP_SHARED_STATE_KEY = 'ai-chat-navigator-shared-state-v1';
+    const GNP_SHARED_FOLDERS_KEY = 'ai-chat-navigator-shared-folders-v1'; // sync-lite: folders only
+
+    // === Favorites JSON file sync (Local file via Native Messaging) ===
+    // NOTE: These constants/state must exist BEFORE chrome.storage.onChanged listener
+    // to avoid TDZ errors and missing a one-shot broadcast update during page bootstrap.
+    const GNP_FAV_FILE_BCAST_KEY = 'gnp_fav_file_bcast_v1';
+    const GNP_FAV_FILE_POLL_LEADER_KEY = 'gnp_fav_file_poll_leader_v1';
+
+    // File-sync runtime state (declared early to avoid TDZ if a broadcast arrives during bootstrap)
+    let gnpFavFileLastSeenHash = '';
+    let gnpFavFileReloadTimer = null;
+    let gnpApplyingFileSnapshot = false;
+    // If a user-triggered change happens while we are applying a file snapshot,
+    // we defer the file write and flush it right after apply completes.
+    let gnpFavFileWritePendingReason = null;
+
+    // Per-tab instance id (used to de-duplicate self-triggered file broadcasts)
+    const gnpInstanceId = (() => {
+        try {
+            const k = 'gnp_instance_id_v1';
+            const v = sessionStorage.getItem(k);
+            if (v) return v;
+            const id = 'tab_' + Math.random().toString(16).slice(2) + '_' + Date.now().toString(16);
+            sessionStorage.setItem(k, id);
+            return id;
+        } catch (_) {
+            return 'tab_' + Math.random().toString(16).slice(2);
+        }
+    })();
+
+
     const gnpChrome = (typeof chrome !== 'undefined') ? chrome : null;
     const gnpStorageSync = gnpChrome && gnpChrome.storage && gnpChrome.storage.sync;
     const gnpStorageLocal = gnpChrome && gnpChrome.storage && gnpChrome.storage.local;
@@ -1738,6 +1794,65 @@ window.addEventListener('resize', repositionHoverPreview, true);
     let gnpStorageArea = gnpStorageSync || gnpStorageLocal || null;
 
     let gnpApplyingSharedState = false;
+
+    // If user actions happen while we are applying a shared-state update (gnpApplyingSharedState === true),
+    // do NOT drop the persist. Queue it and flush shortly after apply finishes.
+    let gnpPersistPendingMode = null;
+    let gnpPersistPendingTimer = null;
+
+    // If storage.onChanged fires while we are applying shared-state (gnpApplyingSharedState === true),
+    // do NOT drop the incoming update. Queue the latest values and apply them right after.
+    let gnpApplyPendingFull = null;
+    let gnpApplyPendingFoldersLite = null;
+    let gnpApplyPendingFavFileBcast = null;
+    let gnpApplyPendingTimer = null;
+
+
+    function gnpMergePersistMode(a, b) {
+        const A = String(a || '').trim();
+        const B = String(b || '').trim();
+        if (!A) return B || 'all';
+        if (!B) return A || 'all';
+        // filter is per-tab only, never sync
+        if (A === 'filter') return B;
+        if (B === 'filter') return A;
+        if (A === B) return A;
+        if (A === 'all' || B === 'all') return 'all';
+
+        // fav_list covers favorites + folders
+        if (A === 'fav_list' || B === 'fav_list') {
+            const other = (A === 'fav_list') ? B : A;
+            // usage mixed with favorites -> safest to write all
+            if (other === 'usage') return 'all';
+            return 'fav_list';
+        }
+
+        // folders + favorites meta/list -> treat as list-level update
+        const aIsFav = A.indexOf('fav_') === 0;
+        const bIsFav = B.indexOf('fav_') === 0;
+        if ((A === 'folders' && bIsFav) || (B === 'folders' && aIsFav)) return 'fav_list';
+
+        // usage mixed with anything -> all
+        if (A === 'usage' || B === 'usage') return 'all';
+
+        // fallback: write all (safe)
+        return 'all';
+    }
+
+    function gnpQueuePersistSharedState(mode) {
+        try {
+            if (String(mode || '') === 'filter') return; // never sync filter
+            gnpPersistPendingMode = gnpMergePersistMode(gnpPersistPendingMode, mode);
+            clearTimeout(gnpPersistPendingTimer);
+            gnpPersistPendingTimer = setTimeout(() => {
+                const m = gnpPersistPendingMode;
+                gnpPersistPendingMode = null;
+                gnpPersistPendingTimer = null;
+                try { if (m) gnpPersistSharedState(m); } catch (_) {}
+            }, 180);
+        } catch (_) {}
+    }
+
 
     // 分区更新时间戳（本标签页已应用到的最大值）
     let gnpSharedFavListAt = 0;
@@ -1749,6 +1864,12 @@ window.addEventListener('resize', repositionHoverPreview, true);
     // 删除墓碑：text -> deletedAt（删除必须全局一致，且不得被旧快照复活）
     let deletedFavorites = {};
 
+    // 删除墓碑：folderName -> deletedAt（删除文件夹必须全局一致，且不得被旧快照复活）
+    let deletedFolders = {};
+
+
+    // 复活标记：folderName -> restoredAt（用于覆盖 deletedFolders，允许同名文件夹重新创建）
+    let restoredFolders = {};
     function gnpNow() { return Date.now(); }
 
     function gnpNormalizeSharedState(st) {
@@ -1769,6 +1890,10 @@ window.addEventListener('resize', repositionHoverPreview, true);
         if (typeof out.favFolderFilter !== 'string') out.favFolderFilter = '全部';
         if (!out.usageStats || typeof out.usageStats !== 'object' || Array.isArray(out.usageStats)) out.usageStats = {};
         if (!out.deletedFavorites || typeof out.deletedFavorites !== 'object' || Array.isArray(out.deletedFavorites)) out.deletedFavorites = {};
+
+        if (!out.deletedFolders || typeof out.deletedFolders !== 'object' || Array.isArray(out.deletedFolders)) out.deletedFolders = {};
+        if (!out.restoredFolders || typeof out.restoredFolders !== 'object' || Array.isArray(out.restoredFolders)) out.restoredFolders = {};
+
 
         // 计算总 updatedAt（用于调试/兼容）
         out.updatedAt = Math.max(
@@ -1883,12 +2008,25 @@ window.addEventListener('resize', repositionHoverPreview, true);
         return arr;
     }
 
-    function gnpMergeFolders(baseFolders, localFolders, favArr) {
+    function gnpMergeFolders(baseFolders, localFolders, favArr, folderTombstones, folderRestores) {
+        const tomb = (folderTombstones && typeof folderTombstones === 'object') ? folderTombstones : {};
+        const rev = (folderRestores && typeof folderRestores === 'object') ? folderRestores : {};
         const out = [];
         const seen = new Set();
+        const alive = (f) => {
+            const s = String(f || '').trim();
+            if (!s) return false;
+            if (s === '默认') return true;
+            const del = Number(tomb[s]) || 0;
+            const res = Number(rev[s]) || 0;
+            // 若复活时间晚于删除时间，则认为该文件夹仍有效
+            if (res > del) return true;
+            return del <= 0;
+        };
         const push = (f) => {
             const s = String(f || '').trim();
             if (!s) return;
+            if (!alive(s)) return;
             if (seen.has(s)) return;
             seen.add(s);
             out.push(s);
@@ -1919,6 +2057,17 @@ window.addEventListener('resize', repositionHoverPreview, true);
         return gnpPruneByTsMap(out, 2000);
     }
 
+    function gnpEnsureValidFavFolderFilter() {
+        try { favFolderFilter = String(favFolderFilter || '').trim() || '全部'; } catch (_) { favFolderFilter = '全部'; }
+        if (favFolderFilter === '全部' || favFolderFilter === '默认') return false;
+        if (!Array.isArray(folders) || !folders.includes(favFolderFilter)) {
+            favFolderFilter = '默认';
+            gnpSetTabFavFolderFilter(favFolderFilter);
+            return true;
+        }
+        return false;
+    }
+
     function gnpApplySharedState(state, force = false) {
         const st = gnpNormalizeSharedState(state);
         let changed = false;
@@ -1926,6 +2075,9 @@ window.addEventListener('resize', repositionHoverPreview, true);
         // favorites（list/meta 任一更新都需要同步 favorites + tombstone）
         if (force || (Number(st.favListUpdatedAt)||0) > gnpSharedFavListAt || (Number(st.favMetaUpdatedAt)||0) > gnpSharedFavMetaAt) {
             deletedFavorites = gnpPruneByTsMap(st.deletedFavorites || {}, 5000);
+            deletedFolders = gnpPruneByTsMap(st.deletedFolders || {}, 2000);
+            restoredFolders = gnpPruneByTsMap(st.restoredFolders || {}, 2000);
+
 
             const mergedFav = gnpMergeFavorites(st.favorites || [], st.favorites || [], deletedFavorites);
             favorites = mergedFav;
@@ -1933,6 +2085,8 @@ window.addEventListener('resize', repositionHoverPreview, true);
             // folders 可能由 fav 引入新 folder：先不改 foldersAt，这里只补齐
             let nextFolders = gnpNormalizeFolders(st.folders || ['默认']);
             mergedFav.forEach(f => { if (f && f.folder && !nextFolders.includes(f.folder)) nextFolders.push(f.folder); });
+            // 过滤已删除文件夹（tombstone），并保证“默认”存在且在首位
+            nextFolders = gnpMergeFolders([], nextFolders, mergedFav, deletedFolders, restoredFolders);
             folders = nextFolders;
 
             gnpSharedFavListAt = Math.max(gnpSharedFavListAt, Number(st.favListUpdatedAt)||0);
@@ -1942,24 +2096,28 @@ window.addEventListener('resize', repositionHoverPreview, true);
             // 回写 localStorage（站点缓存/兼容旧逻辑）
             try { localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 })))); } catch (_) {}
             try { localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders)); } catch (_) {}
+            try { if (gnpEnsureValidFavFolderFilter()) changed = true; } catch (_) {}
         }
 
         // folders
         if (force || (Number(st.foldersUpdatedAt)||0) > gnpSharedFoldersAt) {
+            deletedFolders = gnpPruneByTsMap(st.deletedFolders || {}, 2000);
+            restoredFolders = gnpPruneByTsMap(st.restoredFolders || {}, 2000);
             let nextFolders = gnpNormalizeFolders(st.folders || ['默认']);
             favorites.forEach(f => { if (f && f.folder && !nextFolders.includes(f.folder)) nextFolders.push(f.folder); });
+            // 过滤已删除文件夹（tombstone），并保证“默认”存在且在首位
+            nextFolders = gnpMergeFolders([], nextFolders, favorites, deletedFolders, restoredFolders);
             folders = nextFolders;
             gnpSharedFoldersAt = Math.max(gnpSharedFoldersAt, Number(st.foldersUpdatedAt)||0);
             changed = true;
             try { localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders)); } catch (_) {}
+            try { if (gnpEnsureValidFavFolderFilter()) changed = true; } catch (_) {}
         }
 
-        // filter
+        // filter（UI-only per-tab）：不从 shared-state 同步，避免“一个标签页切换文件夹导致所有标签页跟着切换”
         if (force || (Number(st.filterUpdatedAt)||0) > gnpSharedFilterAt) {
-            favFolderFilter = String(st.favFolderFilter || '全部');
             gnpSharedFilterAt = Math.max(gnpSharedFilterAt, Number(st.filterUpdatedAt)||0);
-            changed = true;
-            try { localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter); } catch (_) {}
+            // keep local favFolderFilter unchanged
         }
 
         // usageStats
@@ -1975,6 +2133,35 @@ window.addEventListener('resize', repositionHoverPreview, true);
         }
         return changed;
     }
+
+    function gnpApplyFoldersLite(liteState, force = false) {
+        const st = (liteState && typeof liteState === 'object') ? liteState : null;
+        if (!st || !Array.isArray(st.folders)) return false;
+
+        const ts = Number(st.foldersUpdatedAt || st.updatedAt || 0) || 0;
+        if (!force && ts <= gnpSharedFoldersAt) return false;
+
+        // liteState 可能携带 folder 删除/复活信息（用于空文件夹 & 同名复活同步）
+        try {
+            if (st.deletedFolders && typeof st.deletedFolders === 'object' && !Array.isArray(st.deletedFolders)) {
+                deletedFolders = gnpPruneByTsMap(gnpMergeTombstones(deletedFolders, st.deletedFolders), 2000);
+            }
+            if (st.restoredFolders && typeof st.restoredFolders === 'object' && !Array.isArray(st.restoredFolders)) {
+                restoredFolders = gnpPruneByTsMap(gnpMergeTombstones(restoredFolders, st.restoredFolders), 2000);
+            }
+        } catch (_) {}
+
+        let nextFolders = gnpNormalizeFolders(st.folders || ['默认']);
+        favorites.forEach(f => { if (f && f.folder && !nextFolders.includes(f.folder)) nextFolders.push(f.folder); });
+        nextFolders = gnpMergeFolders([], nextFolders, favorites, deletedFolders, restoredFolders);
+        folders = nextFolders;
+
+        gnpSharedFoldersAt = Math.max(gnpSharedFoldersAt, ts);
+        try { localStorage.setItem(STORAGE_KEY_FOLDERS, JSON.stringify(folders)); } catch (_) {}
+        try { gnpEnsureValidFavFolderFilter(); } catch (_) {}
+        return true;
+    }
+
 
     function gnpStorageGet(area) {
         return new Promise((resolve) => {
@@ -2000,10 +2187,83 @@ window.addEventListener('resize', repositionHoverPreview, true);
         });
     }
 
+    // --- sync-lite: folders only (avoid sync quota issues for full shared state) ---
+    function gnpStorageGetKey(area, key) {
+        return new Promise((resolve) => {
+            if (!area || !key) return resolve(null);
+            try {
+                area.get([key], (res) => resolve(res && res[key]));
+            } catch (_) { resolve(null); }
+        });
+    }
+
+    function gnpStorageSetKey(area, key, value) {
+        return new Promise((resolve) => {
+            if (!area || !key) return resolve({ ok: false, error: 'no_storage' });
+            try {
+                area.set({ [key]: value }, () => {
+                    const err = gnpChrome && gnpChrome.runtime && gnpChrome.runtime.lastError;
+                    if (err) return resolve({ ok: false, error: String(err && err.message || err) });
+                    resolve({ ok: true });
+                });
+            } catch (e) {
+                resolve({ ok: false, error: String(e && e.message || e) });
+            }
+        });
+    }
+
+    async function gnpTryWriteFoldersLite(foldersArr, foldersAt, delMap, restoreMap) {
+        const at = Number(foldersAt) || gnpNow();
+        const payload = {
+            v: 1,
+            folders: gnpNormalizeFolders(foldersArr || ['默认']),
+            foldersUpdatedAt: at,
+            updatedAt: at,
+            deletedFolders: gnpSortObjectKeys(gnpPruneByTsMap((delMap && typeof delMap === 'object' && !Array.isArray(delMap)) ? delMap : {}, 2000)),
+            restoredFolders: gnpSortObjectKeys(gnpPruneByTsMap((restoreMap && typeof restoreMap === 'object' && !Array.isArray(restoreMap)) ? restoreMap : {}, 2000))
+        };
+        // best-effort: sync first for cross-window / cross-instance
+        if (gnpStorageSync) { try { await gnpStorageSetKey(gnpStorageSync, GNP_SHARED_FOLDERS_KEY, payload); } catch (_) {} }
+        // local as backup (large capacity, same-profile tabs)
+        if (gnpStorageLocal) { try { await gnpStorageSetKey(gnpStorageLocal, GNP_SHARED_FOLDERS_KEY, payload); } catch (_) {} }
+    }
+
+    async function gnpReadFoldersLite() {
+        let st = null;
+        // prefer sync (cross-instance), fallback local
+        if (gnpStorageSync) {
+            st = await gnpStorageGetKey(gnpStorageSync, GNP_SHARED_FOLDERS_KEY);
+            if (!st && gnpStorageLocal) st = await gnpStorageGetKey(gnpStorageLocal, GNP_SHARED_FOLDERS_KEY);
+        } else if (gnpStorageLocal) {
+            st = await gnpStorageGetKey(gnpStorageLocal, GNP_SHARED_FOLDERS_KEY);
+        }
+        return (st && typeof st === 'object') ? st : null;
+    }
+
+
     async function gnpPersistSharedState(mode = 'all') {
-        if (!gnpStorageArea || gnpApplyingSharedState) return;
+        if (mode === 'filter') return; // UI-only per-tab: do not sync folder filter across tabs
+
+        if (!gnpStorageArea) return;
+
+        // If we are currently applying shared-state from another tab, queue this persist instead of dropping it.
+        if (gnpApplyingSharedState) { gnpQueuePersistSharedState(mode); return; }
 
         const now = gnpNow();
+
+        // Ensure per-section timestamps are strictly monotonic even under cross-tab races.
+        // If base already has a newer timestamp (e.g., another tab wrote between our now() and get()),
+        // we bump it by +1 so other tabs won't ignore this update.
+        const gnpBumpTs = (baseTs, candidateTs) => {
+            const b = Number(baseTs) || 0;
+            const c = Number(candidateTs) || 0;
+            const m = Math.max(b, c);
+            return (m <= b) ? (b + 1) : m;
+        };
+
+        // 设置标志，防止自己触发的storage.onChanged导致重新渲染
+        gnpApplyingSharedState = true;
+        try {
 
         // 读：以 sync 优先
         let base = null;
@@ -2019,42 +2279,45 @@ window.addEventListener('resize', repositionHoverPreview, true);
         // 合并 tombstones（无论 mode，都要带上 base 的 tombstone，避免复活）
         const mergedTombs = gnpPruneByTsMap(gnpMergeTombstones(base.deletedFavorites, deletedFavorites), 5000);
 
-        const next = { ...base, v: 2, deletedFavorites: mergedTombs };
+        const mergedFolderTombs = gnpPruneByTsMap(gnpMergeTombstones(base.deletedFolders, deletedFolders), 2000);
+        const mergedFolderRestores = gnpPruneByTsMap(gnpMergeTombstones(base.restoredFolders, restoredFolders), 2000);
+
+        const next = { ...base, v: 2, deletedFavorites: mergedTombs, deletedFolders: mergedFolderTombs, restoredFolders: mergedFolderRestores };
 
         // 根据 mode 仅更新对应分区，其他分区使用 base 值，避免旧快照覆盖
         if (mode === 'usage') {
             next.usageStats = gnpMergeUsage(base.usageStats, usageStats);
-            next.usageUpdatedAt = now;
+            next.usageUpdatedAt = gnpBumpTs(base.usageUpdatedAt, now);
         } else if (mode === 'folders') {
-            next.folders = gnpMergeFolders(base.folders, folders, base.favorites);
-            next.foldersUpdatedAt = now;
+            next.folders = gnpMergeFolders(base.folders, folders, base.favorites, mergedFolderTombs, mergedFolderRestores);
+            next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
         } else if (mode === 'filter') {
             next.favFolderFilter = String(favFolderFilter || '全部');
             next.filterUpdatedAt = now;
         } else if (mode === 'fav_meta') {
             // meta 更新：不改变列表结构，但会更新 useCount/lastUsed 等
             next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
-            next.favMetaUpdatedAt = now;
+            next.favMetaUpdatedAt = gnpBumpTs(base.favMetaUpdatedAt, now);
         } else if (mode === 'fav_list') {
             // list 更新：合并（避免丢失其它标签页新增） + tombstone 防复活
             next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
-            next.favListUpdatedAt = now;
+            next.favListUpdatedAt = gnpBumpTs(base.favListUpdatedAt, now);
             // list 变化通常也会影响 meta（例如 folder 变更），顺带更新 meta 时间戳
-            next.favMetaUpdatedAt = Math.max(Number(base.favMetaUpdatedAt)||0, now);
+            next.favMetaUpdatedAt = gnpBumpTs(base.favMetaUpdatedAt, now);
             // folders 可能扩充
-            next.folders = gnpMergeFolders(base.folders, folders, next.favorites);
-            next.foldersUpdatedAt = Math.max(Number(base.foldersUpdatedAt)||0, now);
+            next.folders = gnpMergeFolders(base.folders, folders, next.favorites, mergedFolderTombs, mergedFolderRestores);
+            next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
         } else {
             // all
             next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
-            next.folders = gnpMergeFolders(base.folders, folders, next.favorites);
+            next.folders = gnpMergeFolders(base.folders, folders, next.favorites, mergedFolderTombs, mergedFolderRestores);
             next.favFolderFilter = String(favFolderFilter || '全部');
             next.usageStats = gnpMergeUsage(base.usageStats, usageStats);
-            next.favListUpdatedAt = now;
-            next.favMetaUpdatedAt = now;
-            next.foldersUpdatedAt = now;
-            next.filterUpdatedAt = now;
-            next.usageUpdatedAt = now;
+            next.favListUpdatedAt = gnpBumpTs(base.favListUpdatedAt, now);
+            next.favMetaUpdatedAt = gnpBumpTs(base.favMetaUpdatedAt, now);
+            next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
+            next.filterUpdatedAt = gnpBumpTs(base.filterUpdatedAt, now);
+            next.usageUpdatedAt = gnpBumpTs(base.usageUpdatedAt, now);
         }
 
         next.updatedAt = Math.max(
@@ -2065,6 +2328,14 @@ window.addEventListener('resize', repositionHoverPreview, true);
             Number(next.usageUpdatedAt||0),
             now
         );
+
+
+        // sync-lite: folders only (ensure folder create sync even if full state hits sync quota)
+        try {
+            if (mode === 'folders' || mode === 'all' || mode === 'fav_list') {
+                await gnpTryWriteFoldersLite(next.folders, next.foldersUpdatedAt, mergedFolderTombs, mergedFolderRestores);
+            }
+        } catch (_) {}
 
         // 写：优先 sync，并备份到 local；若 sync 失败则降级 local
         let ok = { ok: false };
@@ -2089,6 +2360,11 @@ window.addEventListener('resize', repositionHoverPreview, true);
             gnpSharedFilterAt = Math.max(gnpSharedFilterAt, Number(next.filterUpdatedAt)||0);
             gnpSharedUsageAt = Math.max(gnpSharedUsageAt, Number(next.usageUpdatedAt)||0);
         }
+
+        } finally {
+            // 延迟清除标志，确保storage.onChanged事件已经处理完
+            setTimeout(() => { gnpApplyingSharedState = false; }, 100);
+        }
     }
 
     function gnpBootstrapSharedState() {
@@ -2111,6 +2387,22 @@ window.addEventListener('resize', repositionHoverPreview, true);
                 try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
             }
 
+
+            // sync-lite: folders only (if newer than full shared-state, apply it)
+            try {
+                const lite = await gnpReadFoldersLite();
+                if (lite) {
+                    gnpApplyingSharedState = true;
+                    try {
+                        const changedLite = gnpApplyFoldersLite(lite, true);
+                        if (changedLite) {
+                            try { renderFavorites(); } catch (_) {}
+                            try { refreshNav(true); } catch (_) {}
+                        }
+                    } finally { gnpApplyingSharedState = false; }
+                }
+            } catch (_) {}
+
             try { renderFavorites(); } catch (_) {}
             try { refreshNav(true); } catch (_) {}
             try { gnpBootstrapFavoritesFromJsonFileOnce('shared-bootstrap'); } catch (_) {}
@@ -2121,20 +2413,77 @@ window.addEventListener('resize', repositionHoverPreview, true);
     try {
         if (gnpChrome && gnpChrome.storage && gnpChrome.storage.onChanged) {
             gnpChrome.storage.onChanged.addListener((changes, areaName) => {
-                if (!changes || !changes[GNP_SHARED_STATE_KEY]) return;
+                if (!changes) return;
                 if (areaName !== 'sync' && areaName !== 'local') return;
 
-                const next = changes[GNP_SHARED_STATE_KEY].newValue;
-                if (!next) return;
+                const nextFull = changes[GNP_SHARED_STATE_KEY] && changes[GNP_SHARED_STATE_KEY].newValue;
+                const nextFoldersLite = changes[GNP_SHARED_FOLDERS_KEY] && changes[GNP_SHARED_FOLDERS_KEY].newValue;
+                const nextFavFileBcast = changes[GNP_FAV_FILE_BCAST_KEY] && changes[GNP_FAV_FILE_BCAST_KEY].newValue;
 
-                gnpApplyingSharedState = true;
-                try {
-                    const changed = gnpApplySharedState(next, false);
-                    if (changed) {
-                        try { renderFavorites(); } catch (_) {}
-                        try { refreshNav(true); } catch (_) {}
+                if (!nextFull && !nextFoldersLite && !nextFavFileBcast) return;
+
+                const applyNow = (full, foldersLite, favFileBcast) => {
+                    if (!full && !foldersLite && !favFileBcast) return;
+
+                    gnpApplyingSharedState = true;
+                    try {
+                        let changed = false;
+
+                        if (full) {
+                            changed = gnpApplySharedState(full, false) || changed;
+                        }
+                        if (foldersLite) {
+                            changed = gnpApplyFoldersLite(foldersLite, false) || changed;
+                        }
+
+                        if (changed) {
+                            try { renderFavorites(); } catch (_) {}
+                            try { refreshNav(true); } catch (_) {}
+                        }
+
+                        // 文件广播：任一页面写入本地 JSON 成功后，通知其它页面 reload（避免各页轮询）
+                        if (favFileBcast && favFileBcast.ts) {
+                            try {
+                                const origin = String(favFileBcast.origin || '');
+                                if (origin && origin === gnpInstanceId) {
+                                    // ignore self
+                                } else {
+                                    gnpDebouncedReloadFavoritesFromJsonFile('bcast');
+                                }
+                            } catch (_) {}
+                        }
+                    } finally {
+                        gnpApplyingSharedState = false;
                     }
-                } finally { gnpApplyingSharedState = false; }
+                };
+
+                // 若此刻正在 apply（例如刚刚处理了其它变更），不要丢弃本次变更：放入队列并稍后再 apply
+                if (gnpApplyingSharedState) {
+                    if (nextFull) gnpApplyPendingFull = nextFull;
+                    if (nextFoldersLite) gnpApplyPendingFoldersLite = nextFoldersLite;
+                    if (nextFavFileBcast) gnpApplyPendingFavFileBcast = nextFavFileBcast;
+
+                    clearTimeout(gnpApplyPendingTimer);
+                    gnpApplyPendingTimer = setTimeout(() => {
+                        try {
+                            if (gnpApplyingSharedState) return;
+
+                            const pf = gnpApplyPendingFull;
+                            const pl = gnpApplyPendingFoldersLite;
+                            const pb = gnpApplyPendingFavFileBcast;
+
+                            gnpApplyPendingFull = null;
+                            gnpApplyPendingFoldersLite = null;
+                            gnpApplyPendingFavFileBcast = null;
+                            gnpApplyPendingTimer = null;
+
+                            applyNow(pf, pl, pb);
+                        } catch (_) {}
+                    }, 180);
+                    return;
+                }
+
+                applyNow(nextFull, nextFoldersLite, nextFavFileBcast);
             });
         }
     } catch (_) {}
@@ -2199,6 +2548,35 @@ window.addEventListener('resize', repositionHoverPreview, true);
     let gnpFileSyncWarned = false;
     let gnpFavFileWriteTimer = null;
     let gnpFavFileLastSnapshot = '';
+let gnpFavFileLastAttemptSnapshot = '';
+let gnpFavFileLastAttemptAt = 0;
+let gnpFavFileWriteInFlight = false;
+let gnpFavFilePollTimer = null;
+let gnpFavFilePollLeaderTimer = null;
+
+function gnpHashText(str) {
+    // simple FNV-1a 32-bit
+    try {
+        let h = 0x811c9dc5;
+        const s = String(str || '');
+        for (let i = 0; i < s.length; i++) {
+            h ^= s.charCodeAt(i);
+            h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+        }
+        return ('00000000' + h.toString(16)).slice(-8);
+    } catch (_) { return ''; }
+}
+
+function gnpSortObjectKeys(obj) {
+    try {
+        const o = (obj && typeof obj === 'object' && !Array.isArray(obj)) ? obj : {};
+        const keys = Object.keys(o).sort();
+        const out = {};
+        for (const k of keys) out[k] = o[k];
+        return out;
+    } catch (_) { return obj || {}; }
+}
+
 
     function gnpToastSafe(msg) {
         try {
@@ -2355,52 +2733,310 @@ window.addEventListener('resize', repositionHoverPreview, true);
     }
 
     function gnpBuildFavoritesFilePayload() {
-        // 文件里存一份“可读性较好”的 JSON（方便手工编辑/备份）
-        return {
-            v: 1,
-            updatedAt: Date.now(),
-            favorites: favorites.map(f => ({
-                text: String(f.text || '').trim(),
-                folder: String(f.folder || '默认').trim() || '默认',
-                useCount: Number(f.useCount) || 0,
-                lastUsed: Number(f.lastUsed) || 0
-            })),
-            folders: Array.isArray(folders) ? folders.slice() : ['默认']
-        };
-    }
+    // 文件里存一份“可读性较好”的 JSON（方便手工编辑/备份）
+    // 注意：包含删除墓碑（deletedFavorites），避免跨实例被旧快照复活。
+    const favArr = favorites.map(f => ({
+        text: String(f.text || '').trim(),
+        folder: String(f.folder || '默认').trim() || '默认',
+        useCount: Number(f.useCount) || 0,
+        lastUsed: Number(f.lastUsed) || 0
+    })).filter(x => x.text);
 
-    function gnpScheduleWriteFavoritesJsonFile(reason = '') {
+    const folderArr = Array.isArray(folders) ? folders.slice() : ['默认'];
+
+    const tomb = gnpSortObjectKeys(gnpPruneByTsMap((deletedFavorites && typeof deletedFavorites === 'object') ? deletedFavorites : {}, 5000));
+    const folderTomb = gnpSortObjectKeys(gnpPruneByTsMap((deletedFolders && typeof deletedFolders === 'object') ? deletedFolders : {}, 2000));
+    const folderRestore = gnpSortObjectKeys(gnpPruneByTsMap((restoredFolders && typeof restoredFolders === 'object') ? restoredFolders : {}, 2000));
+
+    return {
+        v: 2,
+        updatedAt: Date.now(),
+        instance: gnpInstanceId,
+        favorites: favArr,
+        folders: folderArr,
+        deletedFavorites: tomb,
+        deletedFolders: folderTomb,
+        restoredFolders: folderRestore
+    };
+}
+
+    
+function gnpBuildFavoritesFilePayloadFromState(favArrIn, folderArrIn, tombIn, folderTombIn, folderRestoreIn) {
+    // Like gnpBuildFavoritesFilePayload(), but for a provided merged state (avoid relying on possibly stale in-memory vars).
+    const favArr = (Array.isArray(favArrIn) ? favArrIn : []).map(f => ({
+        text: String((f && f.text) || '').trim(),
+        folder: String((f && f.folder) || '默认').trim() || '默认',
+        useCount: Number((f && f.useCount) || 0) || 0,
+        lastUsed: Number((f && f.lastUsed) || 0) || 0
+    })).filter(x => x.text);
+
+    const folderArr = Array.isArray(folderArrIn) ? folderArrIn.slice() : ['默认'];
+
+    const tomb = gnpSortObjectKeys(gnpPruneByTsMap((tombIn && typeof tombIn === 'object') ? tombIn : {}, 5000));
+    const folderTomb = gnpSortObjectKeys(gnpPruneByTsMap((folderTombIn && typeof folderTombIn === 'object') ? folderTombIn : {}, 2000));
+    const folderRestore = gnpSortObjectKeys(gnpPruneByTsMap((folderRestoreIn && typeof folderRestoreIn === 'object') ? folderRestoreIn : {}, 2000));
+
+    return {
+        v: 2,
+        updatedAt: Date.now(),
+        instance: gnpInstanceId,
+        favorites: favArr,
+        folders: folderArr,
+        deletedFavorites: tomb,
+        deletedFolders: folderTomb,
+        restoredFolders: folderRestore
+    };
+}
+
+async function gnpReadLatestSharedStateSafe() {
+    // Read latest shared-state snapshot directly from chrome.storage (so a stale tab cannot overwrite a newer update on disk).
+    try {
+        if (!gnpChrome || !gnpChrome.storage) return null;
+        const getFrom = (area) => new Promise((resolve) => {
+            try {
+                if (!area || !area.get) return resolve(null);
+                area.get([GNP_SHARED_STATE_KEY], (res) => {
+                    try { resolve(res && res[GNP_SHARED_STATE_KEY]); } catch (_) { resolve(null); }
+                });
+            } catch (_) { resolve(null); }
+        });
+
+        let st = null;
+        // Prefer sync (cross-instance), fallback local
+        if (gnpStorageSync) st = await getFrom(gnpStorageSync);
+        if (!st && gnpStorageLocal) st = await getFrom(gnpStorageLocal);
+        return st;
+    } catch (_) { return null; }
+}
+
+function gnpBuildFileSnapshotFromObj(obj) {
+    const o = (obj && typeof obj === 'object') ? obj : {};
+    const inc = gnpExtractFavoritesFromAnyJson(o);
+    const tomb = (o.deletedFavorites && typeof o.deletedFavorites === 'object' && !Array.isArray(o.deletedFavorites)) ? o.deletedFavorites : {};
+    const folderTomb = (o.deletedFolders && typeof o.deletedFolders === 'object' && !Array.isArray(o.deletedFolders)) ? o.deletedFolders : {};
+    const folderRestore = (o.restoredFolders && typeof o.restoredFolders === 'object' && !Array.isArray(o.restoredFolders)) ? o.restoredFolders : {};
+    return {
+        favorites: inc.favorites || [],
+        folders: inc.folders || [],
+        deletedFavorites: tomb,
+        deletedFolders: folderTomb,
+        restoredFolders: folderRestore
+    };
+}
+
+function gnpEqualFavArrays(a, b) {
+    try {
+        const aa = Array.isArray(a) ? a : [];
+        const bb = Array.isArray(b) ? b : [];
+        if (aa.length !== bb.length) return false;
+        for (let i = 0; i < aa.length; i++) {
+            const x = aa[i] || {};
+            const y = bb[i] || {};
+            if (String(x.text || '').trim() !== String(y.text || '').trim()) return false;
+            if (String(x.folder || '默认').trim() !== String(y.folder || '默认').trim()) return false;
+            if ((Number(x.useCount) || 0) !== (Number(y.useCount) || 0)) return false;
+            if ((Number(x.lastUsed) || 0) !== (Number(y.lastUsed) || 0)) return false;
+        }
+        return true;
+    } catch (_) { return false; }
+}
+
+function gnpEqualStringArrays(a, b) {
+    try {
+        const aa = Array.isArray(a) ? a : [];
+        const bb = Array.isArray(b) ? b : [];
+        return JSON.stringify(aa) === JSON.stringify(bb);
+    } catch (_) { return false; }
+}
+
+function gnpEqualTsMap(a, b) {
+    try {
+        const aa = gnpSortObjectKeys((a && typeof a === 'object' && !Array.isArray(a)) ? a : {});
+        const bb = gnpSortObjectKeys((b && typeof b === 'object' && !Array.isArray(b)) ? b : {});
+        return JSON.stringify(aa) === JSON.stringify(bb);
+    } catch (_) { return false; }
+}
+
+async function gnpReadFavFileObjSafe() {
+    try {
+        const resp = await gnpSendMessagePromise({ type: 'GNP_FAV_FILE_READ' });
+        if (!resp || resp.ok !== true) return { ok: false, error: resp && resp.error, obj: null, text: '' };
+        const text = String(resp.data || resp.text || '').trim();
+        if (!text) return { ok: true, obj: null, text: '' };
+        try { return { ok: true, obj: JSON.parse(text), text }; } catch (_) { return { ok: true, obj: null, text }; }
+    } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : String(e), obj: null, text: '' };
+    }
+}
+
+function gnpBroadcastFavFileChanged(reason = '', extra = null) {
+    try {
+        if (!IS_EXTENSION || !gnpChrome || !gnpChrome.storage || !gnpChrome.storage.local) return;
+        const payload = { ts: Date.now(), origin: gnpInstanceId, reason: String(reason || ''), extra: extra || null };
+        gnpChrome.storage.local.set({ [GNP_FAV_FILE_BCAST_KEY]: payload });
+    } catch (_) {}
+}
+
+async function gnpWriteFavFileMerged(reason = '') {
+    try {
+        if (!IS_EXTENSION) return;
+        if (gnpApplyingFileSnapshot) { gnpFavFileWritePendingReason = String(reason || 'pending'); return; } // 避免 reload->save->write 循环
+        try { gnpLoadManifestCfg(); } catch (_) {}
+        if (!gnpGetFavJsonPath()) return;
+
+        // 防止并发写入（同一标签页）
+        if (gnpFavFileWriteInFlight) return;
+        gnpFavFileWriteInFlight = true;
+
         try {
-            if (!IS_EXTENSION) return;
-            try { gnpLoadManifestCfg(); } catch (_) {}
-            if (!gnpGetFavJsonPath()) return; // 未配置路径则不写
-            // 频繁使用 prompt 会触发 recordFavoriteUse -> saveFavorites；这里统一 debounce
-            clearTimeout(gnpFavFileWriteTimer);
-            gnpFavFileWriteTimer = setTimeout(async () => {
-                try {
-                    const payload = gnpBuildFavoritesFilePayload();
-                    const nextText = JSON.stringify(payload, null, 2);
-                    if (nextText === gnpFavFileLastSnapshot) return;
-                    gnpFavFileLastSnapshot = nextText;
+            // Build the local snapshot from the latest shared-state (plus our current in-memory state),
+            // so even a stale tab cannot overwrite a newer update on disk (e.g., empty folder creation).
+            const sharedRaw = await gnpReadLatestSharedStateSafe();
+            const shared = sharedRaw ? gnpNormalizeSharedState(sharedRaw) : null;
 
-                    const resp = await gnpSendMessagePromise({ type: 'GNP_FAV_FILE_WRITE', text: nextText });
-                    if (!resp || resp.ok !== true) {
-                        if (!gnpFileSyncWarned) {
-                            gnpFileSyncWarned = true;
-                            gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
-                        }
-                        try { console.warn('[GNP] Fav JSON write failed:', resp); } catch (_) {}
-                    }
-                } catch (e) {
-                    if (!gnpFileSyncWarned) {
-                        gnpFileSyncWarned = true;
-                        gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
-                    }
-                    try { console.warn('[GNP] Fav JSON write exception:', e); } catch (_) {}
+            const mergedLocalTombs = gnpPruneByTsMap(gnpMergeTombstones((shared && shared.deletedFavorites) || {}, deletedFavorites), 5000);
+            const mergedLocalFolderTombs = gnpPruneByTsMap(gnpMergeTombstones((shared && shared.deletedFolders) || {}, deletedFolders), 2000);
+            const mergedLocalFolderRestores = gnpPruneByTsMap(gnpMergeTombstones((shared && shared.restoredFolders) || {}, restoredFolders), 2000);
+
+            const mergedLocalFav = gnpMergeFavorites((shared && shared.favorites) || [], favorites, mergedLocalTombs);
+            const mergedLocalFolders = gnpMergeFolders((shared && shared.folders) || [], folders, mergedLocalFav, mergedLocalFolderTombs, mergedLocalFolderRestores);
+
+            const localObj = gnpBuildFavoritesFilePayloadFromState(
+                mergedLocalFav,
+                mergedLocalFolders,
+                mergedLocalTombs,
+                mergedLocalFolderTombs,
+                mergedLocalFolderRestores
+            );
+            const localSnap = gnpBuildFileSnapshotFromObj(localObj);
+
+            // 读文件（跨 Chrome 实例同步的关键）
+            const fr = await gnpReadFavFileObjSafe();
+            const fileObj = fr.ok ? fr.obj : null;
+            const fileSnap = gnpBuildFileSnapshotFromObj(fileObj || {});
+            const fileTombs = gnpPruneByTsMap((fileSnap.deletedFavorites && typeof fileSnap.deletedFavorites === 'object') ? fileSnap.deletedFavorites : {}, 5000);
+            const fileFolderTombs = gnpPruneByTsMap((fileSnap.deletedFolders && typeof fileSnap.deletedFolders === 'object') ? fileSnap.deletedFolders : {}, 2000);
+            const fileFolderRestores = gnpPruneByTsMap((fileSnap.restoredFolders && typeof fileSnap.restoredFolders === 'object') ? fileSnap.restoredFolders : {}, 2000);
+
+            // 合并 tombstone：取最大时间戳（删除优先，避免复活）
+            const mergedTombs = gnpPruneByTsMap(gnpMergeTombstones(fileTombs, (localSnap.deletedFavorites || {})), 5000);
+            const mergedFolderTombs = gnpPruneByTsMap(gnpMergeTombstones(fileFolderTombs, (localSnap.deletedFolders || {})), 2000);
+            const mergedFolderRestores = gnpPruneByTsMap(gnpMergeTombstones(fileFolderRestores, (localSnap.restoredFolders || {})), 2000);
+
+
+            // 合并 favorites：以本地顺序优先，补齐文件中的缺失项；并过滤 tombstone
+            const mergedFav = gnpMergeFavorites(fileSnap.favorites || [], localSnap.favorites || [], mergedTombs);
+
+            // 合并 folders：并集 + favorites 引用到的 folder
+            const mergedFolders = gnpMergeFolders(fileSnap.folders || [], localSnap.folders || [], mergedFav, mergedFolderTombs, mergedFolderRestores);
+
+            // 若文件已经等价（忽略 updatedAt/instance），则不写
+            const fileFavNormalized = gnpMergeFavorites([], fileSnap.favorites || [], mergedTombs);
+            const fileFoldersNormalized = gnpMergeFolders([], fileSnap.folders || [], fileFavNormalized, fileFolderTombs, fileFolderRestores);
+
+            const sameFav = gnpEqualFavArrays(mergedFav, fileFavNormalized);
+            const sameFolders = gnpEqualStringArrays(mergedFolders, fileFoldersNormalized);
+            const sameTombs = gnpEqualTsMap(mergedTombs, fileTombs);
+            const sameFolderTombs = gnpEqualTsMap(mergedFolderTombs, fileFolderTombs);
+            const sameFolderRestores = gnpEqualTsMap(mergedFolderRestores, fileFolderRestores);
+
+            if (sameFav && sameFolders && sameTombs && sameFolderTombs && sameFolderRestores) {
+                // 记录已见快照（避免后续重复写/重复 reload）
+                const normalizedObj = {
+                    v: 2,
+                    updatedAt: Number((fileObj && (fileObj.updatedAt || fileObj.u)) || 0) || Date.now(),
+                    instance: (fileObj && fileObj.instance) || gnpInstanceId,
+                    favorites: mergedFav,
+                    folders: mergedFolders,
+                    deletedFavorites: gnpSortObjectKeys(mergedTombs),
+                    deletedFolders: gnpSortObjectKeys(mergedFolderTombs)
+                };
+                const normalizedText = JSON.stringify(normalizedObj, null, 2);
+                gnpFavFileLastSnapshot = normalizedText;
+                gnpFavFileLastSeenHash = gnpHashText(normalizedText);
+                return;
+            }
+
+            const nextObj = {
+                v: 2,
+                updatedAt: Date.now(),
+                instance: gnpInstanceId,
+                favorites: mergedFav,
+                folders: mergedFolders,
+                deletedFavorites: gnpSortObjectKeys(mergedTombs),
+                deletedFolders: gnpSortObjectKeys(mergedFolderTombs),
+                restoredFolders: gnpSortObjectKeys(mergedFolderRestores)
+            };
+            const nextText = JSON.stringify(nextObj, null, 2);
+
+            // 去重/限频：写失败时不应更新 lastSnapshot
+            if (nextText === gnpFavFileLastSnapshot) return;
+            const now = Date.now();
+            if (nextText === gnpFavFileLastAttemptSnapshot && (now - gnpFavFileLastAttemptAt) < 1200) return;
+            gnpFavFileLastAttemptSnapshot = nextText;
+            gnpFavFileLastAttemptAt = now;
+
+            const resp = await gnpSendMessagePromise({ type: 'GNP_FAV_FILE_WRITE', text: nextText });
+            if (!resp || resp.ok !== true) {
+                if (!gnpFileSyncWarned) {
+                    gnpFileSyncWarned = true;
+                    gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
                 }
-            }, 650);
-        } catch (_) {}
+                try { console.warn('[GNP] Fav JSON write failed:', resp); } catch (_) {}
+                return;
+            }
+
+            // 仅成功后更新快照
+            gnpFavFileLastSnapshot = nextText;
+            gnpFavFileLastSeenHash = gnpHashText(nextText);
+
+            // 校验：若同时有其它实例写入导致我们被覆盖，触发一次再合并回写（靠 debounce 限制）
+            try {
+                setTimeout(async () => {
+                    try {
+                        const vr = await gnpReadFavFileObjSafe();
+                        const vt = String((vr && vr.text) || '').trim();
+                        const vh = gnpHashText(vt);
+                        const wh = gnpHashText(nextText);
+                        if (vh && wh && vh !== wh) {
+                            try { gnpScheduleWriteFavoritesJsonFile('verify'); } catch (_) {}
+                        }
+                    } catch (_) {}
+                }, 160);
+            } catch (_) {}
+
+            // 通知同一浏览器内的所有页面 reload（避免每页轮询）
+            gnpBroadcastFavFileChanged(reason, { hash: gnpFavFileLastSeenHash });
+
+        } finally {
+            gnpFavFileWriteInFlight = false;
+        }
+    } catch (_) {
+        try { gnpFavFileWriteInFlight = false; } catch (_) {}
     }
+}
+
+function gnpScheduleWriteFavoritesJsonFile(reason = '') {
+    try {
+        if (!IS_EXTENSION) return;
+        if (gnpApplyingFileSnapshot) { gnpFavFileWritePendingReason = String(reason || 'pending'); return; }
+
+        // 频繁使用 prompt 会触发 recordFavoriteUse -> saveFavorites；这里统一 debounce
+        clearTimeout(gnpFavFileWriteTimer);
+        gnpFavFileWriteTimer = setTimeout(async () => {
+            try { await gnpLoadManifestCfg(); } catch (_) {}
+            if (!gnpGetFavJsonPath()) return; // 未配置路径则不写
+
+            try { await gnpWriteFavFileMerged(reason); } catch (e) {
+                if (!gnpFileSyncWarned) {
+                    gnpFileSyncWarned = true;
+                    gnpToastSafe('本地JSON自动回写未启用：请安装 Native Host（控制台有说明）。');
+                }
+                try { console.warn('[GNP] Fav JSON write exception:', e); } catch (_) {}
+            }
+        }, 650);
+    } catch (_) {}
+}
 
     async function gnpBootstrapFavoritesFromJsonFileOnce(trigger = '') {
         if (!IS_EXTENSION) return;
@@ -2444,9 +3080,158 @@ window.addEventListener('resize', repositionHoverPreview, true);
             try { console.warn('[GNP] Fav JSON parse failed:', e); } catch (_) {}
             gnpToastSafe('本地JSON文件解析失败：请检查 JSON 格式。');
         }
+    
+    // 启动文件同步监听（跨实例：轮询文件；同一浏览器：storage 广播触发 reload）
+    try { gnpStartFavFilePolling(); } catch (_) {}
+}
+
+
+    
+function gnpDebouncedReloadFavoritesFromJsonFile(trigger = '') {
+    try {
+        clearTimeout(gnpFavFileReloadTimer);
+        gnpFavFileReloadTimer = setTimeout(() => {
+            try { gnpReloadFavoritesFromJsonFile(trigger); } catch (_) {}
+        }, 220);
+    } catch (_) {}
+}
+
+async function gnpReloadFavoritesFromJsonFile(trigger = '') {
+    if (!IS_EXTENSION) return;
+    try { await gnpLoadManifestCfg(); } catch (_) {}
+    if (!gnpGetFavJsonPath()) return;
+
+    const fr = await gnpReadFavFileObjSafe();
+    if (!fr || fr.ok !== true) return;
+
+    const text = String(fr.text || '').trim();
+    if (!text) return;
+
+    // hash compare: unchanged -> skip
+    const h = gnpHashText(text);
+    if (h && h === gnpFavFileLastSeenHash && trigger !== 'force') return;
+
+    let obj = null;
+    try { obj = fr.obj || JSON.parse(text); } catch (_) { obj = null; }
+    if (!obj || typeof obj !== 'object') return;
+
+    const snap = gnpBuildFileSnapshotFromObj(obj);
+    const fileTombs = gnpPruneByTsMap((snap.deletedFavorites && typeof snap.deletedFavorites === 'object') ? snap.deletedFavorites : {}, 5000);
+    const fileFolderTombs = gnpPruneByTsMap((snap.deletedFolders && typeof snap.deletedFolders === 'object') ? snap.deletedFolders : {}, 2000);
+    const fileFolderRestores = gnpPruneByTsMap((snap.restoredFolders && typeof snap.restoredFolders === 'object') ? snap.restoredFolders : {}, 2000);
+    const mergedTombs = gnpPruneByTsMap(gnpMergeTombstones(fileTombs, deletedFavorites), 5000);
+    const mergedFolderTombs = gnpPruneByTsMap(gnpMergeTombstones(fileFolderTombs, deletedFolders), 2000);
+    const mergedFolderRestores = gnpPruneByTsMap(gnpMergeTombstones(fileFolderRestores, restoredFolders), 2000);
+
+
+    // 合并：文件为 base，本地为 local（本地顺序优先，但会补齐文件新增）
+    const mergedFav = gnpMergeFavorites(snap.favorites || [], favorites || [], mergedTombs);
+    const mergedFolders = gnpMergeFolders(snap.folders || [], folders || [], mergedFav, mergedFolderTombs, mergedFolderRestores);
+
+    // 是否发生变化
+    const changedFav = !gnpEqualFavArrays(mergedFav, favorites || []);
+    const changedFolders = !gnpEqualStringArrays(mergedFolders, folders || []);
+    const changedTombs = !gnpEqualTsMap(mergedTombs, deletedFavorites || {});
+    const changedFolderTombs = !gnpEqualTsMap(mergedFolderTombs, deletedFolders || {});
+    const changedFolderRestores = !gnpEqualTsMap(mergedFolderRestores, restoredFolders || {});
+
+    if (!changedFav && !changedFolders && !changedTombs && !changedFolderTombs && !changedFolderRestores) {
+        gnpFavFileLastSeenHash = h || gnpFavFileLastSeenHash;
+        return;
     }
 
-    function gnpPickAndImportFavoritesJsonFile() {
+    gnpApplyingFileSnapshot = true;
+    try {
+        favorites = mergedFav;
+        folders = mergedFolders;
+        deletedFavorites = mergedTombs;
+        deletedFolders = mergedFolderTombs;
+        restoredFolders = mergedFolderRestores;
+
+        // 写回到 localStorage + sharedState（让同一浏览器内其它页面也能同步）
+        try { saveFolders(); } catch (_) {}
+        try { saveFavorites('fav_list'); } catch (_) {}
+
+        try { renderFavorites(); } catch (_) {}
+        try { refreshNav(true); } catch (_) {}
+
+        gnpFavFileLastSeenHash = h || gnpFavFileLastSeenHash;
+    } finally {
+        setTimeout(() => {
+        gnpApplyingFileSnapshot = false;
+        // If a user action occurred while we were applying a file snapshot, flush the pending write now.
+        if (gnpFavFileWritePendingReason) {
+            const r = String(gnpFavFileWritePendingReason || 'pending');
+            gnpFavFileWritePendingReason = null;
+            try { gnpScheduleWriteFavoritesJsonFile(r); } catch (_) {}
+        }
+    }, 80);
+    }
+}
+
+async function gnpTryBecomeFavFilePollLeader() {
+    try {
+        if (!IS_EXTENSION || !gnpChrome || !gnpChrome.storage || !gnpChrome.storage.local) return false;
+
+        const now = Date.now();
+        const getRes = await new Promise((resolve) => {
+            try { gnpChrome.storage.local.get([GNP_FAV_FILE_POLL_LEADER_KEY], resolve); } catch (_) { resolve({}); }
+        });
+        const cur = getRes && getRes[GNP_FAV_FILE_POLL_LEADER_KEY];
+        const curId = cur && cur.id;
+        const curTs = Number(cur && cur.ts) || 0;
+
+        // 过期或空 -> 抢占
+        if (!curId || (now - curTs) > 5500 || curId === gnpInstanceId) {
+            await new Promise((resolve) => {
+                try { gnpChrome.storage.local.set({ [GNP_FAV_FILE_POLL_LEADER_KEY]: { id: gnpInstanceId, ts: now } }, resolve); } catch (_) { resolve(); }
+            });
+            return true;
+        }
+        return false;
+    } catch (_) { return false; }
+}
+
+function gnpStartFavFilePolling() {
+    try {
+        if (!IS_EXTENSION) return;
+        if (gnpFavFilePollTimer) return;
+        if (!gnpGetFavJsonPath()) return;
+
+        // Leader heartbeat (cheap)
+        gnpFavFilePollLeaderTimer = setInterval(async () => {
+            try {
+                const isLeader = await gnpTryBecomeFavFilePollLeader();
+                if (!isLeader) return;
+
+                // leader: poll file every 2s
+                if (!gnpFavFilePollTimer) {
+                    gnpFavFilePollTimer = setInterval(async () => {
+                        try {
+                            const leader = await gnpTryBecomeFavFilePollLeader();
+                            if (!leader) return;
+
+                            const fr = await gnpReadFavFileObjSafe();
+                            if (!fr || fr.ok !== true) return;
+                            const text = String(fr.text || '').trim();
+                            if (!text) return;
+                            const h = gnpHashText(text);
+                            if (h && h !== gnpFavFileLastSeenHash) {
+                                gnpFavFileLastSeenHash = h;
+                                // leader 先自 reload，再广播给同浏览器其它页面
+                                try { await gnpReloadFavoritesFromJsonFile('poll'); } catch (_) {}
+                                try { gnpBroadcastFavFileChanged('poll', { hash: h }); } catch (_) {}
+                            }
+                        } catch (_) {}
+                    }, 2000);
+                }
+            } catch (_) {}
+        }, 1800);
+
+    } catch (_) {}
+}
+
+function gnpPickAndImportFavoritesJsonFile() {
         try {
             const input = document.createElement('input');
             input.type = 'file';
@@ -2658,6 +3443,9 @@ const saveFavorites = (mode = 'fav_list') => {
     const ensureFolderExists = (name) => {
         const f = String(name || '').trim();
         if (!f) return '默认';
+        // 若曾删除同名文件夹（tombstone），创建时应允许复活
+        try { if (deletedFolders && deletedFolders[f]) delete deletedFolders[f]; } catch (_) {}
+        try { restoredFolders = (restoredFolders && typeof restoredFolders === 'object') ? restoredFolders : {}; restoredFolders[f] = Date.now(); } catch (_) {}
         if (!folders.includes(f)) { folders.push(f); saveFolders(); }
         return f;
     };
@@ -2673,6 +3461,9 @@ const saveFavorites = (mode = 'fav_list') => {
 
     let autoHideTimer = null;
     let isSelectInteracting = false;
+	// 当用户正在操作收藏页“文件夹筛选”下拉框时，避免 2s 级别的自动刷新重绘。
+	// 否则重绘会销毁 <select> 并导致下拉菜单自动消失。
+	let gnpPendingFavRerender = false;
     let currentActiveIndex = -1;
 
 
@@ -3179,9 +3970,18 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         folderSel.className = 'gnp-folder-select';
         folderSel.style.minWidth = '160px';
 
-        const folders = Array.from(new Set(favorites.map(f => f.folder || '默认')));
-        if (!folders.includes('默认')) folders.unshift('默认');
-        folders.forEach(fn => {
+        // 下拉应展示“所有已创建的文件夹”，包括空文件夹（否则只能看到已有 prompt 的文件夹）
+        let folderOptions = (typeof gnpNormalizeFolders === 'function') ? gnpNormalizeFolders(folders) : ['默认'];
+        // 兜底：若某些历史数据的 folder 未纳入 folders 列表，也补进去（不影响已有逻辑）
+        try {
+            (Array.isArray(favorites) ? favorites : []).forEach(f => {
+                const ff = String((f && f.folder) || '').trim();
+                if (ff && !folderOptions.includes(ff)) folderOptions.push(ff);
+            });
+        } catch (_) {}
+        folderOptions = (typeof gnpNormalizeFolders === 'function') ? gnpNormalizeFolders(folderOptions) : folderOptions;
+
+        folderOptions.forEach(fn => {
             const opt = document.createElement('option');
             opt.value = fn;
             opt.textContent = fn;
@@ -3189,7 +3989,7 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         });
 
         const def = (defaultFolder && defaultFolder !== '全部') ? defaultFolder : '默认';
-        folderSel.value = folders.includes(def) ? def : '默认';
+        folderSel.value = folderOptions.includes(def) ? def : '默认';
 
         folderLeft.append(folderLabel, folderSel);
         folderRow.append(folderLeft);
@@ -3218,11 +4018,11 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         const doAdd = () => {
             const text = (textarea.value || '').trim();
             if (!text) return showErr('请输入 Prompt 内容');
-            if (hasFavorite(text)) return showErr('该 Prompt 已在收藏中');
 
             const folder = (folderSel.value || '默认').trim() || '默认';
-            favorites.unshift({ text, folder, useCount: 0, lastUsed: 0 });
-            saveFavorites();
+            if (!addFavorite(text, folder)) return showErr('该 Prompt 已在收藏中');
+
+            saveFavorites('fav_list');
 
             keyboardSelectedPrompt = text;
             renderFavorites();
@@ -3567,6 +4367,9 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
 
     function renderFavorites() {
         if (!panelFav.classList.contains('active')) return;
+		// 下拉菜单交互中暂停重绘，避免被 MutationObserver 的 2s 刷新销毁并自动关闭
+		if (isSelectInteracting) { gnpPendingFavRerender = true; return; }
+		gnpPendingFavRerender = false;
         panelFav.replaceChildren();
 
         const totalCount = favorites.length;
@@ -3575,8 +4378,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         const effectiveFilter = (folders.includes(favFolderFilter) || favFolderFilter === '全部') ? favFolderFilter : '全部';
         if (effectiveFilter !== favFolderFilter) {
             favFolderFilter = effectiveFilter;
-            localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
-            gnpPersistSharedState();
+            gnpSetTabFavFolderFilter(favFolderFilter);
         }
 
         const filteredFavorites = (favFolderFilter === '全部')
@@ -3604,7 +4406,11 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             isSelectInteracting = true; 
             if (isAutoHideEnabled) { clearTimeout(autoHideTimer); sidebar.classList.remove('collapsed'); }
         });
-        folderSelect.addEventListener('blur', () => { isSelectInteracting = false; });
+		folderSelect.addEventListener('blur', () => {
+			isSelectInteracting = false;
+			// 若交互期间有刷新请求被抑制，则在关闭下拉后补一次重绘
+			if (gnpPendingFavRerender) { gnpPendingFavRerender = false; renderFavorites(); }
+		});
         folderSelect.addEventListener('mousedown', () => { 
             isSelectInteracting = true; 
             if (isAutoHideEnabled) { clearTimeout(autoHideTimer); sidebar.classList.remove('collapsed'); }
@@ -3633,8 +4439,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         folderSelect.onchange = () => {
             isSelectInteracting = false;
             favFolderFilter = folderSelect.value;
-            localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
-            gnpPersistSharedState();
+            gnpSetTabFavFolderFilter(favFolderFilter);
             selectedItems.clear();
             updateBatchBar();
             renderFavorites();
@@ -3659,8 +4464,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                 onConfirm: (name) => {
                     const f = ensureFolderExists(name);
                     favFolderFilter = f;
-                    localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
-                    gnpPersistSharedState();
+                    gnpSetTabFavFolderFilter(favFolderFilter);
                     renderFavorites();
                 }
             });
@@ -3699,8 +4503,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                     saveFavorites();
 
                     favFolderFilter = finalName;
-                    localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
-                    gnpPersistSharedState();
+                    gnpSetTabFavFolderFilter(favFolderFilter);
                     renderFavorites();
                 }
             });
@@ -3719,19 +4522,31 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             const folderToDelete = favFolderFilter;
             showConfirmInSidebar({
                 titleText: `删除文件夹「${folderToDelete}」？`,
-                descText: '该文件夹内收藏将移动到「默认」。',
+                descText: '该文件夹及其内全部收藏将被删除（不可撤销）。',
                 confirmText: '确认删除',
                 onConfirm: () => {
+                    const now = Date.now();
+                    // 删除该文件夹下所有收藏，并写 tombstone，避免被旧快照复活
+                    try { deletedFavorites = (deletedFavorites && typeof deletedFavorites === 'object') ? deletedFavorites : {}; } catch (_) {}
+                    const toDel = [];
                     favorites.forEach(f => {
-                        if (f.folder === folderToDelete) f.folder = '默认';
+                        if (f && f.folder === folderToDelete) {
+                            const t = String(f.text || '').trim();
+                            if (t) toDel.push(t);
+                        }
                     });
+                    favorites = favorites.filter(f => !(f && f.folder === folderToDelete));
+                    toDel.forEach(t => { deletedFavorites[t] = now; });
+                    // 文件夹删除 tombstone，避免其它标签页/旧快照把文件夹复活
+                    try { deletedFolders = (deletedFolders && typeof deletedFolders === 'object') ? deletedFolders : {}; deletedFolders[folderToDelete] = now; } catch (_) {}
+                    try { if (restoredFolders && restoredFolders[folderToDelete]) delete restoredFolders[folderToDelete]; } catch (_) {}
+
                     folders = folders.filter(f => f !== folderToDelete);
                     if (!folders.includes('默认')) folders.unshift('默认');
                     saveFolders();
                     saveFavorites();
                     favFolderFilter = '全部';
-                    localStorage.setItem(STORAGE_KEY_FAV_FOLDER_FILTER, favFolderFilter);
-                    gnpPersistSharedState();
+                    gnpSetTabFavFolderFilter(favFolderFilter);
                     selectedItems.clear();
                     updateBatchBar();
                     renderFavorites();
@@ -4408,7 +5223,8 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
     const observerDom = new MutationObserver(() => {
         clearTimeout(window.geminiRefreshTimer);
-        window.geminiRefreshTimer = setTimeout(() => { refreshNav(); renderFavorites(); }, 800);
+        // 增加延迟到2秒，减少刷新频率，降低资源占用
+        window.geminiRefreshTimer = setTimeout(() => { refreshNav(); renderFavorites(); }, 2000);
     });
     observerDom.observe(document.body, { childList: true, subtree: true });
 
