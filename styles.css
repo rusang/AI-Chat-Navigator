@@ -13,7 +13,8 @@
     --gnp-current-bg: rgba(245, 158, 11, 0.14);
     --gnp-current-border: #f59e0b;
     --gnp-current-text: #b45309;
-    --gnp-fav-color: #d97706;
+    /* 收藏（与“当前 prompt”的黄色区分开） */
+    --gnp-fav-color: #059669;
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
     --gnp-search-highlight: #dc2626;
@@ -87,7 +88,8 @@
         --gnp-current-bg: rgba(251, 191, 36, 0.18);
         --gnp-current-border: #fbbf24;
         --gnp-current-text: #fde68a;
-        --gnp-fav-color: #fbbf24;
+        /* 收藏（与“当前 prompt”的黄色区分开） */
+        --gnp-fav-color: #34d399;
         --gnp-input-bg: rgba(148, 163, 184, 0.14);
         --gnp-input-text: rgba(248, 250, 252, 0.96);
         --gnp-search-highlight: #f87171;
@@ -129,6 +131,7 @@
     --gnp-current-bg: rgba(251, 191, 36, 0.18);
     --gnp-current-border: #fbbf24;
     --gnp-current-text: #fde68a;
+    --gnp-fav-color: #34d399;
     --gnp-input-bg: rgba(148, 163, 184, 0.14);
     --gnp-input-text: rgba(248, 250, 252, 0.96);
     --gnp-btn-bg: rgba(31, 41, 55, 0.82);
@@ -154,6 +157,7 @@
     --gnp-current-bg: rgba(245, 158, 11, 0.14);
     --gnp-current-border: #f59e0b;
     --gnp-current-text: #b45309;
+    --gnp-fav-color: #059669;
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
     --gnp-btn-bg: rgba(255, 255, 255, 0.70);
@@ -287,7 +291,8 @@
         #panel-fav .gemini-nav-item.active-current.keyboard-selected .item-index::before { background: var(--gnp-current-border) !important; }
 
         .gemini-nav-item.is-favorite .item-text { color: var(--gnp-fav-color); font-weight: 600; }
-        .gemini-nav-item.active-current.is-favorite .item-text { color: var(--gnp-fav-color); }
+        /* 若当前 prompt 也已收藏：应以“当前 prompt”样式为准（避免与收藏色混淆） */
+        .gemini-nav-item.active-current.is-favorite .item-text { color: var(--gnp-current-text) !important; font-weight: 700; }
         .item-index { color: var(--gnp-index-color); font-weight: 700; margin-right: 4px; opacity: 0.9; }
         /* 面板区分：导航/收藏 使用不同序号颜色与前置色点 */
         #panel-nav .item-index { color: var(--gnp-index-nav); }

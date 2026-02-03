@@ -4041,6 +4041,32 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
     search.className = 'gnp-folder-search-input';
     search.placeholder = '搜索文件夹（支持关键字）...';
 
+    // 新建文件夹：在“添加到收藏”时也允许直接创建目录
+    const newFolderBtn = document.createElement('div');
+    newFolderBtn.className = 'header-circle-btn';
+    newFolderBtn.title = '新建文件夹';
+    newFolderBtn.innerHTML = SVGS.folderPlus;
+    newFolderBtn.onclick = (e) => {
+        try { e && e.stopPropagation(); } catch (_) {}
+        // 先关闭当前选择弹层，再弹出输入框；创建后重新打开选择弹层并默认选中新目录。
+        try { closeOverlay(); } catch (_) {}
+        showPromptInSidebar({
+            titleText: '新建文件夹',
+            placeholder: '请输入文件夹名称',
+            defaultValue: '',
+            confirmText: '创建',
+            onConfirm: (name) => {
+                const f = ensureFolderExists(name);
+                // 重新打开文件夹选择器，并默认选中新创建的文件夹
+                showFavFolderPickerInSidebar({
+                    promptText,
+                    defaultFolder: f,
+                    onConfirm
+                });
+            }
+        });
+    };
+
     const folderSel = document.createElement('select');
     folderSel.className = 'gnp-folder-select';
     folderSel.style.width = '100%';
@@ -4148,7 +4174,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
                 const items = suggestBox.querySelectorAll('.gnp-folder-suggest-item');
                 if (!items || !items.length) return;
                 ev.preventDefault();
-                suggestActiveIndex = Math.min(items.length - 1, (suggestActiveIndex < 0 ? 0 : suggestActiveIndex + 1));
+                suggestActiveIndex = (suggestActiveIndex < 0 ? 0 : ((suggestActiveIndex + 1) % items.length));
                 const target = items[suggestActiveIndex];
                 if (target) {
                     items.forEach(it => it.classList.remove('kbd'));
@@ -4161,7 +4187,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
                 const items = suggestBox.querySelectorAll('.gnp-folder-suggest-item');
                 if (!items || !items.length) return;
                 ev.preventDefault();
-                suggestActiveIndex = Math.max(0, (suggestActiveIndex < 0 ? 0 : suggestActiveIndex - 1));
+                suggestActiveIndex = (suggestActiveIndex < 0 ? (items.length - 1) : ((suggestActiveIndex - 1 + items.length) % items.length));
                 const target = items[suggestActiveIndex];
                 if (target) {
                     items.forEach(it => it.classList.remove('kbd'));
@@ -4226,7 +4252,13 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
         if (ev.target === overlay) closeOverlay();
     });
 
-    row.append(search, suggestBox, folderSel);
+    // 搜索框 + 新建文件夹按钮同行显示（不新增 CSS，减少侵入）
+    const searchRow = document.createElement('div');
+    searchRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+    search.style.flex = '1 1 auto';
+    searchRow.append(search, newFolderBtn);
+
+    row.append(searchRow, suggestBox, folderSel);
     btnRow.append(btnCancel, btnConfirm);
 
     box.append(title, desc, preview, row, btnRow);
@@ -4883,10 +4915,16 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                 if (!items || !items.length) return;
                 if (ev.key === 'ArrowDown' || ev.key === 'Down') {
                     ev.preventDefault();
-                    gnpFolderFilterSuggestActiveIndex = Math.min(items.length - 1, (gnpFolderFilterSuggestActiveIndex < 0 ? 0 : gnpFolderFilterSuggestActiveIndex + 1));
+                    const n = items.length;
+                    if (n <= 0) return;
+                    if (gnpFolderFilterSuggestActiveIndex < 0) gnpFolderFilterSuggestActiveIndex = 0;
+                    else gnpFolderFilterSuggestActiveIndex = (gnpFolderFilterSuggestActiveIndex + 1) % n;
                 } else if (ev.key === 'ArrowUp' || ev.key === 'Up') {
                     ev.preventDefault();
-                    gnpFolderFilterSuggestActiveIndex = Math.max(0, (gnpFolderFilterSuggestActiveIndex < 0 ? 0 : gnpFolderFilterSuggestActiveIndex - 1));
+                    const n = items.length;
+                    if (n <= 0) return;
+                    if (gnpFolderFilterSuggestActiveIndex < 0) gnpFolderFilterSuggestActiveIndex = n - 1;
+                    else gnpFolderFilterSuggestActiveIndex = (gnpFolderFilterSuggestActiveIndex - 1 + n) % n;
                 } else if (ev.key === 'Enter') {
                     ev.preventDefault();
                     const v = gnpFolderFilterSuggestValues[gnpFolderFilterSuggestActiveIndex];
@@ -4966,6 +5004,14 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         const filteredFavorites = (favFolderFilter === '全部')
             ? favorites
             : favorites.filter(f => f.folder === favFolderFilter);
+
+        // 当前网页 prompt：若该 prompt 已在收藏中，则在收藏列表也用“当前 prompt”的高亮样式
+        let gnpCurrentPromptText = '';
+        try {
+            const blocks = qsaAll(CURRENT_CONFIG.promptSelector, getChatRoot());
+            const b = blocks && blocks[currentActiveIndex];
+            if (b) gnpCurrentPromptText = String(b.innerText || '').replace(/\n+/g, ' ').trim();
+        } catch (_) {}
 
         // Header（计数 + 文件夹筛选/管理 + 清空）
         const favHeader = document.createElement('div');
@@ -5063,7 +5109,27 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         folderSelect.addEventListener('click', openFolderFilterPopup, true);
         folderSelect.addEventListener('keydown', (ev) => {
             try {
-                if (ev && (ev.key === 'Enter' || ev.key === ' ')) openFolderFilterPopup(ev);
+                if (!ev) return;
+                // 弹层打开时由弹层 input 处理键盘
+                try {
+                    if (gnpFolderFilterPopupInputEl && gnpFolderFilterPopupInputEl.isConnected) return;
+                } catch (_) {}
+                const k = ev.key;
+                // ↑/↓：在目录选项间循环选择（最后一项再按 ↓ 回到第一项；第一项按 ↑ 回到最后一项）
+                if (k === 'ArrowDown' || k === 'Down' || k === 'ArrowUp' || k === 'Up') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const n = (folderSelect && folderSelect.options) ? folderSelect.options.length : 0;
+                    if (!n) return;
+                    let idx = folderSelect.selectedIndex;
+                    if (idx < 0) idx = 0;
+                    if (k === 'ArrowDown' || k === 'Down') idx = (idx + 1) % n;
+                    else idx = (idx - 1 + n) % n;
+                    folderSelect.selectedIndex = idx;
+                    applyFolderFilterSelection(folderSelect.value);
+                    return;
+                }
+                if (k === 'Enter' || k === ' ') openFolderFilterPopup(ev);
             } catch (_) {}
         }, true);
 
@@ -5296,6 +5362,11 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             item.dataset.prompt = favText;
             item.dataset.gnpSource = 'fav';
             bindHoverPreviewToItem(item);
+            // 若该收藏条目就是网页当前 prompt，则在收藏列表也标记为“当前”
+            try {
+                const nt = String(favText || '').replace(/\n+/g, ' ').trim();
+                if (gnpCurrentPromptText && nt && nt === gnpCurrentPromptText) item.classList.add('active-current');
+            } catch (_) {}
             item.draggable = true;
 
             // --- 多选逻辑注入 ---
