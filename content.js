@@ -965,6 +965,7 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
         pin: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`,
         folderPlus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="12" y1="12" x2="12" y2="18"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>`,
         folderX: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="10" y1="13" x2="14" y2="17"></line><line x1="14" y1="13" x2="10" y2="17"></line></svg>`,
+        folderMove: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><polyline points="10 14 12 12 14 14"></polyline><polyline points="10 16 12 18 14 16"></polyline></svg>`,
         top: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`,
         bottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`,
         chatBottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>`,
@@ -3559,6 +3560,34 @@ const saveFavorites = (mode = 'fav_list') => {
         return f;
     };
 
+
+    // 移动收藏到指定文件夹（弹窗在插件内，支持下拉+实时搜索；Esc 退出）
+    const gnpMoveFavoriteToFolder = (promptText, currentFolder) => {
+        const t = String(promptText || '').trim();
+        if (!t) return;
+        showFavFolderPickerInSidebar({
+            promptText: t,
+            defaultFolder: currentFolder || '默认',
+            titleText: '移动到文件夹',
+            descText: '将此收藏移动到哪个文件夹？',
+            confirmText: '移动',
+            showPreview: false,
+            allowCreateFolder: true,
+            onConfirm: (folder) => {
+                const f = ensureFolderExists(folder);
+                const idx = getFavoriteIndex(t);
+                if (idx === -1) return;
+                const old = String((favorites[idx] && favorites[idx].folder) || '默认');
+                if (old === f) return;
+                favorites[idx].folder = f;
+                saveFavorites('fav_list');
+                // 若当前筛选目录不包含该条，重绘后会自动移除/出现
+                try { renderFavorites(); } catch (_) {}
+                try { if (panelNav && panelNav.classList.contains('active')) refreshNav(true); } catch (_) {}
+                try { showSidebarToast(`已移动到「${f}」`); } catch (_) {}
+            }
+        });
+    };
     saveFolders();
     saveFavorites();
     
@@ -4006,7 +4035,7 @@ function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText
 
 
 }
-function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) {
+function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm, titleText, descText, confirmText, showPreview = true, allowCreateFolder = true }) {
     try {
         // 防止叠加多个弹层
         const existed = sidebar && sidebar.querySelector('.gnp-confirm-overlay');
@@ -4015,6 +4044,10 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
 
     // 打开选择弹层时：保持侧边栏展开，且暂停自动隐藏
     keepSidebarExpanded();
+    // 默认文案（兼容“收藏/移动”两种场景）
+    titleText = String(titleText || '').trim() || '选择收藏文件夹';
+    descText = String(descText || '').trim() || '将此 Prompt 收藏到哪个文件夹？';
+    confirmText = String(confirmText || '').trim() || '收藏';
 
     const overlay = document.createElement('div');
     overlay.className = 'gnp-confirm-overlay';
@@ -4032,16 +4065,19 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
 
     const title = document.createElement('div');
     title.className = 'gnp-confirm-title';
-    title.textContent = '选择收藏文件夹';
+    title.textContent = titleText;
 
     const desc = document.createElement('div');
     desc.className = 'gnp-confirm-desc';
-    desc.textContent = '将此 Prompt 收藏到哪个文件夹？';
+    desc.textContent = descText;
 
     const preview = document.createElement('div');
     preview.className = 'gnp-fav-prompt-preview';
     // 预览尽量显示更多内容（容器可滚动）
     preview.textContent = String(promptText || '').trim().slice(0, 1200);
+    if (!showPreview) {
+        preview.style.display = 'none';
+    }
 
     const row = document.createElement('div');
     row.className = 'gnp-fav-folder-picker-row';
@@ -4076,6 +4112,8 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
             }
         });
     };
+
+    if (!allowCreateFolder) { try { newFolderBtn.style.display = 'none'; } catch (_) {} }
 
     const folderSel = document.createElement('select');
     folderSel.className = 'gnp-folder-select';
@@ -4220,7 +4258,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm }) 
 
     const btnConfirm = document.createElement('button');
     btnConfirm.className = 'gnp-btn-confirm';
-    btnConfirm.textContent = '收藏';
+    btnConfirm.textContent = confirmText;
 
     const doConfirm = () => {
         const folder = String(folderSel.value || '').trim() || '默认';
@@ -5430,14 +5468,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             folderBadge.className = 'gnp-folder-badge';
             folderBadge.textContent = favObj.folder || '默认';
             folderBadge.title = '点击移动到其他文件夹';
-            folderBadge.onclick = (e) => {
-                e.stopPropagation();
-                const newFolder = prompt('移动到文件夹：', favObj.folder || '默认');
-                if (newFolder === null) return;
-                const f = ensureFolderExists(newFolder);
-                favObj.folder = f;
-                saveFavorites();
-                            };
+            folderBadge.onclick = (e) => { e.stopPropagation(); gnpMoveFavoriteToFolder(favText, favObj.folder || '默认'); };
 
             const useMeta = document.createElement('span');
             useMeta.className = 'gnp-use-meta';
@@ -5451,6 +5482,12 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             const toolbar = document.createElement('div');
             toolbar.className = 'bottom-toolbar';
             toolbar.addEventListener('mousedown', (e) => e.stopPropagation());
+
+            const moveFolderBtn = document.createElement('span');
+            moveFolderBtn.className = 'mini-btn';
+            moveFolderBtn.innerHTML = SVGS.folderMove;
+            moveFolderBtn.title = '更改所属文件夹';
+            moveFolderBtn.onclick = (e) => { e.stopPropagation(); gnpMoveFavoriteToFolder(favText, favObj.folder || '默认'); };
 
             const useBtn = document.createElement('span');
             useBtn.className = `mini-btn use-btn ${isAutoSendEnabled ? 'autosend-mode' : ''}`;
@@ -5532,7 +5569,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                 renderFavorites();
             };
 
-            toolbar.append(useBtn, copyBtn, editBtn, pinBtn, delBtn);
+            toolbar.append(moveFolderBtn, useBtn, copyBtn, editBtn, pinBtn, delBtn);
             item.append(folderBadge, useMeta, txt, toolbar);
             panelFav.append(item);
         });
