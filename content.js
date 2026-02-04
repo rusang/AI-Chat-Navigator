@@ -2169,7 +2169,8 @@ if (!favFolderFilter) {
 
             const remoteFav = gnpMergeFavorites(st.favorites || [], st.favorites || [], deletedFavorites);
 
-            const mergedFav = gnpMergeFavorites(remoteFav, localFav, deletedFavorites);
+			// 修改后：让 remoteFav (arg2) 覆盖 localFav (arg1) 的属性
+			const mergedFav = gnpMergeFavorites(localFav, remoteFav, deletedFavorites);	
 
             favorites = mergedFav;
 
@@ -3330,7 +3331,8 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
 
 
     // 合并：文件为 base，本地为 local（本地顺序优先，但会补齐文件新增）
-    const mergedFav = gnpMergeFavorites(snap.favorites || [], favorites || [], mergedTombs);
+	// 修改后：让 snap.favorites (arg2) 覆盖 favorites (arg1) 的属性
+	const mergedFav = gnpMergeFavorites(favorites || [], snap.favorites || [], mergedTombs);
     const mergedFolders = gnpMergeFolders(snap.folders || [], folders || [], mergedFav, mergedFolderTombs, mergedFolderRestores);
 
     // 是否发生变化
