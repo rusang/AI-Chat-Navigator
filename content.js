@@ -3221,6 +3221,38 @@ function gnpScheduleWriteFavoritesJsonFile(reason = '') {
 
         try {
             const obj = JSON.parse(text);
+			
+			// ============================================================
+            // [FIX START] 关键修复：从文件加载删除记录，并立即清理内存中的僵尸数据
+            // ============================================================
+            if (obj && typeof obj === 'object') {
+                // 1. 读取并合并文件中的 Tombstones (删除记录)
+                const fileDel = (obj.deletedFavorites && typeof obj.deletedFavorites === 'object' && !Array.isArray(obj.deletedFavorites)) ? obj.deletedFavorites : {};
+                const fileRes = (obj.restoredFavorites && typeof obj.restoredFavorites === 'object' && !Array.isArray(obj.restoredFavorites)) ? obj.restoredFavorites : {};
+                
+                // 将文件的删除记录合并到当前内存变量中
+                deletedFavorites = gnpMergeTombstones(fileDel, deletedFavorites);
+                restoredFavorites = gnpMergeTombstones(fileRes, restoredFavorites);
+                // 应用复活逻辑（防止误删刚恢复的）
+                deletedFavorites = gnpApplyRestoresToTombstones(deletedFavorites, restoredFavorites);
+
+                // 2. 立即过滤当前 favorites
+                // (因为在读文件前，gnpBootstrapSharedState 可能已经把 Storage 里的旧数据加载进来了)
+                if (Array.isArray(favorites) && favorites.length > 0) {
+                    const countBefore = favorites.length;
+                    favorites = favorites.filter(f => {
+                        const t = String(f.text || '').trim();
+                        // 如果在删除记录里且没有被复活，就从列表中剔除
+                        return !(deletedFavorites[t] && Number(deletedFavorites[t]) > 0);
+                    });
+                    
+                    // 如果确实清理了僵尸数据，触发一次保存，把清洗后的结果同步回 Storage
+                    if (favorites.length !== countBefore) {
+                        saveFavorites('fav_list');
+                    }
+                }
+            }
+            // ================= [FIX END] =================
             const incoming = gnpExtractFavoritesFromAnyJson(obj);
             const merged = gnpMergeFavoritesIntoCurrent(incoming);
 
