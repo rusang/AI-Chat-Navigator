@@ -3892,18 +3892,29 @@ clearBtn.onclick = (e) => {
 
     }
 
-    // --- 批量操作逻辑 ---
+		// --- 批量操作逻辑 ---
         // 统一的导航窗内确认框（复用现有 gnp-confirm-* 样式）
         function showConfirmInSidebar({ titleText, descText, confirmText, onConfirm }) {
             // 防止叠加多个弹层
             const existed = sidebar.querySelector('.gnp-confirm-overlay');
-            if (existed) existed.remove();
+            if (existed) {
+                try { if (typeof existed.__gnp_cleanup === 'function') existed.__gnp_cleanup(); } catch (_) {}
+                existed.remove();
+            }
 
             // 打开编辑/确认弹层时：保持侧边栏展开，且暂停自动隐藏
             keepSidebarExpanded();
 
             const overlay = document.createElement('div');
             overlay.className = 'gnp-confirm-overlay';
+
+            let onDocKeyDown = null;
+            overlay.__gnp_cleanup = () => {
+                if (onDocKeyDown) {
+                    try { document.removeEventListener('keydown', onDocKeyDown, true); } catch (_) {}
+                    onDocKeyDown = null;
+                }
+            };
 
             const box = document.createElement('div');
             box.className = 'gnp-confirm-box';
@@ -3923,6 +3934,7 @@ clearBtn.onclick = (e) => {
             btnCancel.className = 'gnp-btn-cancel';
             btnCancel.textContent = '取消';
             const closeOverlay = () => {
+                try { overlay.__gnp_cleanup && overlay.__gnp_cleanup(); } catch (_) {}
                 overlay.remove();
                 // 编辑结束后：若鼠标已离开侧边栏，则恢复自动隐藏逻辑
                 if (isAutoHideEnabled && sidebar && !sidebar.matches(':hover')) scheduleAutoHide();
@@ -3948,12 +3960,28 @@ clearBtn.onclick = (e) => {
 
             // 挂载在导航窗口内
             sidebar.appendChild(overlay);
+
+            // 键盘：Esc 关闭弹层
+            onDocKeyDown = (ev) => {
+                try {
+                    if (!ev) return;
+                    if (ev.key === 'Escape' || ev.key === 'Esc') {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        closeOverlay();
+                    }
+                } catch (_) {}
+            };
+            try { document.addEventListener('keydown', onDocKeyDown, true); } catch (_) {}
         }
 
 function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText, onConfirm }) {
             // 复用确认框遮罩，避免与其他弹层叠加
             const existed = sidebar.querySelector('.gnp-confirm-overlay');
-            if (existed) existed.remove();
+            if (existed) {
+                try { if (typeof existed.__gnp_cleanup === 'function') existed.__gnp_cleanup(); } catch (_) {}
+                existed.remove();
+            }
 
             // 打开输入弹层时：保持侧边栏展开，且暂停自动隐藏
             keepSidebarExpanded();
@@ -3961,7 +3989,16 @@ function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText
             const overlay = document.createElement('div');
             overlay.className = 'gnp-confirm-overlay';
 
+            let onDocKeyDown = null;
+            overlay.__gnp_cleanup = () => {
+                if (onDocKeyDown) {
+                    try { document.removeEventListener('keydown', onDocKeyDown, true); } catch (_) {}
+                    onDocKeyDown = null;
+                }
+            };
+
             const closeOverlay = () => {
+                try { overlay.__gnp_cleanup && overlay.__gnp_cleanup(); } catch (_) {}
                 overlay.remove();
                 // 编辑结束后：若鼠标已离开侧边栏，则恢复自动隐藏逻辑
                 if (isAutoHideEnabled && sidebar && !sidebar.matches(':hover')) scheduleAutoHide();
@@ -3983,7 +4020,7 @@ function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText
 
             const err = document.createElement('div');
             err.className = 'gnp-prompt-error';
-            err.style.cssText = 'margin-top:8px;color:#d33;font-size:12px;display:none;';
+            err.style.cssText = 'margin-top:8px;color:var(--gnp-danger-text);font-size:12px;display:none;';
             err.textContent = '请输入有效内容';
 
             const btnRow = document.createElement('div');
@@ -4029,6 +4066,19 @@ function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText
             box.append(title, input, err, btnRow);
             overlay.append(box);
             sidebar.appendChild(overlay);
+
+            // 键盘：Esc 关闭弹层（避免被全局键盘导航逻辑抢走按键）
+            onDocKeyDown = (ev) => {
+                try {
+                    if (!ev) return;
+                    if (ev.key === 'Escape' || ev.key === 'Esc') {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        closeOverlay();
+                    }
+                } catch (_) {}
+            };
+            try { document.addEventListener('keydown', onDocKeyDown, true); } catch (_) {}
 
             // 自动聚焦
             setTimeout(() => { try { input.focus(); input.select(); } catch (e) {} }, 0);
@@ -4877,8 +4927,137 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                 item.className = 'gnp-folder-filter-item';
                 if (val === currentValue) item.classList.add('active');
                 if (idx === gnpFolderFilterSuggestActiveIndex) item.classList.add('kbd');
-                item.textContent = val;
+
+                const label = document.createElement('div');
+                label.className = 'gnp-folder-filter-label';
+                label.textContent = val;
+                item.appendChild(label);
+
+                const isCustomFolder = (val !== '全部' && val !== '默认');
+
+                // 在目录右侧提供“重命名/删除”入口（select option 无法内嵌按钮，这里放在弹出的目录列表中）
+                if (val !== '全部') {
+                    const actions = document.createElement('div');
+                    actions.className = 'gnp-folder-filter-actions';
+
+                    const btnRename = document.createElement('button');
+                    btnRename.type = 'button';
+                    btnRename.className = 'gnp-folder-filter-action-btn';
+                    btnRename.title = isCustomFolder ? '重命名文件夹' : '默认不可重命名';
+                    btnRename.innerHTML = SVGS.edit;
+                    if (!isCustomFolder) btnRename.disabled = true;
+
+                    const btnDelete = document.createElement('button');
+                    btnDelete.type = 'button';
+                    btnDelete.className = 'gnp-folder-filter-action-btn gnp-danger';
+                    btnDelete.title = isCustomFolder ? '删除文件夹' : '默认不可删除';
+                    btnDelete.innerHTML = SVGS.folderX;
+                    if (!isCustomFolder) btnDelete.disabled = true;
+
+                    const stop = (ev) => { try { ev.preventDefault(); ev.stopPropagation(); } catch (_) {} };
+
+                    // 防止触发目录项自身的选择逻辑
+                    btnRename.addEventListener('mousedown', stop, true);
+                    btnDelete.addEventListener('mousedown', stop, true);
+
+                    btnRename.addEventListener('click', (ev) => {
+                        stop(ev);
+                        if (!isCustomFolder) { try { showSidebarToast('仅可重命名自定义文件夹'); } catch (_) {} return; }
+                        try { gnpCloseFolderFilterPopup(); } catch (_) {}
+                        const oldName = String(val || '').trim();
+                        showPromptInSidebar({
+                            titleText: '重命名文件夹',
+                            placeholder: '请输入新文件夹名称',
+                            defaultValue: oldName,
+                            confirmText: '重命名',
+                            onConfirm: (name) => {
+                                const trimmed = String(name || '').trim();
+                                if (!trimmed) return;
+                                const finalName = ensureFolderExists(trimmed);
+
+                                // 更新 folders 列表（去掉旧名）
+                                folders = folders.filter(f => f !== oldName);
+                                if (!folders.includes(finalName)) folders.push(finalName);
+                                saveFolders();
+
+                                // 更新收藏的 folder 字段
+                                favorites.forEach(f => {
+                                    if (f.folder === oldName) f.folder = finalName;
+                                });
+                                saveFavorites();
+
+                                // 若当前正在浏览被重命名的目录，则同步更新筛选值
+                                if (favFolderFilter === oldName) {
+                                    favFolderFilter = finalName;
+                                    gnpSetTabFavFolderFilter(favFolderFilter);
+                                }
+
+                                renderFavorites();
+                            }
+                        });
+                    }, true);
+
+                    btnDelete.addEventListener('click', (ev) => {
+                        stop(ev);
+                        if (!isCustomFolder) { try { showSidebarToast('默认/全部不可删除'); } catch (_) {} return; }
+                        try { gnpCloseFolderFilterPopup(); } catch (_) {}
+                        const folderToDelete = String(val || '').trim();
+                        showConfirmInSidebar({
+                            titleText: `删除文件夹「${folderToDelete}」？`,
+                            descText: '该文件夹及其内全部收藏将被删除（不可撤销）。',
+                            confirmText: '确认删除',
+                            onConfirm: () => {
+                                const now = Date.now();
+                                // 删除该文件夹下所有收藏，并写 tombstone，避免被旧快照复活
+                                try { deletedFavorites = (deletedFavorites && typeof deletedFavorites === 'object') ? deletedFavorites : {}; } catch (_) {}
+                                const toDel = [];
+                                favorites.forEach(f => {
+                                    if (f && f.folder === folderToDelete) {
+                                        const t = String(f.text || '').trim();
+                                        if (t) toDel.push(t);
+                                    }
+                                });
+                                favorites = favorites.filter(f => !(f && f.folder === folderToDelete));
+                                toDel.forEach(t => { deletedFavorites[t] = now; });
+                                // 文件夹删除 tombstone，避免其它标签页/旧快照把文件夹复活
+                                try { deletedFolders = (deletedFolders && typeof deletedFolders === 'object') ? deletedFolders : {}; deletedFolders[folderToDelete] = now; } catch (_) {}
+                                try { if (restoredFolders && restoredFolders[folderToDelete]) delete restoredFolders[folderToDelete]; } catch (_) {}
+
+                                folders = folders.filter(f => f !== folderToDelete);
+                                if (!folders.includes('默认')) folders.unshift('默认');
+                                saveFolders();
+                                saveFavorites();
+
+                                if (favFolderFilter === folderToDelete) {
+                                    favFolderFilter = '全部';
+                                    gnpSetTabFavFolderFilter(favFolderFilter);
+                                }
+
+                                // 若当前视图可能包含被删除的项，清理多选状态，避免残留
+                                try {
+                                    const shouldClearSelection = (favFolderFilter === '全部' || favFolderFilter === folderToDelete);
+                                    if (shouldClearSelection) { selectedItems.clear(); updateBatchBar(); }
+                                } catch (_) {}
+
+                                renderFavorites();
+                            }
+                        });
+                    }, true);
+
+                    actions.append(btnRename, btnDelete);
+                    item.appendChild(actions);
+                }
+
                 item.addEventListener('mousedown', (ev) => {
+				   // 如果点的是“重命名/删除”按钮（或其内部 svg/path），不要触发目录选择
+                   try {
+                        const t = ev && ev.target;
+                        if (t && t.closest && t.closest('.gnp-folder-filter-action-btn, .gnp-folder-filter-actions')) {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            return;
+                        }
+                    } catch (_) {}
                     try { ev.preventDefault(); ev.stopPropagation(); } catch (_) {}
                     try { onPick && onPick(val); } catch (_) {}
                 }, true);
@@ -5104,12 +5283,27 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         folderSelect.addEventListener('mousedown', (e) => { e.stopPropagation(); }, true);
         folderSelect.addEventListener('click', (e) => { e.stopPropagation(); }, true);
 
-        const optAll = document.createElement('option');
-        optAll.value = '全部';
-        optAll.textContent = '全部';
-        folderSelect.append(optAll);
+        const __folderFilterItems = (() => {
+            const fs = Array.isArray(folders) ? folders.slice() : [];
+            const hasDefault = fs.includes('默认');
+            const others = fs.filter(x => x && x !== '默认');
+            const seen = new Set();
+            const uniq = [];
+            others.forEach(x => {
+                const s = String(x);
+                if (!s) return;
+                if (seen.has(s)) return;
+                seen.add(s);
+                uniq.push(s);
+            });
+            uniq.sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }));
+            const ordered = ['全部'];
+            if (hasDefault) ordered.push('默认');
+            ordered.push(...uniq);
+            return ordered;
+        })();
 
-        folders.forEach(f => {
+        __folderFilterItems.forEach(f => {
             const opt = document.createElement('option');
             opt.value = f;
             opt.textContent = f;
@@ -5145,7 +5339,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                     return;
                 }
             } catch (_) {}
-            const allItems = ['全部', ...(Array.isArray(folders) ? folders : [])];
+            const allItems = __folderFilterItems;
             gnpOpenFolderFilterPopup(folderSelect, folderSelect.value, allItems, (val) => {
                 applyFolderFilterSelection(val);
             });
@@ -5311,16 +5505,45 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             const btnConfirm = document.createElement('button');
             btnConfirm.className = 'gnp-btn-confirm';
             btnConfirm.textContent = '确认清空';
-            btnConfirm.onclick = () => {
-                const currentHeight = sidebar.offsetHeight;
-                sidebar.style.height = `${currentHeight}px`;
-                favorites = [];
-                saveFavorites();
-                selectedItems.clear();
-                updateBatchBar();
-                renderFavorites();
-                overlay.remove();
-            };
+			// ============================================================
+			// [FIX 1] 修复：清空收藏时需记录墓碑，防止被旧文件复活
+			// ============================================================
+			btnConfirm.onclick = () => {
+				const currentHeight = sidebar.offsetHeight;
+				sidebar.style.height = `${currentHeight}px`;
+
+				// 1. 记录墓碑 (Tombstones)
+				// 这一步至关重要：在清空前，把当前所有的 Prompt ID/Text 记录为“已删除”
+				// 否则同步逻辑会以为本地只是“没数据”，从而从云端/文件把旧数据合并回来
+				try {
+					if (!deletedFavorites || typeof deletedFavorites !== 'object') {
+						deletedFavorites = {};
+					}
+					const now = Date.now();
+					favorites.forEach(item => {
+						// 假设以 text 为唯一标识，如果你的 item 有 id 字段更好
+						if (item && item.text) {
+							deletedFavorites[item.text] = now;
+						}
+					});
+				} catch (e) {
+					console.error('[GNP] 清空收藏时记录删除状态失败:', e);
+				}
+
+				// 2. 清空数组
+				favorites = [];
+
+				// 3. 保存并同步
+				// 此时 saveFavorites 内部合并时，会看到 deletedFavorites 里的记录，
+				// 从而知道这些数据是“被删除了”而不是“丢失了”。
+				saveFavorites();
+
+				// 4. 清理 UI 状态
+				selectedItems.clear();
+				updateBatchBar();
+				renderFavorites();
+				overlay.remove();
+			};
             const btnCancel = document.createElement('button');
             btnCancel.className = 'gnp-btn-cancel';
             btnCancel.textContent = '取消';
@@ -6242,6 +6465,15 @@ function handleKeyboardNavigation(e) {
             
             const activePanel = sidebar.querySelector('.content-panel.active');
             if (!activePanel) return;
+
+            // 弹层打开时（新建/重命名/删除文件夹等）：不要让全局键盘导航逻辑抢走按键
+            const __t0 = e.target;
+            if ((__t0 && __t0.closest && __t0.closest('.gnp-confirm-overlay, .gnp-global-overlay')) ||
+                (document.activeElement && document.activeElement.closest && document.activeElement.closest('.gnp-confirm-overlay, .gnp-global-overlay')) ||
+                (sidebar && sidebar.querySelector && sidebar.querySelector('.gnp-confirm-overlay, .gnp-global-overlay')))
+            {
+                return;
+            }
             
             const __ae = document.activeElement;
             const __folderSwitchActive = (
@@ -6423,6 +6655,28 @@ function handleKeyboardNavigation(e) {
         watchPageTheme();
     }, 800);
 
+	// ============================================================
+    // [FIX 2] 新增：监听 Storage 变化，解决多标签页不同步/覆盖问题
+    // ============================================================
+    // 注意：这里必须使用字符串常量 GNP_SHARED_STATE_KEY，且同时监听 sync 和 local
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+        chrome.storage.onChanged.addListener((changes, namespace) => {
+            // 修正 1: 监听 sync 或 local
+            // 修正 2: 使用正确的 Key (GNP_SHARED_STATE_KEY)
+            if ((namespace === 'local' || namespace === 'sync') && changes[GNP_SHARED_STATE_KEY]) {
+                // 如果当前页面正在执行写入操作，则忽略
+                if (gnpApplyingSharedState) return;
+
+                console.log('[GNP] 检测到远端数据变化，正在强制同步...');
+                
+                // 强制执行一次“读取并合并”操作，并刷新 UI
+                // 注意：这里传入 'fav_list' 模式即可，避免 'read' 落入 'all' 导致全量写回引发循环
+                gnpPersistSharedState('fav_list').catch(err => {
+                    console.error('[GNP] 自动同步失败:', err);
+                });
+            }
+        });
+    }
 
     window.addEventListener('resize', applyMagneticSnapping);
 
