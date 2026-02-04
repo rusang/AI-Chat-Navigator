@@ -983,6 +983,18 @@ chatTop: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"c
 
     const sidebar = document.createElement('div');
     sidebar.id = 'gemini-nav-sidebar';
+    try {
+        const host = String(location.hostname || '');
+        if ((/\bclaude\.ai\b/i).test(host)) {
+            sidebar.classList.add('gnp-host-claude');
+            // 强制隔离 Claude 的 stacking context / compositing，避免弹窗只剩遮罩
+            try { sidebar.style.isolation = 'isolate'; } catch (_) {}
+            try { sidebar.style.transform = 'translateZ(0)'; } catch (_) {}
+        }
+        if ((/\bchatgpt\.com\b|\bchat\.openai\.com\b/i).test(host)) sidebar.classList.add('gnp-host-chatgpt');
+        if ((/\bgemini\.google\.com\b/i).test(host)) sidebar.classList.add('gnp-host-gemini');
+    } catch (_) {}
+
     console.log('[GNP] Sidebar element created:', sidebar);
 
 // --- Hover preview: show full prompt content on hover ---
@@ -4583,7 +4595,7 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         btnAdd.className = 'gnp-btn-confirm';
         btnAdd.textContent = '添加';
 
-        const doAdd = () => {
+const doAdd = () => {
             const text = (textarea.value || '').trim();
             if (!text) return showErr('请输入 Prompt 内容');
 
@@ -4591,6 +4603,16 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
             if (!addFavorite(text, folder)) return showErr('该 Prompt 已在收藏中');
 
             saveFavorites('fav_list');
+
+            // ============================================================
+            // [FIX] 自动切换视图逻辑
+            // 如果当前筛选不是“全部”，且保存的目标文件夹与当前视图不一致，
+            // 则强制切换到目标文件夹，确保用户能立即看到刚刚添加的 Prompt。
+            // ============================================================
+            if (favFolderFilter !== '全部' && favFolderFilter !== folder) {
+                favFolderFilter = folder;
+                gnpSetTabFavFolderFilter(folder); // 同步保存到 SessionStorage
+            }
 
             keyboardSelectedPrompt = text;
             renderFavorites();
