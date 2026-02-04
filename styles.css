@@ -568,32 +568,133 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
         .gnp-folder-suggest-empty { padding: 8px 10px; font-size: 12px; color: var(--gnp-text-sub); }
 
         /* 收藏：文件夹筛选搜索（顶部） */
-        .gnp-folder-filter-search-input { width: 110px; min-width: 92px; max-width: 140px; box-sizing: border-box; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--gnp-popover-border); outline: none; font-size: 12px; background: var(--gnp-popover-input-bg); color: var(--gnp-input-text); }
-        .gnp-folder-filter-search-input::placeholder { color: var(--gnp-text-sub); }
+                /* 文件夹筛选弹出层（搜索框 + 列表）- 视觉统一（浅色/深色/强制主题均适配） */
+        .gnp-folder-filter-search-input{
+            width: auto;
+            min-width: 92px;
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid var(--gnp-popover-border);
+            outline: none;
+            font-size: 12.5px;
+            line-height: 1.2;
+            background: var(--gnp-popover-input-bg);
+            color: var(--gnp-input-text);
+            caret-color: var(--gnp-input-text);
+        }
+        .gnp-folder-filter-search-input::placeholder{ color: var(--gnp-text-sub); }
 
-        /* 收藏：切换目录时弹出的搜索框（绝对定位，避免与工具栏/图表重叠） */
-        .gnp-folder-filter-search-popup { position: absolute; z-index: 100000; background: var(--gnp-popover-bg); border: 1px solid var(--gnp-popover-border); border-radius: 12px; padding: 8px; box-shadow: var(--gnp-popover-shadow); -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1); }
+        /* 顶部“搜索框”容器：与下方列表拼成一个整体 */
+        .gnp-folder-filter-search-popup{
+            position: absolute;
+            z-index: 100000;
+            background: var(--gnp-popover-bg);
+            border: 1px solid var(--gnp-popover-border);
+            border-bottom: none;
+            border-radius: 14px 14px 0 0;
+            padding: 10px;
+            box-shadow: var(--gnp-popover-shadow);
+            -webkit-backdrop-filter: blur(12px) saturate(1.15);
+            backdrop-filter: blur(12px) saturate(1.15);
+        }
 
-        /* 收藏：文件夹筛选搜索建议列表（显示在侧边栏内） */
-        .gnp-folder-filter-suggest { position: absolute; z-index: 100001; background: var(--gnp-popover-bg); border: 1px solid var(--gnp-popover-border); border-radius: 12px; box-shadow: var(--gnp-popover-shadow); padding: 6px; max-height: 260px; overflow: auto; }
+        /* 下方列表：去掉上边框，和搜索框无缝衔接 */
+        .gnp-folder-filter-suggest{
+            position: absolute;
+            z-index: 100001;
+            background: var(--gnp-popover-bg);
+            border: 1px solid var(--gnp-popover-border);
+            border-top: none;
+            border-radius: 0 0 14px 14px;
+            margin-top: -1px;
+            box-shadow: var(--gnp-popover-shadow);
+            padding: 8px;
+            max-height: 280px;
+            overflow: auto;
+            -webkit-backdrop-filter: blur(12px) saturate(1.15);
+            backdrop-filter: blur(12px) saturate(1.15);
+        }
 
+        .gnp-folder-filter-item{
+            padding: 9px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12.5px;
+            color: var(--gnp-text-main);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            transition: background 120ms ease, transform 120ms ease;
+        }
+        .gnp-folder-filter-item:hover{ background: var(--gnp-hover-bg); }
+        .gnp-folder-filter-item:active{ transform: translateY(0.5px); }
+        .gnp-folder-filter-item.active{ background: var(--gnp-active-bg); }
+        .gnp-folder-filter-item.kbd{
+            outline: 2px solid var(--gnp-active-border);
+            outline-offset: -2px;
+        }
+
+        .gnp-folder-filter-label{
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .gnp-folder-filter-actions{
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        /* 右侧两个图标按钮：更“按钮化”，边界与 hover 更清晰（浅/深色都适配） */
+        .gnp-folder-filter-action-btn{
+            width: 28px;
+            height: 28px;
+            border: 1px solid color-mix(in srgb, var(--gnp-popover-border) 58%, transparent);
+            background: var(--gnp-btn-bg);
+            border-radius: 10px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--gnp-text-sub);
+            transition: background 120ms ease, color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+        }
+        .gnp-folder-filter-action-btn:hover{
+            background: var(--gnp-btn-hover);
+            color: var(--gnp-text-main);
+            transform: translateY(-0.5px);
+            box-shadow: 0 10px 22px rgba(0,0,0,0.12);
+        }
+        .gnp-folder-filter-action-btn.gnp-danger{
+            border-color: color-mix(in srgb, var(--gnp-danger-text) 30%, transparent);
+        }
+        .gnp-folder-filter-action-btn.gnp-danger:hover{
+            background: color-mix(in srgb, var(--gnp-danger-text) 16%, transparent);
+            color: var(--gnp-danger-text);
+        }
+        .gnp-folder-filter-action-btn svg{ width: 15px; height: 15px; }
+        .gnp-folder-filter-action-btn[disabled]{ opacity: 0.45; cursor: not-allowed; }
+        .gnp-folder-filter-action-btn[disabled]:hover{ background: var(--gnp-btn-bg); color: var(--gnp-text-sub); transform: none; box-shadow: none; }
+
+        
         /* 收藏：文件夹筛选下拉（select）提升对比度（inline style 用 !important 覆盖） */
-        .gnp-folder-select { background: var(--gnp-popover-input-bg) !important; border: 1px solid var(--gnp-popover-border) !important; color: var(--gnp-text-main) !important; box-shadow: 0 1px 0 rgba(0,0,0,0.06); }
-        .gnp-folder-select:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.10); }
-        .gnp-folder-select:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gnp-active-border) 22%, transparent); }
-        .gnp-folder-filter-item { padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 12px; color: var(--gnp-text-main); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .gnp-folder-filter-item:hover { background: var(--gnp-hover-bg); }
-        .gnp-folder-filter-item.active { background: rgba(217,48,37,0.10); }
-        .gnp-folder-filter-item.kbd { outline: 2px solid rgba(217,48,37,0.28); }
-        .gnp-folder-filter-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .gnp-folder-filter-actions { display: flex; gap: 6px; flex-shrink: 0; }
-        .gnp-folder-filter-action-btn { width: 24px; height: 24px; border: none; background: transparent; border-radius: 8px; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gnp-text-sub); }
-        .gnp-folder-filter-action-btn:hover { background: var(--gnp-hover-bg); color: var(--gnp-text-main); }
-        .gnp-folder-filter-action-btn.gnp-danger:hover { background: rgba(217,48,37,0.12); color: var(--gnp-danger-text); }
-        .gnp-folder-filter-action-btn svg { width: 14px; height: 14px; }
-        .gnp-folder-filter-action-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
-        .gnp-folder-filter-action-btn[disabled]:hover { background: transparent; color: var(--gnp-text-sub); }
-        .gnp-folder-filter-empty { padding: 8px 10px; font-size: 12px; color: var(--gnp-text-sub); }
+        .gnp-folder-select{
+            background: var(--gnp-popover-input-bg) !important;
+            border: 1px solid var(--gnp-popover-border) !important;
+            color: var(--gnp-text-main) !important;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+        }
+        .gnp-folder-select:hover{ box-shadow: 0 2px 10px rgba(0,0,0,0.10); }
+        .gnp-folder-select:focus{ box-shadow: 0 0 0 3px color-mix(in srgb, var(--gnp-active-border) 22%, transparent); }
+
+.gnp-folder-filter-empty{ padding: 10px 10px; font-size: 12.5px; color: var(--gnp-text-sub); }
 
 
         

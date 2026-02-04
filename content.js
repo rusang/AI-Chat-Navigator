@@ -2128,15 +2128,65 @@ if (!favFolderFilter) {
 
         // favorites（list/meta 任一更新都需要同步 favorites + tombstone）
         if (force || (Number(st.favListUpdatedAt)||0) > gnpSharedFavListAt || (Number(st.favMetaUpdatedAt)||0) > gnpSharedFavMetaAt) {
-            deletedFavorites = gnpPruneByTsMap(st.deletedFavorites || {}, 5000);
-            restoredFavorites = gnpPruneByTsMap(st.restoredFavorites || {}, 5000);
+
+            // 合并 tombstones/restore：保留本标签页尚未写入 shared 的删除/复活记录，避免“清空/删除”被覆盖
+
+            const localDelFav = (deletedFavorites && typeof deletedFavorites === 'object' && !Array.isArray(deletedFavorites)) ? deletedFavorites : {};
+
+            const localResFav = (restoredFavorites && typeof restoredFavorites === 'object' && !Array.isArray(restoredFavorites)) ? restoredFavorites : {};
+
+            const localDelFolders = (deletedFolders && typeof deletedFolders === 'object' && !Array.isArray(deletedFolders)) ? deletedFolders : {};
+
+            const localResFolders = (restoredFolders && typeof restoredFolders === 'object' && !Array.isArray(restoredFolders)) ? restoredFolders : {};
+
+
+            deletedFavorites = gnpPruneByTsMap(gnpMergeTombstones(st.deletedFavorites || {}, localDelFav), 5000);
+
+            restoredFavorites = gnpPruneByTsMap(gnpMergeTombstones(st.restoredFavorites || {}, localResFav), 5000);
+
             deletedFavorites = gnpApplyRestoresToTombstones(deletedFavorites, restoredFavorites);
-            deletedFolders = gnpPruneByTsMap(st.deletedFolders || {}, 2000);
-            restoredFolders = gnpPruneByTsMap(st.restoredFolders || {}, 2000);
+
+            deletedFolders = gnpPruneByTsMap(gnpMergeTombstones(st.deletedFolders || {}, localDelFolders), 2000);
+
+            restoredFolders = gnpPruneByTsMap(gnpMergeTombstones(st.restoredFolders || {}, localResFolders), 2000);
 
 
-            const mergedFav = gnpMergeFavorites(st.favorites || [], st.favorites || [], deletedFavorites);
+            // favorites：从 shared-state 合并到本标签页本地列表，避免并发写入时“后写覆盖先写”导致丢收藏
+
+            const localFav = Array.isArray(favorites) ? favorites : [];
+
+            const remoteFav = gnpMergeFavorites(st.favorites || [], st.favorites || [], deletedFavorites);
+
+            const mergedFav = gnpMergeFavorites(remoteFav, localFav, deletedFavorites);
+
             favorites = mergedFav;
+
+
+            // 若合并结果与远端不同（新增/删除/tombstone 差异），主动回写 shared-state，修复读-改-写竞态导致的丢数据
+
+            try {
+
+                const rset = new Set((remoteFav || []).map(x => x && x.text).filter(Boolean));
+
+                const mset = new Set((mergedFav || []).map(x => x && x.text).filter(Boolean));
+
+                let needHeal = (rset.size !== mset.size);
+
+                if (!needHeal) { for (const t of mset) { if (!rset.has(t)) { needHeal = true; break; } } }
+
+                if (!needHeal) {
+
+                    const rd = gnpPruneByTsMap((st.deletedFavorites && typeof st.deletedFavorites === 'object' && !Array.isArray(st.deletedFavorites)) ? st.deletedFavorites : {}, 5000);
+
+                    const rr = gnpPruneByTsMap((st.restoredFavorites && typeof st.restoredFavorites === 'object' && !Array.isArray(st.restoredFavorites)) ? st.restoredFavorites : {}, 5000);
+
+                    if (!gnpEqualTsMap(rd, deletedFavorites || {}) || !gnpEqualTsMap(rr, restoredFavorites || {})) needHeal = true;
+
+                }
+
+                if (!force && needHeal) gnpQueuePersistSharedState('fav_list');
+
+            } catch (_) {}
 
             // folders 可能由 fav 引入新 folder：先不改 foldersAt，这里只补齐
             let nextFolders = gnpNormalizeFolders(st.folders || ['默认']);
@@ -2305,8 +2355,6 @@ if (!favFolderFilter) {
         // If we are currently applying shared-state from another tab, queue this persist instead of dropping it.
         if (gnpApplyingSharedState) { gnpQueuePersistSharedState(mode); return; }
 
-        const now = gnpNow();
-
         // Ensure per-section timestamps are strictly monotonic even under cross-tab races.
         // If base already has a newer timestamp (e.g., another tab wrote between our now() and get()),
         // we bump it by +1 so other tabs won't ignore this update.
@@ -2321,105 +2369,123 @@ if (!favFolderFilter) {
         gnpApplyingSharedState = true;
         try {
 
-        // 读：以 sync 优先
-        let base = null;
-        if (gnpStorageSync) {
-            base = await gnpStorageGet(gnpStorageSync);
-            if (!base && gnpStorageLocal) base = await gnpStorageGet(gnpStorageLocal);
-        } else {
-            base = await gnpStorageGet(gnpStorageArea);
-        }
+        // 读-改-写（RMW）在多标签页/多窗口下会有竞态：这里做“写前再读一次 + 最多重试”，避免后写覆盖先写。
+        const MAX_ATTEMPTS = 4;
+        let attempt = 0;
 
-        base = gnpNormalizeSharedState(base);
-
-        // 合并 tombstones / restores（无论 mode，都要带上 base 的记录，避免复活/误删）
-        const mergedTombsRaw = gnpPruneByTsMap(gnpMergeTombstones(base.deletedFavorites, deletedFavorites), 5000);
-        const mergedRestores = gnpPruneByTsMap(gnpMergeTombstones(base.restoredFavorites, restoredFavorites), 5000);
-        const mergedTombs = gnpApplyRestoresToTombstones(mergedTombsRaw, mergedRestores);
-
-        const mergedFolderTombs = gnpPruneByTsMap(gnpMergeTombstones(base.deletedFolders, deletedFolders), 2000);
-        const mergedFolderRestores = gnpPruneByTsMap(gnpMergeTombstones(base.restoredFolders, restoredFolders), 2000);
-
-        const next = { ...base, v: 2, deletedFavorites: mergedTombs, restoredFavorites: mergedRestores, deletedFolders: mergedFolderTombs, restoredFolders: mergedFolderRestores };
-
-        // 根据 mode 仅更新对应分区，其他分区使用 base 值，避免旧快照覆盖
-        if (mode === 'usage') {
-            next.usageStats = gnpMergeUsage(base.usageStats, usageStats);
-            next.usageUpdatedAt = gnpBumpTs(base.usageUpdatedAt, now);
-        } else if (mode === 'folders') {
-            next.folders = gnpMergeFolders(base.folders, folders, base.favorites, mergedFolderTombs, mergedFolderRestores);
-            next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
-        } else if (mode === 'filter') {
-            next.favFolderFilter = String(favFolderFilter || '全部');
-            next.filterUpdatedAt = now;
-        } else if (mode === 'fav_meta') {
-            // meta 更新：不改变列表结构，但会更新 useCount/lastUsed 等
-            next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
-            next.favMetaUpdatedAt = gnpBumpTs(base.favMetaUpdatedAt, now);
-        } else if (mode === 'fav_list') {
-            // list 更新：合并（避免丢失其它标签页新增） + tombstone 防复活
-            next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
-            next.favListUpdatedAt = gnpBumpTs(base.favListUpdatedAt, now);
-            // list 变化通常也会影响 meta（例如 folder 变更），顺带更新 meta 时间戳
-            next.favMetaUpdatedAt = gnpBumpTs(base.favMetaUpdatedAt, now);
-            // folders 可能扩充
-            next.folders = gnpMergeFolders(base.folders, folders, next.favorites, mergedFolderTombs, mergedFolderRestores);
-            next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
-        } else {
-            // all
-            next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
-            next.folders = gnpMergeFolders(base.folders, folders, next.favorites, mergedFolderTombs, mergedFolderRestores);
-            next.favFolderFilter = String(favFolderFilter || '全部');
-            next.usageStats = gnpMergeUsage(base.usageStats, usageStats);
-            next.favListUpdatedAt = gnpBumpTs(base.favListUpdatedAt, now);
-            next.favMetaUpdatedAt = gnpBumpTs(base.favMetaUpdatedAt, now);
-            next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
-            next.filterUpdatedAt = gnpBumpTs(base.filterUpdatedAt, now);
-            next.usageUpdatedAt = gnpBumpTs(base.usageUpdatedAt, now);
-        }
-
-        next.updatedAt = Math.max(
-            Number(next.favListUpdatedAt||0),
-            Number(next.favMetaUpdatedAt||0),
-            Number(next.foldersUpdatedAt||0),
-            Number(next.filterUpdatedAt||0),
-            Number(next.usageUpdatedAt||0),
-            now
-        );
-
-
-        // sync-lite: folders only (ensure folder create sync even if full state hits sync quota)
-        try {
-            if (mode === 'folders' || mode === 'all' || mode === 'fav_list') {
-                await gnpTryWriteFoldersLite(next.folders, next.foldersUpdatedAt, mergedFolderTombs, mergedFolderRestores);
-            }
-        } catch (_) {}
-
-        // 写：优先 sync，并备份到 local；若 sync 失败则降级 local
-        let ok = { ok: false };
-        if (gnpStorageSync) {
-            ok = await gnpStorageSet(gnpStorageSync, next);
-            if (!ok.ok && gnpStorageLocal) {
-                gnpStorageArea = gnpStorageLocal;
-                ok = await gnpStorageSet(gnpStorageLocal, next);
+        const readShared = async () => {
+            let st = null;
+            if (gnpStorageSync) {
+                st = await gnpStorageGet(gnpStorageSync);
+                if (!st && gnpStorageLocal) st = await gnpStorageGet(gnpStorageLocal);
             } else {
-                // 同步一份到 local 作为大容量备份
-                if (gnpStorageLocal) { try { await gnpStorageSet(gnpStorageLocal, next); } catch (_) {} }
+                st = await gnpStorageGet(gnpStorageArea);
             }
-        } else {
-            ok = await gnpStorageSet(gnpStorageArea, next);
-        }
+            return gnpNormalizeSharedState(st);
+        };
 
-        // 更新本标签页已应用的时间戳（避免后续重复 apply）
-        if (ok && ok.ok) {
-            gnpSharedFavListAt = Math.max(gnpSharedFavListAt, Number(next.favListUpdatedAt)||0);
-            gnpSharedFavMetaAt = Math.max(gnpSharedFavMetaAt, Number(next.favMetaUpdatedAt)||0);
-            gnpSharedFoldersAt = Math.max(gnpSharedFoldersAt, Number(next.foldersUpdatedAt)||0);
-            gnpSharedFilterAt = Math.max(gnpSharedFilterAt, Number(next.filterUpdatedAt)||0);
-            gnpSharedUsageAt = Math.max(gnpSharedUsageAt, Number(next.usageUpdatedAt)||0);
-        }
+        while (attempt < MAX_ATTEMPTS) {
+            const now = gnpNow();
 
-        } finally {
+            // 读：以 sync 优先
+            const base = await readShared();
+
+            // 合并 tombstones / restores（无论 mode，都要带上 base 的记录，避免复活/误删）
+            const mergedTombsRaw = gnpPruneByTsMap(gnpMergeTombstones(base.deletedFavorites, deletedFavorites), 5000);
+            const mergedRestores = gnpPruneByTsMap(gnpMergeTombstones(base.restoredFavorites, restoredFavorites), 5000);
+            const mergedTombs = gnpApplyRestoresToTombstones(mergedTombsRaw, mergedRestores);
+
+            const mergedFolderTombs = gnpPruneByTsMap(gnpMergeTombstones(base.deletedFolders, deletedFolders), 2000);
+            const mergedFolderRestores = gnpPruneByTsMap(gnpMergeTombstones(base.restoredFolders, restoredFolders), 2000);
+
+            const next = { ...base, v: 2, deletedFavorites: mergedTombs, restoredFavorites: mergedRestores, deletedFolders: mergedFolderTombs, restoredFolders: mergedFolderRestores };
+
+            // 根据 mode 仅更新对应分区，其他分区使用 base 值，避免旧快照覆盖
+            if (mode === 'usage') {
+                next.usageStats = gnpMergeUsage(base.usageStats, usageStats);
+                next.usageUpdatedAt = gnpBumpTs(base.usageUpdatedAt, now);
+            } else if (mode === 'folders') {
+                next.folders = gnpMergeFolders(base.folders, folders, base.favorites, mergedFolderTombs, mergedFolderRestores);
+                next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
+            } else if (mode === 'filter') {
+                next.favFolderFilter = String(favFolderFilter || '全部');
+                next.filterUpdatedAt = now;
+            } else if (mode === 'fav_meta') {
+                // meta 更新：不改变列表结构，但会更新 useCount/lastUsed 等
+                next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
+                next.favMetaUpdatedAt = gnpBumpTs(base.favMetaUpdatedAt, now);
+            } else if (mode === 'fav_list') {
+                // list 更新：合并（避免丢失其它标签页新增） + tombstone 防复活
+                next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
+                next.favListUpdatedAt = gnpBumpTs(base.favListUpdatedAt, now);
+                // folders 可能扩充
+                next.folders = gnpMergeFolders(base.folders, folders, next.favorites, mergedFolderTombs, mergedFolderRestores);
+                next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
+            } else {
+                // all
+                next.favorites = gnpMergeFavorites(base.favorites, favorites, mergedTombs);
+                next.folders = gnpMergeFolders(base.folders, folders, next.favorites, mergedFolderTombs, mergedFolderRestores);
+                next.favFolderFilter = String(favFolderFilter || '全部');
+                next.usageStats = gnpMergeUsage(base.usageStats, usageStats);
+                next.favListUpdatedAt = gnpBumpTs(base.favListUpdatedAt, now);
+                next.favMetaUpdatedAt = gnpBumpTs(base.favMetaUpdatedAt, now);
+                next.foldersUpdatedAt = gnpBumpTs(base.foldersUpdatedAt, now);
+                next.filterUpdatedAt = gnpBumpTs(base.filterUpdatedAt, now);
+                next.usageUpdatedAt = gnpBumpTs(base.usageUpdatedAt, now);
+            }
+
+            next.updatedAt = Math.max(
+                Number(next.favListUpdatedAt||0),
+                Number(next.favMetaUpdatedAt||0),
+                Number(next.foldersUpdatedAt||0),
+                Number(next.filterUpdatedAt||0),
+                Number(next.usageUpdatedAt||0),
+                now
+            );
+
+            // 写前再读一次：若 base 已过期（其它标签页刚写入），则基于最新 base 重算 next，避免覆盖
+            try {
+                const latest = await readShared();
+                if ((Number(latest.updatedAt||0) > Number(base.updatedAt||0)) && attempt < MAX_ATTEMPTS - 1) {
+                    attempt++;
+                    continue;
+                }
+            } catch (_) {}
+
+            // sync-lite: folders only (ensure folder create sync even if full state hits sync quota)
+            try {
+                if (mode === 'folders' || mode === 'all' || mode === 'fav_list') {
+                    await gnpTryWriteFoldersLite(next.folders, next.foldersUpdatedAt, mergedFolderTombs, mergedFolderRestores);
+                }
+            } catch (_) {}
+
+            // 写：优先 sync，并备份到 local；若 sync 失败则降级 local
+            let ok = { ok: false };
+            if (gnpStorageSync) {
+                ok = await gnpStorageSet(gnpStorageSync, next);
+                if (!ok.ok && gnpStorageLocal) {
+                    gnpStorageArea = gnpStorageLocal;
+                    ok = await gnpStorageSet(gnpStorageLocal, next);
+                } else {
+                    // 同步一份到 local 作为大容量备份
+                    if (gnpStorageLocal) { try { await gnpStorageSet(gnpStorageLocal, next); } catch (_) {} }
+                }
+            } else {
+                ok = await gnpStorageSet(gnpStorageArea, next);
+            }
+
+            // 更新本标签页已应用的时间戳（避免后续重复 apply）
+            if (ok && ok.ok) {
+                gnpSharedFavListAt = Math.max(gnpSharedFavListAt, Number(next.favListUpdatedAt)||0);
+                gnpSharedFavMetaAt = Math.max(gnpSharedFavMetaAt, Number(next.favMetaUpdatedAt)||0);
+                gnpSharedFoldersAt = Math.max(gnpSharedFoldersAt, Number(next.foldersUpdatedAt)||0);
+                gnpSharedFilterAt = Math.max(gnpSharedFilterAt, Number(next.filterUpdatedAt)||0);
+                gnpSharedUsageAt = Math.max(gnpSharedUsageAt, Number(next.usageUpdatedAt)||0);
+            }
+
+            break;
+        }
+} finally {
             // 延迟清除标志，确保storage.onChanged事件已经处理完
             setTimeout(() => { gnpApplyingSharedState = false; }, 100);
         }
@@ -3892,7 +3958,7 @@ clearBtn.onclick = (e) => {
 
     }
 
-		// --- 批量操作逻辑 ---
+    // --- 批量操作逻辑 ---
         // 统一的导航窗内确认框（复用现有 gnp-confirm-* 样式）
         function showConfirmInSidebar({ titleText, descText, confirmText, onConfirm }) {
             // 防止叠加多个弹层
@@ -4904,7 +4970,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             const a = anchorEl.getBoundingClientRect();
             const s = sidebar.getBoundingClientRect();
             const left = Math.max(12, Math.min(s.width - 12, (a.left - s.left)));
-            const top = Math.max(12, (a.bottom - s.top) + 6);
+            const top = Math.max(12, (a.bottom - s.top) + 2);
             const minW = Math.max(180, Math.floor(a.width));
             const maxW = Math.max(220, Math.floor(s.width - 24));
             suggest.style.left = `${Math.min(left, s.width - 12)}px`;
@@ -5049,14 +5115,10 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                 }
 
                 item.addEventListener('mousedown', (ev) => {
-				   // 如果点的是“重命名/删除”按钮（或其内部 svg/path），不要触发目录选择
-                   try {
+                    // 修复：目录项自身用 capture mousedown 选中，但不能抢掉右侧“编辑/删除”按钮的事件
+                    try {
                         const t = ev && ev.target;
-                        if (t && t.closest && t.closest('.gnp-folder-filter-action-btn, .gnp-folder-filter-actions')) {
-                            ev.preventDefault();
-                            ev.stopPropagation();
-                            return;
-                        }
+                        if (t && t.closest && t.closest('.gnp-folder-filter-actions')) return;
                     } catch (_) {}
                     try { ev.preventDefault(); ev.stopPropagation(); } catch (_) {}
                     try { onPick && onPick(val); } catch (_) {}
@@ -5105,7 +5167,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             const a = anchorEl.getBoundingClientRect();
             const s = sidebar.getBoundingClientRect();
             const left = Math.max(12, Math.min(s.width - 12, (a.left - s.left)));
-            const top = Math.max(12, (a.bottom - s.top) + 6);
+            const top = Math.max(12, (a.bottom - s.top) + 2);
             const minW = Math.max(200, Math.floor(a.width));
             const maxW = Math.max(220, Math.floor(s.width - 24));
             input.style.left = `${Math.min(left, s.width - 12)}px`;
@@ -5505,45 +5567,27 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             const btnConfirm = document.createElement('button');
             btnConfirm.className = 'gnp-btn-confirm';
             btnConfirm.textContent = '确认清空';
-			// ============================================================
-			// [FIX 1] 修复：清空收藏时需记录墓碑，防止被旧文件复活
-			// ============================================================
-			btnConfirm.onclick = () => {
-				const currentHeight = sidebar.offsetHeight;
-				sidebar.style.height = `${currentHeight}px`;
-
-				// 1. 记录墓碑 (Tombstones)
-				// 这一步至关重要：在清空前，把当前所有的 Prompt ID/Text 记录为“已删除”
-				// 否则同步逻辑会以为本地只是“没数据”，从而从云端/文件把旧数据合并回来
-				try {
-					if (!deletedFavorites || typeof deletedFavorites !== 'object') {
-						deletedFavorites = {};
-					}
-					const now = Date.now();
-					favorites.forEach(item => {
-						// 假设以 text 为唯一标识，如果你的 item 有 id 字段更好
-						if (item && item.text) {
-							deletedFavorites[item.text] = now;
-						}
-					});
-				} catch (e) {
-					console.error('[GNP] 清空收藏时记录删除状态失败:', e);
-				}
-
-				// 2. 清空数组
-				favorites = [];
-
-				// 3. 保存并同步
-				// 此时 saveFavorites 内部合并时，会看到 deletedFavorites 里的记录，
-				// 从而知道这些数据是“被删除了”而不是“丢失了”。
-				saveFavorites();
-
-				// 4. 清理 UI 状态
-				selectedItems.clear();
-				updateBatchBar();
-				renderFavorites();
-				overlay.remove();
-			};
+            btnConfirm.onclick = () => {
+                const currentHeight = sidebar.offsetHeight;
+                sidebar.style.height = `${currentHeight}px`;
+                // 关键修复：清空全部也必须写 tombstone，避免被旧快照/JSON 合并复活
+                const now = Date.now();
+                try {
+                    deletedFavorites = (deletedFavorites && typeof deletedFavorites === 'object') ? deletedFavorites : {};
+                    favorites.forEach(f => {
+                        const t = String((f && f.text) || '').trim();
+                        if (!t) return;
+                        deletedFavorites[t] = now;
+                        if (restoredFavorites && restoredFavorites[t]) delete restoredFavorites[t];
+                    });
+                } catch (_) {}
+                favorites = [];
+                saveFavorites('fav_list');
+                selectedItems.clear();
+                updateBatchBar();
+                renderFavorites();
+                overlay.remove();
+            };
             const btnCancel = document.createElement('button');
             btnCancel.className = 'gnp-btn-cancel';
             btnCancel.textContent = '取消';
@@ -6655,28 +6699,6 @@ function handleKeyboardNavigation(e) {
         watchPageTheme();
     }, 800);
 
-	// ============================================================
-    // [FIX 2] 新增：监听 Storage 变化，解决多标签页不同步/覆盖问题
-    // ============================================================
-    // 注意：这里必须使用字符串常量 GNP_SHARED_STATE_KEY，且同时监听 sync 和 local
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
-        chrome.storage.onChanged.addListener((changes, namespace) => {
-            // 修正 1: 监听 sync 或 local
-            // 修正 2: 使用正确的 Key (GNP_SHARED_STATE_KEY)
-            if ((namespace === 'local' || namespace === 'sync') && changes[GNP_SHARED_STATE_KEY]) {
-                // 如果当前页面正在执行写入操作，则忽略
-                if (gnpApplyingSharedState) return;
-
-                console.log('[GNP] 检测到远端数据变化，正在强制同步...');
-                
-                // 强制执行一次“读取并合并”操作，并刷新 UI
-                // 注意：这里传入 'fav_list' 模式即可，避免 'read' 落入 'all' 导致全量写回引发循环
-                gnpPersistSharedState('fav_list').catch(err => {
-                    console.error('[GNP] 自动同步失败:', err);
-                });
-            }
-        });
-    }
 
     window.addEventListener('resize', applyMagneticSnapping);
 
