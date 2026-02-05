@@ -4930,28 +4930,44 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                     }
                 });
             } else {
-                // 批量收藏
-                let addedCount = 0;
-                const targetFolder = (favFolderFilter && favFolderFilter !== '全部') ? favFolderFilter : '默认';
-                items.forEach(txt => {
-                    if (addFavorite(txt, targetFolder)) {
-                        addedCount++;
+                // 批量收藏 - 修改为弹窗选择文件夹
+                const targetFolderDefault = (favFolderFilter && favFolderFilter !== '全部') ? favFolderFilter : '默认';
+                
+                // 构造预览文本：显示第一条 + 剩余数量提示
+                const firstItem = items[0] || '';
+                const previewTxt = items.length > 1 
+                    ? `${firstItem.slice(0, 150)}${firstItem.length > 150 ? '...' : ''}\n\n... (以及其他 ${items.length - 1} 项)`
+                    : firstItem;
+
+                showFavFolderPickerInSidebar({
+                    promptText: previewTxt,
+                    defaultFolder: targetFolderDefault,
+                    titleText: '批量收藏',
+                    descText: `将选中的 ${items.length} 个 Prompt 收藏到哪个文件夹？`,
+                    confirmText: '收藏全部',
+                    onConfirm: (folder) => {
+                        let addedCount = 0;
+                        items.forEach(txt => {
+                            if (addFavorite(txt, folder)) {
+                                addedCount++;
+                            }
+                        });
+                        // 先清除多选状态（避免 refreshNav 期间把旧选择渲染回去）
+                        selectedItems.clear();
+                        panelNav.querySelectorAll('.gemini-nav-item.multi-selected')
+                            .forEach(el => el.classList.remove('multi-selected'));
+
+                        if (addedCount > 0) {
+                            saveFavorites();
+                            // 刷新目录页状态（更新“已收藏”标记）
+                            refreshNav(true);
+                        }
+
+                        updateBatchBar();
+                        // 收藏成功提示（显示在导航窗口内，避免批量栏消失后无反馈）
+                        showSidebarToast(addedCount > 0 ? `已收藏到「${folder}」（新增 ${addedCount} 项）` : '收藏成功');
                     }
                 });
-                // 先清除多选状态（避免 refreshNav 期间把旧选择渲染回去）
-                selectedItems.clear();
-                panelNav.querySelectorAll('.gemini-nav-item.multi-selected')
-                    .forEach(el => el.classList.remove('multi-selected'));
-
-                if (addedCount > 0) {
-                    saveFavorites();
-                    // 刷新目录页状态（更新“已收藏”标记）
-                    refreshNav(true);
-                }
-
-                updateBatchBar();
-                // 收藏成功提示（显示在导航窗口内，避免批量栏消失后无反馈）
-                showSidebarToast(addedCount > 0 ? `收藏成功（新增 ${addedCount} 项）` : '收藏成功');
             }
         };
         
@@ -6025,8 +6041,19 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
         restoreKeyboardSelection(panelFav);
     }
 
-    let lastCount = -1;
+	let lastPageSignature = ''; // [Fix v2] 更稳健的页面指纹（长度+首+尾）
     let observer = null;
+
+    // [Fix v2] 生成轻量级页面指纹，避免遍历所有节点导致性能问题
+    function generatePageSignature(blocks) {
+        if (!blocks || blocks.length === 0) return 'empty';
+        const len = blocks.length;
+        // 获取首尾文本摘要（只取前50字符，避免内存浪费）
+        const firstTxt = (blocks[0].innerText || '').slice(0, 50).trim();
+        const lastTxt = (blocks[len - 1].innerText || '').slice(0, 50).trim();
+        // 组合成唯一指纹：数量|首|尾
+        return `${len}|${firstTxt}|${lastTxt}`;
+    }
 
     function setupScrollObserver() {
         if (observer) observer.disconnect();
@@ -6070,14 +6097,20 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
         }, 100);
     }
 
-    function refreshNav(force = false) {
+	function refreshNav(force = false) {
         if (!panelNav.classList.contains('active')) return;
         const blocks = qsaAll(CURRENT_CONFIG.promptSelector, getChatRoot());
         
         if (!observer) setupScrollObserver();
-        if (blocks.length === 0 && lastCount > 0) return;
-        if (!force && blocks.length === lastCount) return;
-        lastCount = blocks.length;
+        
+        // [Fix v2] 生成当前页面指纹
+        const currentSig = generatePageSignature(blocks);
+
+        // 如果指纹未变且非强制刷新，直接跳过
+        if (!force && currentSig === lastPageSignature) return;
+        
+        // 更新指纹记录
+        lastPageSignature = currentSig;
         setupScrollObserver();
 
         panelNav.replaceChildren();
@@ -6469,12 +6502,12 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
         window.addEventListener('popstate', fire);
     })();
 
-    window.addEventListener('gnp-locationchange', () => {
+	window.addEventListener('gnp-locationchange', () => {
         // 轻度延迟：等待页面内容完成切换/渲染
         setTimeout(() => {
             try { if (observer) observer.disconnect(); } catch (_) {}
             currentActiveIndex = 0;
-            lastCount = 0;
+            lastPageSignature = ''; // [Fix v2] URL 变更时重置指纹
             refreshNav(true);
             renderFavorites();
         }, 900);
