@@ -27,60 +27,91 @@
     
     console.log('[GNP] Environment:', { IS_CHATGPT, IS_CLAUDE, hostname: location.hostname });
     
-    const SITE_CONFIG = {
-        gemini: {
-            promptSelector: '.query-text', 
-            inputSelector: 'div[role="textbox"], div[contenteditable="true"], textarea',
-            sendBtnSelector: 'button[aria-label*="Send"], button.send-button'
-        },
-        chatgpt: {
-            // ChatGPT 前端结构变化较快：这里使用“候选选择器列表”做容错
-            promptSelector: [
-                'article[data-testid^="conversation-turn"] div[data-message-author-role="user"]',
-                'div[data-testid^="conversation-turn"] div[data-message-author-role="user"]',
-                'li[data-message-author-role="user"]',
-                'div[data-message-author-role="user"]'
-            ],
-            inputSelector: [
-                '#prompt-textarea',
-                'textarea[data-testid="prompt-textarea"]',
-                'div[contenteditable="true"][data-testid="prompt-textarea"]',
-                'div[contenteditable="true"][role="textbox"]',
-                'textarea[placeholder*="Message"]',
-                'textarea[placeholder*="Send"]'
-            ],
-            sendBtnSelector: [
-                'button[data-testid="send-button"]',
-                'button[data-testid="fruitjuice-send-button"]',
-                'button[aria-label*="Send"]',
-                'button[aria-label*="发送"]'
-            ]
-        },
-        claude: {
-            // Claude DOM 变动频繁：优先使用 data-testid，其次回退到旧 class 结构
-            promptSelector: [
-                'div[data-testid="user-message"]',
-                '[data-testid="user-human-turn"]',
-                'div[data-is-streaming="false"] div.font-user-message',
-                'div.font-user-message',
-                'div[data-test-render-count] div.font-user-message'
-            ],
-            inputSelector: [
-                'div.ProseMirror[contenteditable="true"]',
-                'div[contenteditable="true"][role="textbox"]',
-                'fieldset div[contenteditable="true"]',
-                'div[contenteditable="true"]',
-                'textarea'
-            ],
-            sendBtnSelector: [
-                'button[data-testid="send-button"]',
-                'button[aria-label*="Send message" i]',
-                'button[aria-label*="Send" i]',
-                'button[aria-label*="发送" i]',
-                'button[type="submit"]',
-                'fieldset button[type="button"]'
-            ]
-        }};
+	const SITE_CONFIG = {
+	gemini: {
+		// Gemini 策略：优先寻找 query-text 类，其次寻找包含特定属性的容器
+		promptSelector: [
+			'.query-text',                            // 经典稳定类名
+			'h2[data-test-id="user-query"]',          // 语义化测试ID
+			'div[data-role="user-query"]',            // 语义化角色
+			'div:has(> span[class*="query-text"])',   // 结构特征：父级包含类似类名
+			'.user-query'                             // 备用类名
+		],
+		inputSelector: [
+			'div[role="textbox"]',
+			'div[contenteditable="true"]',
+			'textarea',
+			'rich-textarea > div'
+		],
+		sendBtnSelector: [
+			'button[aria-label*="Send"]',
+			'button[aria-label*="发送"]',
+			'.send-button',
+			'button:has(svg[icon="send"])' // 特征检测：包含发送图标的按钮
+		]
+	},
+	chatgpt: {
+		// ChatGPT 策略：data-message-author-role 是最稳的锚点
+		promptSelector: [
+			// 1. 黄金标准：属性选择器 (最稳)
+			'div[data-message-author-role="user"]',
+			
+			// 2. 结构特征：通过父级 conversation-turn 锁定
+			'article[data-testid*="conversation-turn"] div[data-message-author-role="user"]',
+			
+			// 3. 特征检测：利用 :has() 寻找包含"用户"相关特征的块
+			// (注意：这会选中包含头像的行，需要确保后续 innerText 提取逻辑兼容)
+			'div.group:has([data-message-author-role="user"])', 
+			
+			// 4. 备用：旧版选择器
+			'li[data-message-author-role="user"]'
+		],
+		inputSelector: [
+			'#prompt-textarea',
+			'textarea[data-testid="prompt-textarea"]',
+			'div[contenteditable="true"][data-testid="prompt-textarea"]',
+			'div[contenteditable="true"][role="textbox"]'
+		],
+		sendBtnSelector: [
+			'button[data-testid="send-button"]',
+			'button[data-testid="fruitjuice-send-button"]',
+			'button[aria-label*="Send"]',
+			'button[aria-label*="发送"]',
+			'button:has(svg[viewBox*="0 0 24 24"])' // 极其宽泛的兜底，慎用
+		]
+	},
+	claude: {
+		// Claude 策略：DOM 变动最频繁，需要多层兜底
+		promptSelector: [
+			// 1. 官方测试钩子 (最稳)
+			'div[data-testid="user-message"]',
+			'div[data-testid="user-human-turn"]',
+			
+			// 2. 字体特征类名 (较稳)
+			'.font-user-message',
+			
+			// 3. 结构特征：通过 :has 寻找包含特定头像或图标的网格行
+			// 寻找包含 "user" 样式头像的父容器对应的文本区域
+			'div:has(> div > svg[aria-label="User"]) + div', 
+			
+			// 4. 模糊类名匹配 (防止 hash 变动)
+			'div[class*="user-message"]',
+			
+			// 5. 备用层级结构
+			'div[data-is-streaming="false"] .font-user-message'
+		],
+		inputSelector: [
+			'div.ProseMirror[contenteditable="true"]',
+			'div[contenteditable="true"][role="textbox"]',
+			'fieldset div[contenteditable="true"]'
+		],
+		sendBtnSelector: [
+			'button[data-testid="send-button"]',
+			'button[aria-label*="Send"]',
+			'button[aria-label*="发送"]',
+			'button:has(svg)' // 最后的兜底
+		]
+	}};
     
     const CURRENT_CONFIG = IS_CLAUDE ? SITE_CONFIG.claude : (IS_CHATGPT ? SITE_CONFIG.chatgpt : SITE_CONFIG.gemini);
 
@@ -5020,8 +5051,14 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             const t = e.target;
             // 不干扰弹层/输入区域的 Esc
             if (t && t.closest && t.closest('.gnp-confirm-overlay, .gnp-global-overlay')) return;
-            const tag = t && t.tagName ? t.tagName.toLowerCase() : '';
-            if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
+            
+            // [Fix] 即使焦点在输入框（如主聊天框），只要处于多选模式，Esc 也应优先取消多选
+            // 仅当 *没有* 选中项时，才避让输入框的默认 Esc 行为（如清空文本）
+            if (selectedItems.size === 0) {
+                const tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+                if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
+            }
+
             clearMultiSelection();
             e.preventDefault();
             e.stopPropagation();
