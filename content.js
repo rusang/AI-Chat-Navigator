@@ -1810,6 +1810,8 @@ if (!favFolderFilter) {
     let gnpFavFileLastSeenHash = '';
     let gnpFavFileReloadTimer = null;
     let gnpApplyingFileSnapshot = false;
+    // Last file broadcast payload (for deciding whether this reload was triggered by an external file edit)
+    let gnpLastFavFileBcast = null;
     // If a user-triggered change happens while we are applying a file snapshot,
     // we defer the file write and flush it right after apply completes.
     let gnpFavFileWritePendingReason = null;
@@ -1835,6 +1837,30 @@ if (!favFolderFilter) {
 
     // 默认优先使用 sync（跨设备/不同 Chrome 实例）；若不可用或超限则降级 local
     let gnpStorageArea = gnpStorageSync || gnpStorageLocal || null;
+
+    // --- MV3 service worker keep-alive for favorites.json external-change polling ---
+    // Background tabs throttle timers heavily. We keep the SW alive via a port so background.js can poll
+    // favorites.json and broadcast updates reliably.
+    let gnpKeepAlivePort = null;
+    let gnpKeepAliveTimer = null;
+    function gnpStartServiceWorkerKeepAlive() {
+        try {
+            if (!IS_EXTENSION || !gnpChrome || !gnpChrome.runtime || typeof gnpChrome.runtime.connect !== 'function') return;
+            if (gnpKeepAlivePort) return;
+            gnpKeepAlivePort = gnpChrome.runtime.connect({ name: 'gnp_fav_file_watch' });
+            gnpKeepAliveTimer = setInterval(() => {
+                try { gnpKeepAlivePort && gnpKeepAlivePort.postMessage({ type: 'ping', ts: Date.now() }); } catch (_) {}
+            }, 25000);
+            gnpKeepAlivePort.onDisconnect.addListener(() => {
+                try { clearInterval(gnpKeepAliveTimer); } catch (_) {}
+                gnpKeepAliveTimer = null;
+                gnpKeepAlivePort = null;
+                setTimeout(() => { try { gnpStartServiceWorkerKeepAlive(); } catch (_) {} }, 1500);
+            });
+        } catch (_) {}
+    }
+
+    try { gnpStartServiceWorkerKeepAlive(); } catch (_) {}
 
     let gnpApplyingSharedState = false;
 
@@ -2582,6 +2608,7 @@ if (!favFolderFilter) {
                         if (favFileBcast && favFileBcast.ts) {
                             try {
                                 const origin = String(favFileBcast.origin || '');
+                                gnpLastFavFileBcast = favFileBcast;
                                 if (origin && origin === gnpInstanceId) {
                                     // ignore self
                                 } else {
@@ -3330,16 +3357,92 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
     const mergedFolderRestores = gnpPruneByTsMap(gnpMergeTombstones(fileFolderRestores, restoredFolders), 2000);
 
 
-    // 合并：文件为 base，本地为 local（本地顺序优先，但会补齐文件新增）
-	// 修改后：让 snap.favorites (arg2) 覆盖 favorites (arg1) 的属性
-	const mergedFav = gnpMergeFavorites(favorites || [], snap.favorites || [], mergedTombs);
+    // ==================== 修复：文件优先合并策略 ====================
+    // 问题：gnpMergeFavorites使用text作为key，无法检测到手动修改text内容的情况
+    // 解决：采用文件优先策略，只有文件中不存在时才使用本地数据
+    // ==============================================================
+    
+    // 建立索引
+    const fileMap = new Map();
+    (snap.favorites || []).forEach(f => {
+        const t = String(f.text || '').trim();
+        if (t) fileMap.set(t, f);
+    });
+    
+    const localMap = new Map();
+    (favorites || []).forEach(f => {
+        const t = String(f.text || '').trim();
+        if (t) localMap.set(t, f);
+    });
+    
+    // 合并：文件优先
+    const mergedFavList = [];
+    const processed = new Set();
+    
+    // 1. 先添加文件中的所有条目（保持文件顺序，text/folder以文件为准）
+    // 重要：如果prompt在文件的favorites数组里，自动忽略墓碑记录（自动复活）
+    (snap.favorites || []).forEach(fileItem => {
+        const t = String(fileItem.text || '').trim();
+        if (!t) return;
+        if (processed.has(t)) return;
+        
+        // ===== 关键修改：文件中的favorites优先，自动复活 =====
+        // 如果prompt在文件的favorites里，说明用户手动添加了，应该显示
+        // 不再检查墓碑：if (mergedTombs[t] && Number(mergedTombs[t]) > 0) return;
+        
+        // 如果这个prompt在墓碑里，自动添加到复活记录
+        if (mergedTombs[t] && Number(mergedTombs[t]) > 0) {
+            const now = Date.now();
+            restoredFavorites[t] = now; // 自动标记为已复活
+            delete mergedTombs[t]; // 从合并后的墓碑中移除
+            console.log('[GNP] Auto-restored from tombstone:', t);
+        }
+        // ====================================================
+        
+        const localItem = localMap.get(t);
+        
+        // text/folder以文件为准，metadata取最大值
+        const merged = {
+            text: t,
+            folder: fileItem.folder || '默认',
+            useCount: localItem ? Math.max(Number(fileItem.useCount)||0, Number(localItem.useCount)||0) : (Number(fileItem.useCount)||0),
+            lastUsed: localItem ? Math.max(Number(fileItem.lastUsed)||0, Number(localItem.lastUsed)||0) : (Number(fileItem.lastUsed)||0)
+        };
+        
+        mergedFavList.push(merged);
+        processed.add(t);
+    });
+    
+    // 2. 添加本地有但文件中没有的（可能是刚添加还没写入）
+    (favorites || []).forEach(localItem => {
+        const t = String(localItem.text || '').trim();
+        if (!t) return;
+        if (processed.has(t)) return;
+        if (mergedTombs[t] && Number(mergedTombs[t]) > 0) return;
+        if (fileMap.has(t)) return; // 已在步骤1处理
+        
+        mergedFavList.push({
+            text: t,
+            folder: localItem.folder || '默认',
+            useCount: Number(localItem.useCount)||0,
+            lastUsed: Number(localItem.lastUsed)||0
+        });
+        processed.add(t);
+    });
+    
+    const mergedFav = mergedFavList;
+    // ==============================================================
+    
+    // 更新合并后的restoredFavorites（包含自动复活的记录）
+    const mergedRestoresUpdated = gnpPruneByTsMap(restoredFavorites, 5000);
+    
     const mergedFolders = gnpMergeFolders(snap.folders || [], folders || [], mergedFav, mergedFolderTombs, mergedFolderRestores);
 
     // 是否发生变化
     const changedFav = !gnpEqualFavArrays(mergedFav, favorites || []);
     const changedFolders = !gnpEqualStringArrays(mergedFolders, folders || []);
     const changedTombs = !gnpEqualTsMap(mergedTombs, deletedFavorites || {});
-    const changedRestores = !gnpEqualTsMap(mergedRestores, restoredFavorites || {});
+    const changedRestores = !gnpEqualTsMap(mergedRestoresUpdated, restoredFavorites || {});
     const changedFolderTombs = !gnpEqualTsMap(mergedFolderTombs, deletedFolders || {});
     const changedFolderRestores = !gnpEqualTsMap(mergedFolderRestores, restoredFolders || {});
 
@@ -3353,7 +3456,7 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
         favorites = mergedFav;
         folders = mergedFolders;
         deletedFavorites = mergedTombs;
-        restoredFavorites = mergedRestores;
+        restoredFavorites = mergedRestoresUpdated; // 使用更新后的（包含自动复活）
         deletedFolders = mergedFolderTombs;
         restoredFolders = mergedFolderRestores;
 
@@ -3365,6 +3468,7 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
         try { refreshNav(true); } catch (_) {}
 
         gnpFavFileLastSeenHash = h || gnpFavFileLastSeenHash;
+        console.log('[GNP] File reloaded:', {trigger, hash: h, changedFav, changedFolders, favCount: favorites.length, folderCount: folders.length});
     } finally {
         setTimeout(() => {
         gnpApplyingFileSnapshot = false;
@@ -3374,6 +3478,23 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
             gnpFavFileWritePendingReason = null;
             try { gnpScheduleWriteFavoritesJsonFile(r); } catch (_) {}
         }
+
+        // External file edit: after merging into storage/UI, write back a canonical (merged + normalized) JSON.
+        // We only do this in a single leader tab to avoid multi-tab write storms.
+        try {
+            const bcastOrigin = String((gnpLastFavFileBcast && gnpLastFavFileBcast.origin) || '');
+            const shouldNormalize = (trigger === 'poll' || trigger === 'force' || (trigger === 'bcast' && bcastOrigin === 'bg'));
+            if (shouldNormalize) {
+                (async () => {
+                    try {
+                        const isLeader = await gnpTryBecomeFavFilePollLeader();
+                        if (!isLeader) return;
+                        // This call is idempotent: if the file already matches the canonical format, it will no-op.
+                        gnpScheduleWriteFavoritesJsonFile('file-merge-normalize');
+                    } catch (_) {}
+                })();
+            }
+        } catch (_) {}
     }, 80);
     }
 }
