@@ -5051,14 +5051,8 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             const t = e.target;
             // 不干扰弹层/输入区域的 Esc
             if (t && t.closest && t.closest('.gnp-confirm-overlay, .gnp-global-overlay')) return;
-            
-            // [Fix] 即使焦点在输入框（如主聊天框），只要处于多选模式，Esc 也应优先取消多选
-            // 仅当 *没有* 选中项时，才避让输入框的默认 Esc 行为（如清空文本）
-            if (selectedItems.size === 0) {
-                const tag = t && t.tagName ? t.tagName.toLowerCase() : '';
-                if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
-            }
-
+            const tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+            if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
             clearMultiSelection();
             e.preventDefault();
             e.stopPropagation();
