@@ -6379,6 +6379,26 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             if (!e) return;
             const key = e.key;
             if (key !== 'Escape' && key !== 'Esc') return;
+
+            // [新增] Esc 优先取消多选 (全局生效，无需鼠标悬停侧边栏)
+            // 逻辑：只要有选中项(selectedItems > 0)，Esc 就专用于取消选择，并阻止后续事件
+            if (typeof selectedItems !== 'undefined' && selectedItems.size > 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // 调用现有的清理函数 (如果存在)
+                if (typeof clearMultiSelection === 'function') {
+                    clearMultiSelection();
+                } else {
+                    // 兜底逻辑：手动清理
+                    selectedItems.clear();
+                    document.querySelectorAll('.gnp-selected').forEach(el => el.classList.remove('gnp-selected'));
+                    const batchBar = document.querySelector('.gnp-batch-bar');
+                    if (batchBar) batchBar.classList.remove('visible');
+                }
+                return; // 关键：阻止代码继续向下执行（防止误关侧边栏）
+            }
+
             if (!sidebar || !gnpSidebarHovering) return;
             // 若有侧边栏内编辑弹层，交给弹层自身处理
             if (hasSidebarEditOverlay && hasSidebarEditOverlay()) return;
