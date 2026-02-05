@@ -2608,11 +2608,14 @@ if (!favFolderFilter) {
                         if (favFileBcast && favFileBcast.ts) {
                             try {
                                 const origin = String(favFileBcast.origin || '');
+                                const bcastHash = String(favFileBcast.hash || '');
                                 gnpLastFavFileBcast = favFileBcast;
                                 if (origin && origin === gnpInstanceId) {
                                     // ignore self
                                 } else {
-                                    gnpDebouncedReloadFavoritesFromJsonFile('bcast');
+                                    // 关键修复：如果广播的hash与本地hash不同，强制重载
+                                    const trigger = (bcastHash && bcastHash !== gnpFavFileLastSeenHash) ? 'force' : 'bcast';
+                                    gnpDebouncedReloadFavoritesFromJsonFile(trigger);
                                 }
                             } catch (_) {}
                         }
