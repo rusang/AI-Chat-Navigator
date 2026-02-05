@@ -4952,7 +4952,20 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                     titleText: `确定删除选中的 ${items.length} 个收藏吗？`,
                     descText: '此操作无法撤销。',
                     confirmText: '确认删除',
-                    onConfirm: () => {
+			onConfirm: () => {
+                        // [FIX] 批量删除时必须写入墓碑 (deletedFavorites)，否则文件同步时会被旧数据复活
+                        const now = Date.now();
+                        try {
+                            if (!deletedFavorites) deletedFavorites = {};
+                            if (!restoredFavorites) restoredFavorites = {};
+                            
+                            selectedItems.forEach(text => {
+                                deletedFavorites[text] = now;
+                                // 同时清理复活标记（以本次删除为准）
+                                if (restoredFavorites[text]) delete restoredFavorites[text];
+                            });
+                        } catch (_) {}
+
                         favorites = favorites.filter(f => !selectedItems.has(f.text));
                         saveFavorites();
                         selectedItems.clear();
