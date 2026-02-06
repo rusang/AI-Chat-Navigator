@@ -217,6 +217,7 @@
     --gnp-active-border: #2563eb;
     --gnp-active-text: #1d4ed8;
     --gnp-fav-color: #d97706;
+    --gnp-star-list: rgba(234, 179, 8, 0.45); /* [调整] 更淡的金色 (45%透明度)，不抢视觉 */
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
     --gnp-search-highlight: #dc2626;
@@ -283,6 +284,7 @@
         --gnp-active-border: #60a5fa;
         --gnp-active-text: #93c5fd;
         --gnp-fav-color: #fbbf24;
+        --gnp-star-list: rgba(253, 224, 71, 0.40); /* [调整] 深色模式下用更淡的黄色 */
         --gnp-input-bg: rgba(148, 163, 184, 0.14);
         --gnp-input-text: rgba(248, 250, 252, 0.96);
         --gnp-search-highlight: #f87171;
@@ -321,6 +323,7 @@
     --gnp-active-bg: rgba(96, 165, 250, 0.18);
     --gnp-active-border: #60a5fa;
     --gnp-active-text: #93c5fd;
+    --gnp-star-list: rgba(253, 224, 71, 0.65);
     --gnp-input-bg: rgba(148, 163, 184, 0.14);
     --gnp-input-text: rgba(248, 250, 252, 0.96);
     --gnp-btn-bg: rgba(31, 41, 55, 0.82);
@@ -343,6 +346,7 @@
     --gnp-active-bg: rgba(37, 99, 235, 0.12);
     --gnp-active-border: #2563eb;
     --gnp-active-text: #1d4ed8;
+    --gnp-star-list: rgba(234, 179, 8, 0.65);
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
     --gnp-btn-bg: rgba(255, 255, 255, 0.70);
@@ -986,8 +990,33 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
 .nav-tab:focus-visible,
 .mini-btn:focus-visible,
 .batch-btn:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--gnp-active-border) 55%, transparent);
+   outline: 2px solid color-mix(in srgb, var(--gnp-active-border) 55%, transparent);
     outline-offset: 2px;
+}
+
+.gnp-star-picker { display: flex; align-items: center; gap: 4px; margin: 8px 0; user-select: none; justify-content: center; }
+.gnp-star-item { font-size: 20px; cursor: pointer; color: var(--gnp-text-sub); transition: transform 0.1s; line-height: 1; }
+.gnp-star-item.active { color: var(--gnp-fav-color); }
+.gnp-star-item:hover { transform: scale(1.2); }
+/* [修复] 强制指定星星颜色，不使用变量，避免显示为黑色 */
+.gnp-item-stars { 
+    display: inline-flex; 
+    align-items: center; 
+    color: rgba(217, 119, 6, 0.5) !important; /* 浅色模式：淡琥珀色 (50%透明) */
+    font-size: 11px; 
+    margin-right: 6px; 
+    line-height: 1; 
+    user-select: none; 
+    flex-shrink: 0; 
+    letter-spacing: 0px; 
+}
+
+/* 深色模式适配：使用淡黄色 */
+@media (prefers-color-scheme: dark) { 
+    .gnp-item-stars { color: rgba(253, 224, 71, 0.5) !important; } 
+}
+[data-gnp-theme="dark"] .gnp-item-stars { 
+    color: rgba(253, 224, 71, 0.5) !important; 
 }
 `;
 
@@ -2070,7 +2099,10 @@ if (!favFolderFilter) {
         const folder = String((it.folder ?? it.f) || '默认').trim() || '默认';
         const useCount = parseInt((it.useCount ?? it.uc) || 0, 10) || 0;
         const lastUsed = Number((it.lastUsed ?? it.lu) || 0) || 0;
-        return { text: t, folder, useCount, lastUsed };
+        let rating = parseInt((it.rating ?? it.r ?? 1), 10);
+        if (isNaN(rating) || rating < 1) rating = 1;
+        if (rating > 5) rating = 5;
+        return { text: t, folder, useCount, lastUsed, rating };
     }
 
     function gnpMergeFavorites(baseArr, localArr, tombstones) {
@@ -2102,6 +2134,7 @@ if (!favFolderFilter) {
                 prev.folder = obj.folder || prev.folder || '默认';
                 prev.useCount = Math.max(Number(prev.useCount)||0, Number(obj.useCount)||0);
                 prev.lastUsed = Math.max(Number(prev.lastUsed)||0, Number(obj.lastUsed)||0);
+                prev.rating = obj.rating || prev.rating || 1;
                 map.set(obj.text, prev);
             }
         }
@@ -2820,7 +2853,10 @@ function gnpSortObjectKeys(obj) {
         const folder = String((it.folder ?? it.f ?? it.category ?? it.cat ?? '默认') || '默认').trim() || '默认';
         const useCount = parseInt((it.useCount ?? it.uc ?? it.count ?? it.cnt ?? 0) || 0, 10) || 0;
         const lastUsed = Number((it.lastUsed ?? it.lu ?? it.last ?? it.updatedAt ?? it.u ?? 0) || 0) || 0;
-        return { text: t, folder, useCount, lastUsed };
+        let rating = parseInt((it.rating ?? it.r ?? 1), 10);
+        if (isNaN(rating) || rating < 1) rating = 1;
+        if (rating > 5) rating = 5;
+        return { text: t, folder, useCount, lastUsed, rating };
     }
 
     function gnpExtractFavoritesFromAnyJson(obj) {
@@ -2902,10 +2938,11 @@ function gnpSortObjectKeys(obj) {
             const folder = String(it.folder || '默认').trim() || '默认';
             const useCount = Number(it.useCount) || 0;
             const lastUsed = Number(it.lastUsed) || 0;
+            let rating = Number(it.rating) || 1;
 
             const existing = existingMap.get(t);
             if (!existing) {
-                favorites.unshift({ text: t, folder, useCount, lastUsed });
+                favorites.unshift({ text: t, folder, useCount, lastUsed, rating });
                 existingMap.set(t, favorites[0]);
                 added++;
                 continue;
@@ -2923,6 +2960,11 @@ function gnpSortObjectKeys(obj) {
 
             existing.useCount = Math.max(beforeUc, useCount);
             existing.lastUsed = Math.max(beforeLu, lastUsed);
+            
+            // rating：以本地为准，除非本地是默认(1)且导入的大于1
+            if ((!existing.rating || existing.rating === 1) && rating > 1) {
+                existing.rating = rating;
+            }
 
             if (beforeFolder !== existing.folder || beforeUc !== existing.useCount || beforeLu !== existing.lastUsed) updated++;
         }
@@ -2944,7 +2986,8 @@ function gnpSortObjectKeys(obj) {
         text: String(f.text || '').trim(),
         folder: String(f.folder || '默认').trim() || '默认',
         useCount: Number(f.useCount) || 0,
-        lastUsed: Number(f.lastUsed) || 0
+        lastUsed: Number(f.lastUsed) || 0,
+        rating: Number(f.rating) || 1
     })).filter(x => x.text);
 
     const folderArr = Array.isArray(folders) ? folders.slice() : ['默认'];
@@ -2976,7 +3019,8 @@ function gnpBuildFavoritesFilePayloadFromState(favArrIn, folderArrIn, tombIn, fo
         text: String((f && f.text) || '').trim(),
         folder: String((f && f.folder) || '默认').trim() || '默认',
         useCount: Number((f && f.useCount) || 0) || 0,
-        lastUsed: Number((f && f.lastUsed) || 0) || 0
+        lastUsed: Number((f && f.lastUsed) || 0) || 0,
+        rating: Number((f && f.rating) || 1)
     })).filter(x => x.text);
 
     const folderArr = Array.isArray(folderArrIn) ? folderArrIn.slice() : ['默认'];
@@ -3447,7 +3491,8 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
             text: t,
             folder: fileItem.folder || '默认',
             useCount: localItem ? Math.max(Number(fileItem.useCount)||0, Number(localItem.useCount)||0) : (Number(fileItem.useCount)||0),
-            lastUsed: localItem ? Math.max(Number(fileItem.lastUsed)||0, Number(localItem.lastUsed)||0) : (Number(fileItem.lastUsed)||0)
+            lastUsed: localItem ? Math.max(Number(fileItem.lastUsed)||0, Number(localItem.lastUsed)||0) : (Number(fileItem.lastUsed)||0),
+            rating: Number(fileItem.rating) || (localItem ? (Number(localItem.rating)||1) : 1)
         };
 
         mergedFavList.push(merged);
@@ -3466,7 +3511,8 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
             text: t,
             folder: localItem.folder || '默认',
             useCount: Number(localItem.useCount)||0,
-            lastUsed: Number(localItem.lastUsed)||0
+            lastUsed: Number(localItem.lastUsed)||0,
+            rating: Number(localItem.rating)||1
         });
         processed.add(t);
     });
@@ -3673,7 +3719,13 @@ function gnpPickAndImportFavoritesJsonFile() {
 
 
 const saveFavorites = (mode = 'fav_list') => {
-        const payload = favorites.map(f => ({ text: f.text, folder: f.folder, useCount: Number(f.useCount)||0, lastUsed: Number(f.lastUsed)||0 }));
+        const payload = favorites.map(f => ({ 
+            text: f.text, 
+            folder: f.folder, 
+            useCount: Number(f.useCount)||0, 
+            lastUsed: Number(f.lastUsed)||0,
+            rating: Number(f.rating)||1 
+        }));
         localStorage.setItem(STORAGE_KEY_FAV, JSON.stringify(payload));
         gnpPersistSharedState(mode);
         try { gnpScheduleWriteFavoritesJsonFile("favorites"); } catch (_) {}
@@ -3792,9 +3844,13 @@ const saveFavorites = (mode = 'fav_list') => {
 
 
 
-    const addFavorite = (t, folder = '默认') => {
+    const addFavorite = (t, folder = '默认', rating = 1) => {
         const text = String(t || '').trim();
         const f = String(folder || '默认').trim() || '默认';
+        let r = parseInt(rating, 10);
+        if (isNaN(r) || r < 1) r = 1;
+        if (r > 5) r = 5;
+
         if (!text) return false;
         // 重新添加时：清除 tombstone + 写“复活标记”，避免被其它标签页/实例的旧 tombstone 立刻删除
         try { if (deletedFavorites && deletedFavorites[text]) delete deletedFavorites[text]; } catch (_) {}
@@ -3804,7 +3860,7 @@ const saveFavorites = (mode = 'fav_list') => {
         } catch (_) {}
         if (hasFavorite(text)) return false;
         if (!folders.includes(f)) { folders.push(f); saveFolders(); }
-        favorites.unshift({ text, folder: f, useCount: 0, lastUsed: 0 }); // 新收藏置顶：保持原行为
+        favorites.unshift({ text, folder: f, useCount: 0, lastUsed: 0, rating: r }); // 新收藏置顶：保持原行为
         return true;
     };
 
@@ -4426,6 +4482,22 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm, ti
         preview.style.display = 'none';
     }
 
+    let currentRating = 1;
+    const starPicker = document.createElement('div');
+    starPicker.className = 'gnp-star-picker';
+    const renderStars = () => {
+        starPicker.innerHTML = '';
+        for (let i = 1; i <= 5; i++) {
+            const s = document.createElement('span');
+            s.className = `gnp-star-item ${i <= currentRating ? 'active' : ''}`;
+            s.textContent = i <= currentRating ? '★' : '☆';
+            s.title = `${i} 星`;
+            s.onclick = (e) => { e.stopPropagation(); currentRating = i; renderStars(); };
+            starPicker.appendChild(s);
+        }
+    };
+    renderStars();
+
     const row = document.createElement('div');
     row.className = 'gnp-fav-folder-picker-row';
 
@@ -4614,7 +4686,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm, ti
         const currentHeight = sidebar.offsetHeight;
         sidebar.style.height = `${currentHeight}px`;
 
-        try { onConfirm && onConfirm(folder); }
+        try { onConfirm && onConfirm(folder, currentRating); }
         finally { closeOverlay(); }
     };
     btnConfirm.onclick = doConfirm;
@@ -4656,7 +4728,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm, ti
     row.append(searchRow, suggestBox, folderSel);
     btnRow.append(btnCancel, btnConfirm);
 
-    box.append(title, desc, preview, row, btnRow);
+    box.append(title, desc, starPicker, preview, row, btnRow);
     overlay.append(box);
     sidebar.appendChild(overlay);
 
@@ -4723,6 +4795,22 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         textarea.placeholder = '在此粘贴/输入 Prompt（支持多行）...';
         textarea.rows = 6;
 
+        let currentRating = 1;
+        const starPicker = document.createElement('div');
+        starPicker.className = 'gnp-star-picker';
+        const renderStars = () => {
+            starPicker.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                const s = document.createElement('span');
+                s.className = `gnp-star-item ${i <= currentRating ? 'active' : ''}`;
+                s.textContent = i <= currentRating ? '★' : '☆';
+                s.title = `${i} 星`;
+                s.onclick = (e) => { e.stopPropagation(); currentRating = i; renderStars(); };
+                starPicker.appendChild(s);
+            }
+        };
+        renderStars();
+
         const folderRow = document.createElement('div');
         folderRow.style.cssText = 'display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:space-between;';
 
@@ -4759,7 +4847,10 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         folderSel.value = folderOptions.includes(def) ? def : '默认';
 
         folderLeft.append(folderLabel, folderSel);
-        folderRow.append(folderLeft);
+        
+        const folderRight = document.createElement('div');
+        folderRight.append(starPicker);
+        folderRow.append(folderLeft, folderRight);
 
         const err = document.createElement('div');
         err.className = 'gnp-global-error';
@@ -4787,7 +4878,7 @@ const doAdd = () => {
             if (!text) return showErr('请输入 Prompt 内容');
 
             const folder = (folderSel.value || '默认').trim() || '默认';
-            if (!addFavorite(text, folder)) return showErr('该 Prompt 已在收藏中');
+            if (!addFavorite(text, folder, currentRating)) return showErr('该 Prompt 已在收藏中');
 
             saveFavorites('fav_list');
 
@@ -5019,12 +5110,12 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                     promptText: previewTxt,
                     defaultFolder: targetFolderDefault,
                     titleText: '批量收藏',
-                    descText: `将选中的 ${items.length} 个 Prompt 收藏到哪个文件夹？`,
+                    descText: `将选中的 ${items.length} 个 Prompt 收藏到哪个文件夹？并评级：`,
                     confirmText: '收藏全部',
-                    onConfirm: (folder) => {
+                    onConfirm: (folder, rating) => {
                         let addedCount = 0;
                         items.forEach(txt => {
-                            if (addFavorite(txt, folder)) {
+                            if (addFavorite(txt, folder, rating)) {
                                 addedCount++;
                             }
                         });
@@ -5603,6 +5694,14 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             ? favorites
             : favorites.filter(f => f.folder === favFolderFilter);
 
+        // 排序：按星级倒序 > 最近使用时间倒序
+        filteredFavorites.sort((a, b) => {
+            const rA = Number(a.rating) || 1;
+            const rB = Number(b.rating) || 1;
+            if (rA !== rB) return rB - rA; // 星级高的排前面
+            return (Number(b.lastUsed) || 0) - (Number(a.lastUsed) || 0);
+        });
+
         // 当前网页 prompt：若该 prompt 已在收藏中，则在收藏列表也用“当前 prompt”的高亮样式
         let gnpCurrentPromptText = '';
         try {
@@ -6076,6 +6175,13 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             folderBadge.title = '点击移动到其他文件夹';
             folderBadge.onclick = (e) => { e.stopPropagation(); gnpMoveFavoriteToFolder(favText, favObj.folder || '默认'); };
 
+            const starDisplay = document.createElement('span');
+            starDisplay.className = 'gnp-item-stars';
+            const r = Number(favObj.rating) || 1;
+            starDisplay.textContent = '★'.repeat(r); // 重复显示星星
+            starDisplay.title = `${r} 星级`;
+            starDisplay.addEventListener('mousedown', (e) => e.stopPropagation());
+
             const useMeta = document.createElement('span');
             useMeta.className = 'gnp-use-meta';
             const uc = Number(favObj.useCount) || 0;
@@ -6176,7 +6282,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             };
 
             toolbar.append(moveFolderBtn, useBtn, copyBtn, editBtn, pinBtn, delBtn);
-            item.append(folderBadge, useMeta, txt, toolbar);
+            item.append(folderBadge, useMeta, starDisplay, txt, toolbar);
             panelFav.append(item);
         });
 
@@ -6434,8 +6540,8 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                     showFavFolderPickerInSidebar({
                         promptText: content,
                         defaultFolder: targetFolderDefault,
-                        onConfirm: (folder) => {
-                            if (!addFavorite(content, folder)) return;
+                        onConfirm: (folder, rating) => {
+                            if (!addFavorite(content, folder, rating)) return;
                             saveFavorites();
                             showSidebarToast(`已收藏到「${folder}」`);
                             setFolderBadge(folder);
