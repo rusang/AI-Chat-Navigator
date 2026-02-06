@@ -1021,7 +1021,7 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
 `;
 
     const IS_EXTENSION = (typeof chrome !== "undefined" && chrome && chrome.runtime && chrome.runtime.id);
-    if (!IS_EXTENSION) injectStyles(styles);
+    injectStyles(styles);
 
     const SVGS = {
         clear: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
@@ -3084,20 +3084,22 @@ function gnpBuildFileSnapshotFromObj(obj) {
 }
 
 function gnpEqualFavArrays(a, b) {
-    try {
-        const aa = Array.isArray(a) ? a : [];
-        const bb = Array.isArray(b) ? b : [];
-        if (aa.length !== bb.length) return false;
-        for (let i = 0; i < aa.length; i++) {
-            const x = aa[i] || {};
-            const y = bb[i] || {};
-            if (String(x.text || '').trim() !== String(y.text || '').trim()) return false;
-            if (String(x.folder || '默认').trim() !== String(y.folder || '默认').trim()) return false;
-            if ((Number(x.useCount) || 0) !== (Number(y.useCount) || 0)) return false;
-            if ((Number(x.lastUsed) || 0) !== (Number(y.lastUsed) || 0)) return false;
-        }
-        return true;
-    } catch (_) { return false; }
+	try {
+		const aa = Array.isArray(a) ? a : [];
+		const bb = Array.isArray(b) ? b : [];
+		if (aa.length !== bb.length) return false;
+		for (let i = 0; i < aa.length; i++) {
+			const x = aa[i] || {};
+			const y = bb[i] || {};
+			if (String(x.text || '').trim() !== String(y.text || '').trim()) return false;
+			if (String(x.folder || '默认').trim() !== String(y.folder || '默认').trim()) return false;
+			if ((Number(x.useCount) || 0) !== (Number(y.useCount) || 0)) return false;
+			if ((Number(x.lastUsed) || 0) !== (Number(y.lastUsed) || 0)) return false;
+			// [修复] 增加 rating 比较，确保星级变化能触发文件写入
+			if ((Number(x.rating) || 1) !== (Number(y.rating) || 1)) return false;
+		}
+		return true;
+	} catch (_) { return false; }
 }
 
 function gnpEqualStringArrays(a, b) {
@@ -6177,9 +6179,28 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
             const starDisplay = document.createElement('span');
             starDisplay.className = 'gnp-item-stars';
-            const r = Number(favObj.rating) || 1;
-            starDisplay.textContent = '★'.repeat(r); // 重复显示星星
-            starDisplay.title = `${r} 星级`;
+            
+            // [修改] 动态评级：渲染5颗星，支持点击调整
+            const updateStarUI = (currentR) => {
+                starDisplay.innerHTML = '';
+                for (let i = 1; i <= 5; i++) {
+                    const s = document.createElement('span');
+                    s.textContent = i <= currentR ? '★' : '☆';
+                    s.style.cursor = 'pointer';
+                    s.style.padding = '0 0.5px'; 
+                    s.title = `设置 ${i} 星`;
+                    s.onclick = (e) => {
+                        e.stopPropagation();
+                        favObj.rating = i;
+                        updateStarUI(i); // 立即刷新显示
+                        saveFavorites('fav_list'); // 保存并回写文件
+                    };
+                    starDisplay.appendChild(s);
+                }
+                starDisplay.title = `当前 ${currentR} 星 (点击调整)`;
+            };
+            updateStarUI(Number(favObj.rating) || 1);
+
             starDisplay.addEventListener('mousedown', (e) => e.stopPropagation());
 
             const useMeta = document.createElement('span');
