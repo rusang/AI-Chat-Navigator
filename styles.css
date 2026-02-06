@@ -22,13 +22,14 @@
     --gnp-mini-active-bg: rgba(37, 99, 235, 0.14);
     --gnp-mini-active-shadow: 0 10px 24px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.22);
 
-    --gnp-tab-active-bg: rgba(99, 102, 241, 0.30);
-    --gnp-tab-active-fg: rgba(30, 27, 75, 0.98);
-    --gnp-tab-active-shadow: 0 10px 22px rgba(99, 102, 241, 0.24), 0 0 0 2px rgba(99, 102, 241, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-    --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
+    /* [UI优化] 加深选中态背景颜色 (0.3 -> 0.85)，图标改为白色高亮 */
+    --gnp-tab-active-bg: rgba(79, 70, 229, 0.85);
+    --gnp-tab-active-fg: #ffffff;
+    --gnp-tab-active-shadow: 0 8px 20px rgba(79, 70, 229, 0.35), 0 0 0 2px rgba(79, 70, 229, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    --gnp-tab-hover-bg: rgba(15, 23, 42, 0.08);
 
-    --gnp-tab-icon: rgba(15, 23, 42, 0.55);
-    --gnp-tab-icon-active: rgba(15, 23, 42, 0.94);
+    --gnp-tab-icon: rgba(15, 23, 42, 0.60);
+    --gnp-tab-icon-active: #ffffff;
 
     --gnp-btn-bg: rgba(255, 255, 255, 0.70);
     --gnp-btn-hover: rgba(255, 255, 255, 0.92);
@@ -97,13 +98,14 @@
         --gnp-mini-active-bg: rgba(96, 165, 250, 0.18);
         --gnp-mini-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(96, 165, 250, 0.26);
 
-        --gnp-tab-active-bg: rgba(129, 140, 248, 0.30);
-        --gnp-tab-active-fg: rgba(238, 242, 255, 0.98);
-        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(129, 140, 248, 0.70), 0 10px 26px rgba(129, 140, 248, 0.22);
-        --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
+        /* [UI优化] 深色模式选中态加深 */
+        --gnp-tab-active-bg: rgba(99, 102, 241, 0.75);
+        --gnp-tab-active-fg: #ffffff;
+        --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(99, 102, 241, 0.60), 0 10px 26px rgba(99, 102, 241, 0.25);
+        --gnp-tab-hover-bg: rgba(148, 163, 184, 0.20);
 
-        --gnp-tab-icon: rgba(248, 250, 252, 0.62);
-        --gnp-tab-icon-active: rgba(248, 250, 252, 0.96);
+        --gnp-tab-icon: rgba(248, 250, 252, 0.70);
+        --gnp-tab-icon-active: #ffffff;
 
         --gnp-btn-bg: rgba(31, 41, 55, 0.82);
         --gnp-btn-hover: rgba(55, 65, 81, 0.90);
