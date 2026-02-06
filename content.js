@@ -5057,20 +5057,9 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
     document.addEventListener('keydown', (e) => {
         const key = (e.key || '').toLowerCase();
 
-        // Esc：取消多选
-        if (key === 'escape') {
-            if (!sidebar || sidebar.classList.contains('collapsed')) return;
-            if (selectedItems.size === 0) return;
-            const t = e.target;
-            // 不干扰弹层/输入区域的 Esc
-            if (t && t.closest && t.closest('.gnp-confirm-overlay, .gnp-global-overlay')) return;
-            const tag = t && t.tagName ? t.tagName.toLowerCase() : '';
-            if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
-            clearMultiSelection();
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-        }
+        // [修改] Esc：取消多选
+        // 原有的此处逻辑已移除，统一合并到下方的 window.addEventListener('keydown') 中处理
+        // 以避免多处监听导致的冲突和优先级问题。
 
         if (!(key === 'a' && (e.metaKey || e.ctrlKey))) return;
 
@@ -5924,24 +5913,55 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             } catch (_) {}
             item.draggable = true;
 
-            // --- 多选逻辑注入 ---
+// --- 多选逻辑注入 ---
             item.onclick = (e) => {
-                if (e.metaKey || e.ctrlKey) {
-                    e.stopPropagation();
-                    e.preventDefault();
+                e.stopPropagation();
+
+                const isMulti = e.metaKey || e.ctrlKey;
+
+                // 1. 数据层更新
+                if (isMulti) {
+                    // 多选模式：切换状态（保留之前的选中项）
                     if (selectedItems.has(favText)) {
                         selectedItems.delete(favText);
-                        item.classList.remove('multi-selected');
                     } else {
                         selectedItems.add(favText);
-                        item.classList.add('multi-selected');
                     }
-                    updateBatchBar();
-                    return;
+                } else {
+                    // 普通单击：单独选中当前项（支持渐进式多选）
+                    // 如果当前项已经是唯一选中项，则取消选中
+                    if (selectedItems.size === 1 && selectedItems.has(favText)) {
+                        selectedItems.clear();
+                    } else {
+                        // 否则：清空其他，只选中当前项
+                        selectedItems.clear();
+                        selectedItems.add(favText);
+                    }
                 }
-                e.stopPropagation();
-                if (selectedItems.size > 0) { clearMultiSelection(); }
-                syncKeyboardSelectionToClickedItem(item);
+                
+                // 2. 视觉层同步 (处理重复项高亮)
+                const panel = item.closest('.content-panel');
+                if (panel) {
+                    // 清除所有高亮
+                    panel.querySelectorAll('.gemini-nav-item.multi-selected').forEach(el => {
+                        el.classList.remove('multi-selected');
+                    });
+                    
+                    // 根据 selectedItems 重新添加高亮
+                    panel.querySelectorAll('.gemini-nav-item').forEach(el => {
+                        const promptText = el.dataset.prompt;
+                        if (selectedItems.has(promptText)) {
+                            el.classList.add('multi-selected');
+                        }
+                    });
+                }
+                
+                updateBatchBar();
+                
+                // 同步键盘选择（用于上下键导航）
+                if (!isMulti) {
+                    syncKeyboardSelectionToClickedItem(item);
+                }
             };
 
             item.ondragstart = (e) => {
@@ -6197,25 +6217,55 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             txt.className = `item-text ${densityClass}`;
             txt.innerHTML = `<span class="item-index">${i + 1}.</span> ${content}`;
 
-            // --- 多选逻辑 ---
+			// --- 多选逻辑 ---
             item.onclick = (e) => {
-                if (e.metaKey || e.ctrlKey) {
-                    e.stopPropagation();
-                    e.preventDefault();
+                e.stopPropagation();
+
+                const isMulti = e.metaKey || e.ctrlKey;
+
+                // 1. 数据层更新
+                if (isMulti) {
+                    // 多选模式：切换状态（保留之前的选中项）
                     if (selectedItems.has(content)) {
                         selectedItems.delete(content);
-                        item.classList.remove('multi-selected');
                     } else {
                         selectedItems.add(content);
-                        item.classList.add('multi-selected');
                     }
-                    updateBatchBar();
-                    return;
+                } else {
+                    // 普通单击：单独选中当前项（支持渐进式多选）
+                    // 如果当前项已经是唯一选中项，则取消选中
+                    if (selectedItems.size === 1 && selectedItems.has(content)) {
+                        selectedItems.clear();
+                    } else {
+                        // 否则：清空其他，只选中当前项
+                        selectedItems.clear();
+                        selectedItems.add(content);
+                    }
                 }
-                e.stopPropagation();
-                if (selectedItems.size > 0) { clearMultiSelection(); }
-                // 单击：仅同步键盘选中（与↑↓一致，不自动定位/填入）
-                syncKeyboardSelectionToClickedItem(item);
+                
+                // 2. 视觉层同步
+                const panel = item.closest('.content-panel');
+                if (panel) {
+                    // 清除所有高亮
+                    panel.querySelectorAll('.gemini-nav-item.multi-selected').forEach(el => {
+                        el.classList.remove('multi-selected');
+                    });
+                    
+                    // 根据 selectedItems 重新添加高亮
+                    panel.querySelectorAll('.gemini-nav-item').forEach(el => {
+                        const promptText = el.dataset.prompt;
+                        if (selectedItems.has(promptText)) {
+                            el.classList.add('multi-selected');
+                        }
+                    });
+                }
+                
+                updateBatchBar();
+                
+                // 同步键盘选择（用于上下键导航）
+                if (!isMulti) {
+                    syncKeyboardSelectionToClickedItem(item);
+                }
             };
 
             // 双击：定位到对话中的原始位置（保留原功能）
@@ -6394,22 +6444,30 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             if (key !== 'Escape' && key !== 'Esc') return;
 
             // [新增] Esc 优先取消多选 (全局生效，无需鼠标悬停侧边栏)
-            // 逻辑：只要有选中项(selectedItems > 0)，Esc 就专用于取消选择，并阻止后续事件
+            // 逻辑：只要有选中项(selectedItems > 0)，Esc 就专用于取消选择
             if (typeof selectedItems !== 'undefined' && selectedItems.size > 0) {
+                // 1. 关键检查：如果当前有“确认弹窗”或“编辑弹窗”打开，Esc 应该优先关闭弹窗
+                // 此时不要取消底层的多选状态，直接 return 让弹窗自己的监听器去处理 Esc
+                if (document.querySelector('.gnp-confirm-overlay, .gnp-global-overlay')) {
+                    return; 
+                }
+
+                // 2. 执行取消多选
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // 调用现有的清理函数 (如果存在)
                 if (typeof clearMultiSelection === 'function') {
                     clearMultiSelection();
                 } else {
-                    // 兜底逻辑：手动清理
+                    // 兜底逻辑
                     selectedItems.clear();
-                    document.querySelectorAll('.gnp-selected').forEach(el => el.classList.remove('gnp-selected'));
-                    const batchBar = document.querySelector('.gnp-batch-bar');
-                    if (batchBar) batchBar.classList.remove('visible');
+                    // 兼容可能使用的不同类名
+                    document.querySelectorAll('.gemini-nav-item.multi-selected, .gnp-selected').forEach(el => {
+                        el.classList.remove('multi-selected', 'gnp-selected');
+                    });
+                    if (typeof updateBatchBar === 'function') updateBatchBar();
                 }
-                return; // 关键：阻止代码继续向下执行（防止误关侧边栏）
+                return; // 阻止后续逻辑（如折叠侧边栏）
             }
 
             if (!sidebar || !gnpSidebarHovering) return;
