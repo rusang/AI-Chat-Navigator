@@ -17,16 +17,22 @@
 (function() {
     'use strict';
 
-    console.log('[GNP v8.0] Script loaded at:', new Date().toISOString());
-    console.log('[GNP] Location:', location.href);
-    console.log('[GNP] Document ready state:', document.readyState);
+    // --- 调试开关（生产环境应设为 false）---
+    const DEBUG = false;
+    const log = DEBUG ? console.log.bind(console, '[GNP]') : () => {};
+    const logError = console.error.bind(console, '[GNP ERROR]');
+
+    // 调试日志（生产环境可通过修改 DEBUG 开关控制）
+    log('[GNP v8.0] Script loaded at:', new Date().toISOString());
+    log('[GNP] Location:', location.href);
+    log('[GNP] Document ready state:', document.readyState);
 
     // --- 0. 环境检测 ---
     const IS_CHATGPT = location.hostname.includes('chatgpt.com') || location.hostname.includes('openai.com');
     const IS_CLAUDE = location.hostname.includes('claude.ai');
-    
-    console.log('[GNP] Environment:', { IS_CHATGPT, IS_CLAUDE, hostname: location.hostname });
-    
+
+    log('[GNP] Environment:', { IS_CHATGPT, IS_CLAUDE, hostname: location.hostname });
+
 	const SITE_CONFIG = {
 	gemini: {
 		// Gemini 策略：优先寻找 query-text 类，其次寻找包含特定属性的容器
@@ -55,14 +61,14 @@
 		promptSelector: [
 			// 1. 黄金标准：属性选择器 (最稳)
 			'div[data-message-author-role="user"]',
-			
+
 			// 2. 结构特征：通过父级 conversation-turn 锁定
 			'article[data-testid*="conversation-turn"] div[data-message-author-role="user"]',
-			
+
 			// 3. 特征检测：利用 :has() 寻找包含"用户"相关特征的块
 			// (注意：这会选中包含头像的行，需要确保后续 innerText 提取逻辑兼容)
 			'div.group:has([data-message-author-role="user"])', 
-			
+
 			// 4. 备用：旧版选择器
 			'li[data-message-author-role="user"]'
 		],
@@ -86,17 +92,17 @@
 			// 1. 官方测试钩子 (最稳)
 			'div[data-testid="user-message"]',
 			'div[data-testid="user-human-turn"]',
-			
+
 			// 2. 字体特征类名 (较稳)
 			'.font-user-message',
-			
+
 			// 3. 结构特征：通过 :has 寻找包含特定头像或图标的网格行
 			// 寻找包含 "user" 样式头像的父容器对应的文本区域
 			'div:has(> div > svg[aria-label="User"]) + div', 
-			
+
 			// 4. 模糊类名匹配 (防止 hash 变动)
 			'div[class*="user-message"]',
-			
+
 			// 5. 备用层级结构
 			'div[data-is-streaming="false"] .font-user-message'
 		],
@@ -112,7 +118,7 @@
 			'button:has(svg)' // 最后的兜底
 		]
 	}};
-    
+
     const CURRENT_CONFIG = IS_CLAUDE ? SITE_CONFIG.claude : (IS_CHATGPT ? SITE_CONFIG.chatgpt : SITE_CONFIG.gemini);
 
     // --- 0.1 选择器与注入工具函数（ChatGPT 兼容 & CSP 兼容） ---
@@ -415,7 +421,7 @@
 
         #gemini-nav-sidebar.collapsed.snapped-left { width: 6px !important; border-radius: 0 6px 6px 0 !important; left: 0 !important; border-left: none; background: var(--gnp-scroll-thumb) !important; box-shadow: 0 0 0 1px var(--gnp-collapsed-border); }
         #gemini-nav-sidebar.collapsed.snapped-left:hover { background: color-mix(in srgb, var(--gnp-active-border) 80%, transparent) !important; width: 8px !important; }
-        
+
         .gemini-nav-item {
             position: relative; display: block;
             padding: 8px 12px;
@@ -446,7 +452,7 @@
             color: var(--gnp-active-text);
             font-weight: 500;
         }
-        
+
         /* 多选选中态 */
         .gemini-nav-item.multi-selected {
             background: var(--gnp-multi-select-bg) !important;
@@ -608,7 +614,7 @@
         .nav-tab .icon-svg { width: 11px; height: 11px; stroke-width: 2.5; stroke: currentColor !important; fill: none !important; }
         .nav-tab.active .icon-svg { stroke: currentColor !important; fill: none !important; }
         .header-circle-btn .icon-svg { width: 11px; height: 11px; }
-        
+
         #gemini-progress-container { width: 100%; height: 3px; background: rgba(0,0,0,0.05); border-radius: 2px; overflow: hidden; margin-top: 4px; }
         #gemini-progress-bar { height: 100%; width: 0%; background: var(--gnp-progress-bg); transition: width 0.3s; }
 
@@ -616,7 +622,7 @@
         #gemini-nav-content-wrapper::-webkit-scrollbar { width: 6px; } 
         #gemini-nav-content-wrapper::-webkit-scrollbar-thumb { background: var(--gnp-scroll-thumb); border-radius: 4px; transition: background 0.3s; }
         #gemini-nav-content-wrapper::-webkit-scrollbar-thumb:hover { background: var(--gnp-scroll-thumb-hover); }
-        
+
         .content-panel { display: none; }
         .content-panel.active { display: block; }
 
@@ -655,7 +661,7 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
         .gnp-btn-cancel { background: transparent; color: var(--gnp-text-main); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; border: 1px solid var(--gnp-border); }
         .gnp-btn-cancel:hover { background: var(--gnp-hover-bg); }
 
-        
+
         /* 全屏居中编辑弹窗（用于收藏编辑） */
         .gnp-global-overlay { position: fixed; inset: 0; background: var(--gnp-modal-overlay); z-index: 2147483647; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
         .gnp-global-box { width: min(760px, 86vw); max-height: 82vh; background: var(--gnp-modal-bg); border: 1px solid var(--gnp-border); border-radius: 14px; box-shadow: 0 22px 70px rgba(0,0,0,0.22); padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -679,7 +685,7 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
             z-index: 100000;
             pointer-events: none;
         }
-    
+
 
         /* 收藏：顶部操作图标按钮（避免文字层叠） */
         .gnp-danger-btn { color: var(--gnp-danger-text) !important; background: rgba(217,48,37,0.08) !important; }
@@ -723,7 +729,7 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
             #gemini-nav-tabs { background: rgba(148, 163, 184, 0.10); }
         }
 
-        
+
         /* 导航：使用时间徽标（顶部右侧，不占行） */
         .gnp-nav-use-meta{
             position: absolute;
@@ -1005,9 +1011,9 @@ chatTop: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"c
         check: `✔`,
         star: `★`,
         lightning: `⚡`,
-        
+
         nav: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>`,
-        
+
         fileImport: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12 18v-6"></path><polyline points="9 15 12 12 15 15"></polyline></svg>`,
         starTab: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`
     };
@@ -1099,7 +1105,7 @@ function ensureHoverPreviewEl() {
         scheduleHideHoverPreview(120);
     });
 
-        
+
 
     return gnpHoverPreviewEl;
 }
@@ -1581,7 +1587,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
     lockBtn.id = 'gemini-nav-lock';
     lockBtn.className = 'header-circle-btn';
     lockBtn.title = '锁定/自动隐藏';
-    
+
     const topBtn = document.createElement('div');
     topBtn.id = 'gemini-nav-top';
     topBtn.className = 'header-circle-btn';
@@ -1593,8 +1599,8 @@ window.addEventListener('resize', repositionHoverPreview, true);
     bottomBtn.className = 'header-circle-btn';
     bottomBtn.title = '直达列表底部';
     bottomBtn.innerHTML = SVGS.bottom;
-    
-    
+
+
     const chatTopBtn = document.createElement('div');
     chatTopBtn.id = 'gemini-nav-chat-top';
     chatTopBtn.className = 'header-circle-btn';
@@ -1613,7 +1619,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
     locateBtn.title = '定位当前 Prompt（居中显示）';
     locateBtn.innerHTML = SVGS.locate;
 
-    
+
     const autoSendBtn = document.createElement('div');
     autoSendBtn.id = 'gemini-nav-autosend';
     autoSendBtn.className = 'header-circle-btn';
@@ -1638,23 +1644,23 @@ window.addEventListener('resize', repositionHoverPreview, true);
 
     const tabsContainer = document.createElement('div');
     tabsContainer.id = 'gemini-nav-tabs';
-    
+
     const tabNav = document.createElement('div');
     tabNav.className = 'nav-tab active';
     tabNav.title = '目录';
     tabNav.innerHTML = SVGS.nav; 
     tabNav.dataset.target = 'panel-nav';
-    
+
     const tabFav = document.createElement('div');
     tabFav.className = 'nav-tab';
     tabFav.title = '收藏';
     tabFav.innerHTML = SVGS.starTab; 
     tabFav.dataset.target = 'panel-fav';
-    
+
     tabsContainer.append(tabNav, tabFav);
-    
+
     headerRow.append(headerControls, tabsContainer);
-    
+
     const progressContainer = document.createElement('div');
     progressContainer.id = 'gemini-progress-container';
     const progressBar = document.createElement('div');
@@ -1722,7 +1728,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
     // ===== Debounce Storage机制 (v8.0新增) =====
     let storageQueue = {};
     let storageFlushTimer = null;
-    
+
     function debouncedSetStorage(key, value, delay = 300) {
         storageQueue[key] = value;
         clearTimeout(storageFlushTimer);
@@ -1730,7 +1736,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
             flushStorage();
         }, delay);
     }
-    
+
     function flushStorage() {
         try {
             for (const [key, value] of Object.entries(storageQueue)) {
@@ -1741,7 +1747,7 @@ window.addEventListener('resize', repositionHoverPreview, true);
             console.warn('[GNP] Storage flush failed:', e);
         }
     }
-    
+
     // 确保页面卸载时写入
     window.addEventListener('beforeunload', flushStorage);
 
@@ -2962,7 +2968,7 @@ function gnpSortObjectKeys(obj) {
     };
 }
 
-    
+
 function gnpBuildFavoritesFilePayloadFromState(favArrIn, folderArrIn, tombIn, folderTombIn, folderRestoreIn, favRestoreIn = null) {
     // Like gnpBuildFavoritesFilePayload(), but for a provided merged state (avoid relying on possibly stale in-memory vars).
     const favArr = (Array.isArray(favArrIn) ? favArrIn : []).map(f => ({
@@ -3295,7 +3301,7 @@ function gnpScheduleWriteFavoritesJsonFile(reason = '') {
 
         try {
             const obj = JSON.parse(text);
-			
+
 			// ============================================================
             // [FIX START] 关键修复：从文件加载删除记录，并立即清理内存中的僵尸数据
             // ============================================================
@@ -3303,7 +3309,7 @@ function gnpScheduleWriteFavoritesJsonFile(reason = '') {
                 // 1. 读取并合并文件中的 Tombstones (删除记录)
                 const fileDel = (obj.deletedFavorites && typeof obj.deletedFavorites === 'object' && !Array.isArray(obj.deletedFavorites)) ? obj.deletedFavorites : {};
                 const fileRes = (obj.restoredFavorites && typeof obj.restoredFavorites === 'object' && !Array.isArray(obj.restoredFavorites)) ? obj.restoredFavorites : {};
-                
+
                 // 将文件的删除记录合并到当前内存变量中
                 deletedFavorites = gnpMergeTombstones(fileDel, deletedFavorites);
                 restoredFavorites = gnpMergeTombstones(fileRes, restoredFavorites);
@@ -3319,7 +3325,7 @@ function gnpScheduleWriteFavoritesJsonFile(reason = '') {
                         // 如果在删除记录里且没有被复活，就从列表中剔除
                         return !(deletedFavorites[t] && Number(deletedFavorites[t]) > 0);
                     });
-                    
+
                     // 如果确实清理了僵尸数据，触发一次保存，把清洗后的结果同步回 Storage
                     if (favorites.length !== countBefore) {
                         saveFavorites('fav_list');
@@ -3344,13 +3350,13 @@ function gnpScheduleWriteFavoritesJsonFile(reason = '') {
             try { console.warn('[GNP] Fav JSON parse failed:', e); } catch (_) {}
             gnpToastSafe('本地JSON文件解析失败：请检查 JSON 格式。');
         }
-    
+
     // 启动文件同步监听（跨实例：轮询文件；同一浏览器：storage 广播触发 reload）
     try { gnpStartFavFilePolling(); } catch (_) {}
 }
 
 
-    
+
 function gnpDebouncedReloadFavoritesFromJsonFile(trigger = '') {
     try {
         clearTimeout(gnpFavFileReloadTimer);
@@ -3395,35 +3401,35 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
     // 问题：gnpMergeFavorites使用text作为key，无法检测到手动修改text内容的情况
     // 解决：采用文件优先策略，只有文件中不存在时才使用本地数据
     // ==============================================================
-    
+
     // 建立索引
     const fileMap = new Map();
     (snap.favorites || []).forEach(f => {
         const t = String(f.text || '').trim();
         if (t) fileMap.set(t, f);
     });
-    
+
     const localMap = new Map();
     (favorites || []).forEach(f => {
         const t = String(f.text || '').trim();
         if (t) localMap.set(t, f);
     });
-    
+
     // 合并：文件优先
     const mergedFavList = [];
     const processed = new Set();
-    
+
     // 1. 先添加文件中的所有条目（保持文件顺序，text/folder以文件为准）
     // 重要：如果prompt在文件的favorites数组里，自动忽略墓碑记录（自动复活）
     (snap.favorites || []).forEach(fileItem => {
         const t = String(fileItem.text || '').trim();
         if (!t) return;
         if (processed.has(t)) return;
-        
+
         // ===== 关键修改：文件中的favorites优先，自动复活 =====
         // 如果prompt在文件的favorites里，说明用户手动添加了，应该显示
         // 不再检查墓碑：if (mergedTombs[t] && Number(mergedTombs[t]) > 0) return;
-        
+
         // 如果这个prompt在墓碑里，自动添加到复活记录
         if (mergedTombs[t] && Number(mergedTombs[t]) > 0) {
             const now = Date.now();
@@ -3432,9 +3438,9 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
             console.log('[GNP] Auto-restored from tombstone:', t);
         }
         // ====================================================
-        
+
         const localItem = localMap.get(t);
-        
+
         // text/folder以文件为准，metadata取最大值
         const merged = {
             text: t,
@@ -3442,11 +3448,11 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
             useCount: localItem ? Math.max(Number(fileItem.useCount)||0, Number(localItem.useCount)||0) : (Number(fileItem.useCount)||0),
             lastUsed: localItem ? Math.max(Number(fileItem.lastUsed)||0, Number(localItem.lastUsed)||0) : (Number(fileItem.lastUsed)||0)
         };
-        
+
         mergedFavList.push(merged);
         processed.add(t);
     });
-    
+
     // 2. 添加本地有但文件中没有的（可能是刚添加还没写入）
     (favorites || []).forEach(localItem => {
         const t = String(localItem.text || '').trim();
@@ -3454,7 +3460,7 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
         if (processed.has(t)) return;
         if (mergedTombs[t] && Number(mergedTombs[t]) > 0) return;
         if (fileMap.has(t)) return; // 已在步骤1处理
-        
+
         mergedFavList.push({
             text: t,
             folder: localItem.folder || '默认',
@@ -3463,13 +3469,13 @@ async function gnpReloadFavoritesFromJsonFile(trigger = '') {
         });
         processed.add(t);
     });
-    
+
     const mergedFav = mergedFavList;
     // ==============================================================
-    
+
     // 更新合并后的restoredFavorites（包含自动复活的记录）
     const mergedRestoresUpdated = gnpPruneByTsMap(restoredFavorites, 5000);
-    
+
     const mergedFolders = gnpMergeFolders(snap.folders || [], folders || [], mergedFav, mergedFolderTombs, mergedFolderRestores);
 
     // 是否发生变化
@@ -3857,15 +3863,19 @@ const saveFavorites = (mode = 'fav_list') => {
     };
     saveFolders();
     saveFavorites();
-    
+
     let isAutoHideEnabled = JSON.parse(localStorage.getItem(STORAGE_KEY_HIDE)) ?? true;
     let isAutoSendEnabled = JSON.parse(localStorage.getItem(STORAGE_KEY_AUTOSEND)) ?? false;
-    
+
     // --- 多选状态 ---
     let selectedItems = new Set(); 
     let inMultiSelectMode = false; // 标记：是否已进入多选模式（显示批量栏）
 
+    // --- 性能优化：定时器集中管理 ---
     let autoHideTimer = null;
+    let searchDebounceTimer = null;
+    let clickTimers = new Map(); // 双击检测：存储每个 item 的点击定时器
+
     let isSelectInteracting = false;
 	// 当用户正在操作收藏页“文件夹筛选”下拉框时，避免 2s 级别的自动刷新重绘。
 	// 否则重绘会销毁 <select> 并导致下拉菜单自动消失。
@@ -3922,7 +3932,7 @@ const saveFavorites = (mode = 'fav_list') => {
         updateHeaderUI();
         if (!isAutoHideEnabled) { clearTimeout(autoHideTimer); sidebar.classList.remove('collapsed'); }
     };
-    
+
     topBtn.onclick = (e) => {
         e.stopPropagation();
         contentWrapper.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3973,12 +3983,12 @@ const saveFavorites = (mode = 'fav_list') => {
             'div[data-message-author-role="user"]', 
             'div[data-message-author-role="assistant"]'
         ];
-        
+
         let allMessages = [];
         for (const sel of selectors) {
             allMessages.push(...document.querySelectorAll(sel));
         }
-        
+
         let lastMessage = null;
         if (allMessages.length > 0) {
             const combinedSelector = selectors.join(',');
@@ -4031,7 +4041,7 @@ const saveFavorites = (mode = 'fav_list') => {
         element.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    
+
     locateBtn.onclick = (e) => {
         e.stopPropagation();
         // 若当前在收藏页，则切回目录页后再定位
@@ -4139,7 +4149,7 @@ clearBtn.onclick = (e) => {
 
         inputEl.focus();
         setPromptValue(inputEl, text);
-        
+
         if (isAutoSendEnabled) {
             let checkCount = 0;
             const checkInterval = setInterval(() => {
@@ -4928,27 +4938,27 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         batchBar.replaceChildren();
         // 多选模式（选中>=2条）时隐藏每条Prompt右下角工具图标，避免误触
         sidebar.classList.toggle('gnp-multi-mode', selectedItems.size >= 2);
-        
+
         // 关键修改：只有在 inMultiSelectMode 为 true 时才显示批量栏
         if (!inMultiSelectMode || selectedItems.size === 0) {
             batchBar.classList.remove('visible');
             return;
         }
-        
+
         batchBar.classList.add('visible');
         const countSpan = document.createElement('span');
         countSpan.textContent = `已选 ${selectedItems.size} 项`;
-        
+
         const isFavTab = panelFav.classList.contains('active');
-        
+
         const actionBtn = document.createElement('span');
         actionBtn.className = `batch-btn ${isFavTab ? 'action-delete' : 'action-save'}`;
         actionBtn.textContent = isFavTab ? '删除' : '收藏';
-        
+
         actionBtn.onclick = (e) => {
             e.stopPropagation();
             const items = Array.from(selectedItems);
-            
+
             if (isFavTab) {
                 // 批量删除（使用导航窗口内确认框，避免浏览器原生 confirm 弹窗）
                 showConfirmInSidebar({
@@ -4961,7 +4971,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                         try {
                             if (!deletedFavorites) deletedFavorites = {};
                             if (!restoredFavorites) restoredFavorites = {};
-                            
+
                             selectedItems.forEach(text => {
                                 deletedFavorites[text] = now;
                                 // 同时清理复活标记（以本次删除为准）
@@ -4979,7 +4989,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             } else {
                 // 批量收藏 - 修改为弹窗选择文件夹
                 const targetFolderDefault = (favFolderFilter && favFolderFilter !== '全部') ? favFolderFilter : '默认';
-                
+
                 // 构造预览文本：显示第一条 + 剩余数量提示
                 const firstItem = items[0] || '';
                 const previewTxt = items.length > 1 
@@ -5017,7 +5027,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                 });
             }
         };
-        
+
         const cancelBtn = document.createElement('span');
         cancelBtn.className = 'batch-btn action-cancel';
         cancelBtn.textContent = '取消';
@@ -5028,8 +5038,53 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             activePanel.querySelectorAll('.gemini-nav-item.multi-selected').forEach(el => el.classList.remove('multi-selected'));
             updateBatchBar();
         };
-        
+
+        // 批量移动按钮（仅在收藏面板显示）
+        if (isFavTab) {
+            const moveBtn = document.createElement('span');
+            moveBtn.className = 'batch-btn action-move';
+            moveBtn.textContent = '移动到';
+            moveBtn.title = '将选中的收藏移动到其他文件夹';
+            moveBtn.onclick = (e) => {
+                e.stopPropagation();
+                const items = Array.from(selectedItems);
+
+                // 弹出文件夹选择器
+                showFavFolderPickerInSidebar({
+                    promptText: `已选中 ${items.length} 个收藏`,
+                    defaultFolder: '默认',
+                    titleText: '批量移动',
+                    descText: `将选中的 ${items.length} 个收藏移动到哪个文件夹？`,
+                    confirmText: '移动',
+                    onConfirm: (targetFolder) => {
+                        let movedCount = 0;
+
+                        // 更新每个收藏的文件夹
+                        favorites.forEach(fav => {
+                            if (selectedItems.has(fav.text)) {
+                                fav.folder = targetFolder;
+                                movedCount++;
+                            }
+                        });
+
+                        // 保存并刷新
+                        if (movedCount > 0) {
+                            saveFavorites();
+                            selectedItems.clear();
+                            renderFavorites();
+                            updateBatchBar();
+                            showSidebarToast(`已将 ${movedCount} 项移动到「${targetFolder}」`);
+                        }
+                    }
+                });
+            };
+
+            // 按钮顺序：计数 | 移动到 | 删除 | 取消
+            batchBar.append(countSpan, moveBtn, actionBtn, cancelBtn);
+        } else {
+            // 导航面板：计数 | 收藏 | 取消
         batchBar.append(countSpan, actionBtn, cancelBtn);
+    }
     }
 
     // Command/Ctrl + A：在侧边栏的导航/收藏面板中全选 prompt
@@ -5124,11 +5179,12 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             [tabNav, tabFav].forEach(t => t.classList.remove('active')); tab.classList.add('active');
             [panelNav, panelFav].forEach(p => p.classList.remove('active'));
             document.getElementById(tab.dataset.target).classList.add('active');
-            
-            // 清除多选状态
+
+            // 清除多选状态（修复：添加 inMultiSelectMode 重置）
+            inMultiSelectMode = false;
             selectedItems.clear();
             updateBatchBar();
-            
+
             if (tab.dataset.target === 'panel-fav') {
                 renderFavorites();
             } else {
@@ -5832,7 +5888,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             sidebar.appendChild(overlay);
         };
 
-        
+
 
         const importJsonBtn = document.createElement('div');
         importJsonBtn.className = 'header-circle-btn gnp-import-json-btn';
@@ -5928,7 +5984,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                 if (isMulti) {
                     // Command/Ctrl + 单击：进入多选模式
                     inMultiSelectMode = true; // 进入多选模式
-                    
+
                     if (selectedItems.has(favText)) {
                         selectedItems.delete(favText);
                     } else {
@@ -5940,7 +5996,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                     selectedItems.clear();
                     selectedItems.add(favText);
                 }
-                
+
                 // 2. 视觉层同步
                 const panel = item.closest('.content-panel');
                 if (panel) {
@@ -5948,7 +6004,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                     panel.querySelectorAll('.gemini-nav-item.multi-selected').forEach(el => {
                         el.classList.remove('multi-selected');
                     });
-                    
+
                     // 仅在多选模式下显示高亮
                     if (inMultiSelectMode) {
                         panel.querySelectorAll('.gemini-nav-item').forEach(el => {
@@ -5959,9 +6015,9 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                         });
                     }
                 }
-                
+
                 updateBatchBar(); // 根据 inMultiSelectMode 决定是否显示批量栏
-                
+
                 // 同步键盘选择（用于上下键导航）
                 if (!isMulti) {
                     syncKeyboardSelectionToClickedItem(item);
@@ -6155,7 +6211,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
         const activeNav = document.querySelector(`.gemini-nav-item[data-original-index="${currentActiveIndex}"]`);
         if (activeNav) activeNav.classList.add('active-current');
     }
-    
+
     function scrollToActive() {
         setTimeout(() => {
             const activeNav = document.querySelector('.gemini-nav-item.active-current');
@@ -6168,15 +6224,15 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 	function refreshNav(force = false) {
         if (!panelNav.classList.contains('active')) return;
         const blocks = qsaAll(CURRENT_CONFIG.promptSelector, getChatRoot());
-        
+
         if (!observer) setupScrollObserver();
-        
+
         // [Fix v2] 生成当前页面指纹
         const currentSig = generatePageSignature(blocks);
 
         // 如果指纹未变且非强制刷新，直接跳过
         if (!force && currentSig === lastPageSignature) return;
-        
+
         // 更新指纹记录
         lastPageSignature = currentSig;
         setupScrollObserver();
@@ -6211,7 +6267,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             item.dataset.gnpSource = 'nav';
             bindHoverPreviewToItem(item);
             item.dataset.originalIndex = originalIndex; 
-            
+
             if (originalIndex === currentActiveIndex) item.classList.add('active-current');
             if (isFav) item.classList.add('is-favorite');
 
@@ -6231,7 +6287,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                 if (isMulti) {
                     // Command/Ctrl + 单击：进入多选模式
                     inMultiSelectMode = true; // 进入多选模式
-                    
+
                     if (selectedItems.has(content)) {
                         selectedItems.delete(content);
                     } else {
@@ -6243,7 +6299,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                     selectedItems.clear();
                     selectedItems.add(content);
                 }
-                
+
                 // 2. 视觉层同步
                 const panel = item.closest('.content-panel');
                 if (panel) {
@@ -6251,7 +6307,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                     panel.querySelectorAll('.gemini-nav-item.multi-selected').forEach(el => {
                         el.classList.remove('multi-selected');
                     });
-                    
+
                     // 仅在多选模式下显示高亮
                     if (inMultiSelectMode) {
                         panel.querySelectorAll('.gemini-nav-item').forEach(el => {
@@ -6262,9 +6318,9 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                         });
                     }
                 }
-                
+
                 updateBatchBar(); // 根据 inMultiSelectMode 决定是否显示批量栏
-                
+
                 // 同步键盘选择（用于上下键导航）
                 if (!isMulti) {
                     syncKeyboardSelectionToClickedItem(item);
@@ -6349,7 +6405,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             starBtn.className = `mini-btn star-btn ${isFav ? 'is-fav' : ''}`;
             starBtn.textContent = isFav ? '★' : '☆';
             starBtn.title = isFav ? '取消收藏' : '收藏';
-            
+
             starBtn.onclick = (e) => {
                 e.stopPropagation();
                 if (!hasFavorite(content)) {
@@ -6389,7 +6445,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             item.append(txt, toolbar); 
             panelNav.append(item);
         });
-        
+
         if (searchInput.value) searchInput.dispatchEvent(new Event('input'));
         restoreKeyboardSelection(panelNav);
 }
@@ -6458,7 +6514,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                 // 2. 执行取消多选
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 if (typeof clearMultiSelection === 'function') {
                     clearMultiSelection();
                 } else {
@@ -6590,7 +6646,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             [tabNav, tabFav].forEach(t => t.classList.remove('active')); tab.classList.add('active');
             [panelNav, panelFav].forEach(p => p.classList.remove('active'));
             document.getElementById(tab.dataset.target).classList.add('active');
-            
+
             if (tab.dataset.target === 'panel-fav') {
                 renderFavorites();
             } else {
@@ -6696,36 +6752,36 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
     // ===== Theme Management System (v8.0新增) =====
     let currentThemeMode = 'auto'; // 'auto' | 'light' | 'dark'
-    
+
     function detectPageTheme() {
         const html = document.documentElement;
         const body = document.body;
-        
+
         const dataTheme = html.getAttribute('data-theme') || body.getAttribute('data-theme');
         const dataColorMode = html.getAttribute('data-color-mode') || body.getAttribute('data-color-mode');
         const htmlClass = (html.className || '').toLowerCase();
         const bodyClass = (body.className || '').toLowerCase();
-        
+
         if (dataTheme === 'dark' || dataColorMode === 'dark' || 
             htmlClass.includes('dark') || bodyClass.includes('dark')) {
             return 'dark';
         }
-        
+
         if (dataTheme === 'light' || dataColorMode === 'light' ||
             htmlClass.includes('light') || bodyClass.includes('light')) {
             return 'light';
         }
-        
+
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             return 'dark';
         }
-        
+
         return 'light';
     }
-    
+
     function applyTheme(mode) {
         if (!sidebar) return;
-        
+
         if (mode === 'auto') {
             sidebar.removeAttribute('data-gnp-theme');
             document.documentElement.removeAttribute('data-gnp-theme');
@@ -6733,35 +6789,35 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             sidebar.setAttribute('data-gnp-theme', mode);
             document.documentElement.setAttribute('data-gnp-theme', mode);
         }
-        
+
         currentThemeMode = mode;
         try {
             localStorage.setItem(STORAGE_KEY_THEME, JSON.stringify(mode));
         } catch (_) {}
         updateThemeIcon();
     }
-    
+
     function cycleTheme() {
         const modes = ['auto', 'light', 'dark'];
         const currentIndex = modes.indexOf(currentThemeMode);
         const nextMode = modes[(currentIndex + 1) % modes.length];
         applyTheme(nextMode);
     }
-    
+
     function updateThemeIcon() {
         const themeBtnEl = document.getElementById('gemini-nav-theme');
         if (!themeBtnEl) return;
-        
+
         const icons = {
             'auto': '🌗',
             'light': '☀️',
             'dark': '🌙'
         };
-        
+
         themeBtnEl.textContent = icons[currentThemeMode] || '🌗';
         themeBtnEl.title = `主题: ${currentThemeMode} (点击切换)`;
     }
-    
+
     function watchPageTheme() {
         try {
             const observer = new MutationObserver(() => {
@@ -6769,17 +6825,17 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                     detectPageTheme();
                 }
             });
-            
+
             observer.observe(document.documentElement, {
                 attributes: true,
                 attributeFilter: ['data-theme', 'data-color-mode', 'class']
             });
-            
+
             observer.observe(document.body, {
                 attributes: true,
                 attributeFilter: ['data-theme', 'data-color-mode', 'class']
             });
-            
+
             if (window.matchMedia) {
                 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
                     if (currentThemeMode === 'auto') {
@@ -6825,8 +6881,8 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             }
         } catch (_) {}
     }
-    
-    
+
+
     function restoreKeyboardSelection(panelEl) {
         try {
             if (!panelEl || !keyboardSelectedPrompt) return;
@@ -6844,7 +6900,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 function handleKeyboardNavigation(e) {
         try {
             if (!sidebar || !e) return;
-            
+
             const activePanel = sidebar.querySelector('.content-panel.active');
             if (!activePanel) return;
 
@@ -6856,7 +6912,7 @@ function handleKeyboardNavigation(e) {
             {
                 return;
             }
-            
+
             const __ae = document.activeElement;
             const __folderSwitchActive = (
                 (!!gnpFolderFilterPopupInputEl && gnpFolderFilterPopupInputEl.isConnected) ||
@@ -6873,12 +6929,12 @@ function handleKeyboardNavigation(e) {
             }
 
             const isSearchFocused = document.activeElement === searchInput;
-            
+
             // Esc - 关闭弹窗/清除搜索/失去焦点
             if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 if (isSearchFocused && searchInput && searchInput.value) {
                     searchInput.value = '';
                     searchInput.dispatchEvent(new Event('input'));
@@ -6894,7 +6950,7 @@ function handleKeyboardNavigation(e) {
                 }
                 return;
             }
-            
+
             // Ctrl/Cmd + K - 聚焦搜索
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
@@ -6907,47 +6963,47 @@ function handleKeyboardNavigation(e) {
                 updateKeyboardSelection();
                 return;
             }
-            
+
             if (!isSearchFocused && sidebar.classList.contains('collapsed')) {
                 return;
             }
-            
+
             // 上下键导航
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 currentVisibleItems = Array.from(activePanel.querySelectorAll('.gemini-nav-item')).filter(item => {
                     return item.offsetParent !== null;
                 });
-                
+
                 if (currentVisibleItems.length === 0) return;
-                
+
                 if (e.key === 'ArrowDown') {
                     keyboardSelectedIndex = Math.min(keyboardSelectedIndex + 1, currentVisibleItems.length - 1);
                 } else {
                     keyboardSelectedIndex = Math.max(keyboardSelectedIndex - 1, 0);
                 }
-                
+
                 updateKeyboardSelection();
-                
+
                 if (isSearchFocused && searchInput) {
                     searchInput.focus();
                 }
                 return;
             }
-            
+
             // Enter - 填入选中项
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
                     const selectedItem = currentVisibleItems[keyboardSelectedIndex];
                     const textEl = selectedItem.querySelector('.item-text');
                     let text = (selectedItem.dataset && selectedItem.dataset.prompt) ? selectedItem.dataset.prompt : (textEl ? textEl.textContent : '');
                     try { text = (text || '').replace(/^\s*\d+\.\s*/, '').trim(); } catch (_) {}
-                    
+
                     if (text) {
                         const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
                         if (inputEl) {
@@ -6961,25 +7017,25 @@ function handleKeyboardNavigation(e) {
                 }
                 return;
             }
-            
+
             // Shift + Enter - 直接发送
             if (e.key === 'Enter' && e.shiftKey) {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 if (keyboardSelectedIndex >= 0 && keyboardSelectedIndex < currentVisibleItems.length) {
                     const selectedItem = currentVisibleItems[keyboardSelectedIndex];
                     const textEl = selectedItem.querySelector('.item-text');
                     let text = (selectedItem.dataset && selectedItem.dataset.prompt) ? selectedItem.dataset.prompt : (textEl ? textEl.textContent : '');
                     try { text = (text || '').replace(/^\s*\d+\.\s*/, '').trim(); } catch (_) {}
-                    
+
                     if (text) {
                         const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
                         const sendBtn = qsAny(CURRENT_CONFIG.sendBtnSelector);
-                        
+
                         if (inputEl && sendBtn) {
                             setPromptValue(inputEl, text);
-                            
+
                             setTimeout(() => {
                                 sendBtn.click();
                                 if (searchInput) searchInput.blur();
@@ -6991,7 +7047,7 @@ function handleKeyboardNavigation(e) {
             }
         } catch (_) {}
     }
-    
+
     // 监听全局键盘事件（防止重复绑定）
     if (!window.__GNP_KEYBOARD_NAV_BOUND) {
         window.__GNP_KEYBOARD_NAV_BOUND = true;

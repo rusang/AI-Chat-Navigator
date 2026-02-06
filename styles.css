@@ -398,6 +398,8 @@
         .batch-btn { cursor: pointer; padding: 6px 10px; border-radius: 12px; transition: background 0.12s ease, transform 0.12s ease, color 0.12s ease, box-shadow 0.12s ease; }
         .batch-btn.action-save { background: color-mix(in srgb, var(--gnp-active-border) 12%, transparent); color: var(--gnp-active-text); }
         .batch-btn.action-save:hover { background: color-mix(in srgb, var(--gnp-active-border) 18%, transparent); }
+        .batch-btn.action-move { background: color-mix(in srgb, var(--gnp-active-border) 10%, transparent); color: var(--gnp-text-main); }
+        .batch-btn.action-move:hover { background: color-mix(in srgb, var(--gnp-active-border) 16%, transparent); }
         .batch-btn.action-delete { background: color-mix(in srgb, var(--gnp-danger-text) 12%, transparent); color: var(--gnp-danger-text); }
         .batch-btn.action-delete:hover { background: color-mix(in srgb, var(--gnp-danger-text) 18%, transparent); }
         .batch-btn.action-cancel { color: var(--gnp-text-sub); font-weight: normal; }
