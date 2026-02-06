@@ -5706,11 +5706,11 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
 
         // 当前网页 prompt：若该 prompt 已在收藏中，则在收藏列表也用“当前 prompt”的高亮样式
         let gnpCurrentPromptText = '';
-        try {
+        /*try {
             const blocks = qsaAll(CURRENT_CONFIG.promptSelector, getChatRoot());
             const b = blocks && blocks[currentActiveIndex];
             if (b) gnpCurrentPromptText = String(b.innerText || '').replace(/\n+/g, ' ').trim();
-        } catch (_) {}
+        } catch (_) {}*/
 
         // Header（计数 + 文件夹筛选/管理 + 清空）
         const favHeader = document.createElement('div');
