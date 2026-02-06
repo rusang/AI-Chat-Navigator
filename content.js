@@ -3618,20 +3618,38 @@ function gnpPickAndImportFavoritesJsonFile() {
                     try {
                         const raw = String(reader.result || '').trim();
                         const obj = JSON.parse(raw);
-                        const incoming = gnpExtractFavoritesFromAnyJson(obj);
-                        const merged = gnpMergeFavoritesIntoCurrent(incoming);
+						const incoming = gnpExtractFavoritesFromAnyJson(obj); 
+						const merged = gnpMergeFavoritesIntoCurrent(incoming);
 
-                        if (merged.changed) {
-                            try { saveFolders(); } catch (_) {}
-                            try { saveFavorites(); } catch (_) {}
-                            try { renderFavorites(); } catch (_) {}
-                            gnpToastSafe(`已导入JSON：新增 ${merged.added}，更新 ${merged.updated}`);
-                        } else {
-                            gnpToastSafe('导入完成：未发现新的 Prompt（已自动去重）。');
-                        }
+						if (merged.changed) {
+							// [FIX] 导入时必须清理墓碑(deletedFavorites)并标记复活(restoredFavorites)
+							// 否则 gnpWriteFavFileMerged 会因墓碑存在而过滤掉这些刚导入的 Prompt，导致无法回写到文件
+							const now = Date.now();
+							const importedList = (incoming.favorites || []);
 
-                        // 变更后立即回写到“manifest 指定的本地JSON”
-                        try { gnpScheduleWriteFavoritesJsonFile('import'); } catch (_) {}
+							importedList.forEach(f => {
+								const t = String(f.text || '').trim();
+								if (!t) return;
+								
+								// 1. 清除删除标记
+								if (deletedFavorites && deletedFavorites[t]) {
+									delete deletedFavorites[t];
+								}
+								// 2. 添加复活标记 (覆盖其他端可能存在的旧 Tombstone)
+								if (!restoredFavorites) restoredFavorites = {};
+								restoredFavorites[t] = now;
+							});
+
+							try { saveFolders(); } catch (_) {}
+							try { saveFavorites(); } catch (_) {}
+							try { renderFavorites(); } catch (_) {}
+							gnpToastSafe(`已导入JSON：新增 ${merged.added}，更新 ${merged.updated}`);
+						} else {
+							gnpToastSafe('导入完成：未发现新的 Prompt（已自动去重）。');
+						}
+
+						// 变更后立即回写到“manifest 指定的本地JSON”
+						try { gnpScheduleWriteFavoritesJsonFile('import'); } catch (_) {}
                     } catch (e) {
                         try { console.warn('[GNP] Import JSON failed:', e); } catch (_) {}
                         gnpToastSafe('导入失败：JSON格式不正确。');
