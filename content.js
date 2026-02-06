@@ -3863,6 +3863,7 @@ const saveFavorites = (mode = 'fav_list') => {
     
     // --- 多选状态 ---
     let selectedItems = new Set(); 
+    let inMultiSelectMode = false; // 标记：是否已进入多选模式（显示批量栏）
 
     let autoHideTimer = null;
     let isSelectInteracting = false;
@@ -4927,7 +4928,9 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         batchBar.replaceChildren();
         // 多选模式（选中>=2条）时隐藏每条Prompt右下角工具图标，避免误触
         sidebar.classList.toggle('gnp-multi-mode', selectedItems.size >= 2);
-        if (selectedItems.size === 0) {
+        
+        // 关键修改：只有在 inMultiSelectMode 为 true 时才显示批量栏
+        if (!inMultiSelectMode || selectedItems.size === 0) {
             batchBar.classList.remove('visible');
             return;
         }
@@ -5035,6 +5038,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         const items = Array.from(panelEl.querySelectorAll('.gemini-nav-item'));
         if (items.length === 0) return;
 
+        inMultiSelectMode = true; // 全选时进入多选模式
         selectedItems.clear();
         items.forEach(el => {
             const prompt = el.dataset.prompt || '';
@@ -5047,6 +5051,7 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
 
     function clearMultiSelection() {
         if (selectedItems.size === 0) return;
+        inMultiSelectMode = false; // 清除多选时退出多选模式
         selectedItems.clear();
         if (sidebar) {
             sidebar.querySelectorAll('.gemini-nav-item.multi-selected').forEach(el => el.classList.remove('multi-selected'));
@@ -5921,25 +5926,22 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
                 // 1. 数据层更新
                 if (isMulti) {
-                    // 多选模式：切换状态（保留之前的选中项）
+                    // Command/Ctrl + 单击：进入多选模式
+                    inMultiSelectMode = true; // 进入多选模式
+                    
                     if (selectedItems.has(favText)) {
                         selectedItems.delete(favText);
                     } else {
                         selectedItems.add(favText);
                     }
                 } else {
-                    // 普通单击：单独选中当前项（支持渐进式多选）
-                    // 如果当前项已经是唯一选中项，则取消选中
-                    if (selectedItems.size === 1 && selectedItems.has(favText)) {
-                        selectedItems.clear();
-                    } else {
-                        // 否则：清空其他，只选中当前项
-                        selectedItems.clear();
-                        selectedItems.add(favText);
-                    }
+                    // 普通单击：加入 selectedItems（为后续 Cmd+单击做准备），但不进入多选模式
+                    inMultiSelectMode = false; // 不进入多选模式
+                    selectedItems.clear();
+                    selectedItems.add(favText);
                 }
                 
-                // 2. 视觉层同步 (处理重复项高亮)
+                // 2. 视觉层同步
                 const panel = item.closest('.content-panel');
                 if (panel) {
                     // 清除所有高亮
@@ -5947,16 +5949,18 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                         el.classList.remove('multi-selected');
                     });
                     
-                    // 根据 selectedItems 重新添加高亮
-                    panel.querySelectorAll('.gemini-nav-item').forEach(el => {
-                        const promptText = el.dataset.prompt;
-                        if (selectedItems.has(promptText)) {
-                            el.classList.add('multi-selected');
-                        }
-                    });
+                    // 仅在多选模式下显示高亮
+                    if (inMultiSelectMode) {
+                        panel.querySelectorAll('.gemini-nav-item').forEach(el => {
+                            const promptText = el.dataset.prompt;
+                            if (selectedItems.has(promptText)) {
+                                el.classList.add('multi-selected');
+                            }
+                        });
+                    }
                 }
                 
-                updateBatchBar();
+                updateBatchBar(); // 根据 inMultiSelectMode 决定是否显示批量栏
                 
                 // 同步键盘选择（用于上下键导航）
                 if (!isMulti) {
@@ -6225,22 +6229,19 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
                 // 1. 数据层更新
                 if (isMulti) {
-                    // 多选模式：切换状态（保留之前的选中项）
+                    // Command/Ctrl + 单击：进入多选模式
+                    inMultiSelectMode = true; // 进入多选模式
+                    
                     if (selectedItems.has(content)) {
                         selectedItems.delete(content);
                     } else {
                         selectedItems.add(content);
                     }
                 } else {
-                    // 普通单击：单独选中当前项（支持渐进式多选）
-                    // 如果当前项已经是唯一选中项，则取消选中
-                    if (selectedItems.size === 1 && selectedItems.has(content)) {
-                        selectedItems.clear();
-                    } else {
-                        // 否则：清空其他，只选中当前项
-                        selectedItems.clear();
-                        selectedItems.add(content);
-                    }
+                    // 普通单击：加入 selectedItems（为后续 Cmd+单击做准备），但不进入多选模式
+                    inMultiSelectMode = false; // 不进入多选模式
+                    selectedItems.clear();
+                    selectedItems.add(content);
                 }
                 
                 // 2. 视觉层同步
@@ -6251,16 +6252,18 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                         el.classList.remove('multi-selected');
                     });
                     
-                    // 根据 selectedItems 重新添加高亮
-                    panel.querySelectorAll('.gemini-nav-item').forEach(el => {
-                        const promptText = el.dataset.prompt;
-                        if (selectedItems.has(promptText)) {
-                            el.classList.add('multi-selected');
-                        }
-                    });
+                    // 仅在多选模式下显示高亮
+                    if (inMultiSelectMode) {
+                        panel.querySelectorAll('.gemini-nav-item').forEach(el => {
+                            const promptText = el.dataset.prompt;
+                            if (selectedItems.has(promptText)) {
+                                el.classList.add('multi-selected');
+                            }
+                        });
+                    }
                 }
                 
-                updateBatchBar();
+                updateBatchBar(); // 根据 inMultiSelectMode 决定是否显示批量栏
                 
                 // 同步键盘选择（用于上下键导航）
                 if (!isMulti) {
