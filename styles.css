@@ -976,3 +976,35 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     outline: 2px solid color-mix(in srgb, var(--gnp-active-border) 55%, transparent);
     outline-offset: 2px;
 }
+
+}
+
+/* =========================================
+   [新增] 预览悬浮窗内的星级评分样式
+   ========================================= */
+.gnp-hover-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    margin-right: 10px;
+    cursor: pointer;
+    user-select: none;
+    height: 20px;
+}
+
+.gnp-hover-star {
+    font-size: 14px;
+    color: var(--gnp-text-sub);
+    transition: transform 0.1s, color 0.1s;
+    line-height: 1;
+    padding: 2px;
+    cursor: pointer; /* [新增] 鼠标悬停显示手型 */
+}
+
+.gnp-hover-star.active {
+    color: var(--gnp-fav-color);
+}
+
+.gnp-hover-star:hover {
+    transform: scale(1.2);
+}

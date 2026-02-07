@@ -1316,10 +1316,37 @@ function renderHoverPreviewContent(anchorEl, text) {
 
     // 工具栏
     if (source === 'fav') {
+        const idx = getFavoriteIndex(t);
+        const favObj = (idx > -1 && favorites && favorites[idx]) ? favorites[idx] : { useCount: 0, lastUsed: 0, rating: 1 };
+
+        // [新增] 悬浮窗内的星级评分（置于工具栏最前）
+        const ratingBox = document.createElement('div');
+        ratingBox.className = 'gnp-hover-rating';
+        const renderHoverStars = (currentR) => {
+            ratingBox.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                const s = document.createElement('span');
+                s.className = `gnp-hover-star ${i <= currentR ? 'active' : ''}`;
+                s.textContent = i <= currentR ? '★' : '☆';
+                s.title = `设置 ${i} 星`;
+                s.onclick = (e) => {
+                    e.stopPropagation();
+                    if (idx > -1) {
+                        favorites[idx].rating = i;
+                        saveFavorites('fav_list');
+                        renderHoverStars(i);
+                        // 若侧边栏收藏面板可见，同步刷新以更新列表上的星星
+                        if (panelFav && panelFav.classList.contains('active')) renderFavorites();
+                    }
+                };
+                ratingBox.appendChild(s);
+            }
+        };
+        renderHoverStars(Number(favObj.rating) || 1);
+        gnpHoverPreviewToolbarEl.appendChild(ratingBox);
+
         // 统计信息（使用次数 / 最近使用）
         try {
-            const idx = getFavoriteIndex(t);
-            const favObj = (idx > -1 && favorites && favorites[idx]) ? favorites[idx] : { useCount: 0, lastUsed: 0 };
             const uc = Number(favObj.useCount) || 0;
             const lu = Number(favObj.lastUsed) || 0;
             const meta = document.createElement('span');
