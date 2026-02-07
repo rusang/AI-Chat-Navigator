@@ -1126,23 +1126,23 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
 
 /* === 组件增强 === */
 
-/* 🎨 [优化] 导航项：hover时仅轻微位移，移除缩放(解决抖动) */
+/* 🎨 [修改] 导航项：hover (仅变色，无位移无缩放) */
 .gemini-nav-item:hover {
-    transform: translateX(-2px);
+    transform: none;
+    background: var(--gnp-hover-bg);
 }
 
-/* 🎨 导航项：active按下状态 */
+/* 🎨 导航项：active按下状态 (无位移) */
 .gemini-nav-item:active {
-    transform: translateX(-1px);
-    transition-duration: 80ms;
+    transform: none;
+    background: var(--gnp-active-bg);
 }
 
-/* 🎨 [优化] 当前项：静态高亮，移除脉冲闪烁(解决眼疲劳) */
+/* 🎨 当前项：静态显示 (无闪烁动画) */
 .gemini-nav-item.active-current {
     border-left-width: 4px;
-    /* animation: gnp-pulse-current 2s ease-in-out infinite; */
-    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.15); /* 增加内阴影强化选中感 */
-}
+    background: var(--gnp-active-bg);
+    /* animation: removed; */
 
 /* 🎨 键盘选中：发光和偏移 */
 .gemini-nav-item.keyboard-selected {

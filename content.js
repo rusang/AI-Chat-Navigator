@@ -212,7 +212,8 @@
     --gnp-shadow: 0 18px 50px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.06);
     --gnp-text-main: #0f172a;
     --gnp-text-sub: rgba(15, 23, 42, 0.68);
-    --gnp-hover-bg: rgba(15, 23, 42, 0.04);
+    /* [修改] 加深背景，去除动画依赖 */
+    --gnp-hover-bg: rgba(15, 23, 42, 0.08);
     /* [优化] 浅色模式变量 */
     --gnp-active-bg: rgba(37, 99, 235, 0.18);
     --gnp-active-border: #2563eb;
@@ -285,7 +286,8 @@
         --gnp-shadow: 0 22px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(148, 163, 184, 0.10);
         --gnp-text-main: rgba(248, 250, 252, 0.96);
         --gnp-text-sub: rgba(248, 250, 252, 0.70);
-        --gnp-hover-bg: rgba(148, 163, 184, 0.14);
+        /* [修改] 加深背景 */
+		--gnp-hover-bg: rgba(148, 163, 184, 0.20);
 		/* [优化] 深色模式变量 */
 		--gnp-active-bg: rgba(96, 165, 250, 0.25);
 		--gnp-active-border: #60a5fa;
@@ -331,7 +333,8 @@
     --gnp-shadow: 0 22px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(148, 163, 184, 0.10);
     --gnp-text-main: rgba(248, 250, 252, 0.96);
     --gnp-text-sub: rgba(248, 250, 252, 0.70);
-    --gnp-hover-bg: rgba(148, 163, 184, 0.14);
+    /* [修改] 加深背景 */
+    --gnp-hover-bg: rgba(148, 163, 184, 0.20);
 	/* [优化] 深色模式变量 */
     --gnp-active-bg: rgba(96, 165, 250, 0.25);
     --gnp-active-border: #60a5fa;
@@ -360,7 +363,8 @@
     --gnp-shadow: 0 18px 50px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.06);
     --gnp-text-main: #0f172a;
     --gnp-text-sub: rgba(15, 23, 42, 0.68);
-    --gnp-hover-bg: rgba(15, 23, 42, 0.04);
+    /* [修改] 加深背景，去除动画依赖 */
+    --gnp-hover-bg: rgba(15, 23, 42, 0.08);
     /* [优化] 浅色模式变量 */
     --gnp-active-bg: rgba(37, 99, 235, 0.18);
     --gnp-active-border: #2563eb;
@@ -1450,12 +1454,53 @@ function renderHoverPreviewContent(anchorEl, text) {
             }
         }));
     } else {
+        // [新增] 检查是否已收藏，如果是，则显示星级
+        const favIdx = getFavoriteIndex(t);
+        const isFav = favIdx > -1;
+        const favObj = isFav ? favorites[favIdx] : null;
+
+        if (isFav && favObj) {
+            // 复制星级渲染逻辑
+            const ratingBox = document.createElement('div');
+            ratingBox.className = 'gnp-hover-rating';
+            const renderHoverStars = (currentR) => {
+                ratingBox.innerHTML = '';
+                for (let i = 1; i <= 5; i++) {
+                    const s = document.createElement('span');
+                    s.className = `gnp-hover-star ${i <= currentR ? 'active' : ''}`;
+                    s.textContent = i <= currentR ? '★' : '☆';
+                    s.title = `设置 ${i} 星`;
+                    s.onclick = (e) => {
+                        e.stopPropagation();
+                        if (favIdx > -1) {
+                            favorites[favIdx].rating = i;
+                            saveFavorites('fav_list');
+                            renderHoverStars(i);
+                            // 若侧边栏收藏面板可见，同步刷新以更新列表上的星星
+                            if (panelFav && panelFav.classList.contains('active')) renderFavorites();
+                        }
+                    };
+                    ratingBox.appendChild(s);
+                }
+            };
+            renderHoverStars(Number(favObj.rating) || 1);
+            gnpHoverPreviewToolbarEl.appendChild(ratingBox);
+        }
+
         // 统计信息（最近使用时间）
         try {
             const lu = Number(getPromptLastUsed(t)) || 0;
             const meta = document.createElement('span');
             meta.className = 'gnp-hover-use-meta';
-            meta.textContent = formatRelativeTimeNav(lu);
+            
+            // [优化] 如果是收藏项，额外显示使用次数，格式与收藏面板保持一致
+            if (isFav && favObj) {
+                 const uc = Number(favObj.useCount) || 0;
+                 meta.textContent = `${uc}次 · ${formatRelativeTimeNav(lu)}`;
+            } else {
+                 meta.textContent = formatRelativeTimeNav(lu);
+            }
+            
             meta.title = lu ? `最近使用：${new Date(lu).toLocaleString()}` : '从未使用';
             meta.addEventListener('mousedown', (e) => e.stopPropagation());
             meta.addEventListener('click', (e) => e.stopPropagation());
