@@ -213,9 +213,15 @@
     --gnp-text-main: #0f172a;
     --gnp-text-sub: rgba(15, 23, 42, 0.68);
     --gnp-hover-bg: rgba(15, 23, 42, 0.04);
-    --gnp-active-bg: rgba(37, 99, 235, 0.12);
+    /* [优化] 浅色模式变量 */
+    --gnp-active-bg: rgba(37, 99, 235, 0.18);
     --gnp-active-border: #2563eb;
     --gnp-active-text: #1d4ed8;
+    
+    /* [新增] 当前项颜色：Teal (青色) */
+    --gnp-current-bg: rgba(20, 184, 166, 0.14);
+    --gnp-current-border: #14b8a6;
+    --gnp-current-text: #0f766e;
     --gnp-fav-color: #d97706;
     --gnp-star-list: rgba(234, 179, 8, 0.45); /* [调整] 更淡的金色 (45%透明度)，不抢视觉 */
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
@@ -280,9 +286,15 @@
         --gnp-text-main: rgba(248, 250, 252, 0.96);
         --gnp-text-sub: rgba(248, 250, 252, 0.70);
         --gnp-hover-bg: rgba(148, 163, 184, 0.14);
-        --gnp-active-bg: rgba(96, 165, 250, 0.18);
-        --gnp-active-border: #60a5fa;
-        --gnp-active-text: #93c5fd;
+		/* [优化] 深色模式变量 */
+		--gnp-active-bg: rgba(96, 165, 250, 0.25);
+		--gnp-active-border: #60a5fa;
+		--gnp-active-text: #93c5fd;
+
+		/* [新增] 当前项颜色 (深色模式) */
+		--gnp-current-bg: rgba(20, 184, 166, 0.25);
+		--gnp-current-border: #2dd4bf;
+		--gnp-current-text: #5eead4;
         --gnp-fav-color: #fbbf24;
         --gnp-star-list: rgba(253, 224, 71, 0.40); /* [调整] 深色模式下用更淡的黄色 */
         --gnp-input-bg: rgba(148, 163, 184, 0.14);
@@ -320,9 +332,15 @@
     --gnp-text-main: rgba(248, 250, 252, 0.96);
     --gnp-text-sub: rgba(248, 250, 252, 0.70);
     --gnp-hover-bg: rgba(148, 163, 184, 0.14);
-    --gnp-active-bg: rgba(96, 165, 250, 0.18);
+	/* [优化] 深色模式变量 */
+    --gnp-active-bg: rgba(96, 165, 250, 0.25);
     --gnp-active-border: #60a5fa;
     --gnp-active-text: #93c5fd;
+
+    /* [新增] 当前项颜色 (深色模式) */
+    --gnp-current-bg: rgba(20, 184, 166, 0.25);
+    --gnp-current-border: #2dd4bf;
+    --gnp-current-text: #5eead4;
     --gnp-star-list: rgba(253, 224, 71, 0.65);
     --gnp-input-bg: rgba(148, 163, 184, 0.14);
     --gnp-input-text: rgba(248, 250, 252, 0.96);
@@ -343,9 +361,15 @@
     --gnp-text-main: #0f172a;
     --gnp-text-sub: rgba(15, 23, 42, 0.68);
     --gnp-hover-bg: rgba(15, 23, 42, 0.04);
-    --gnp-active-bg: rgba(37, 99, 235, 0.12);
+    /* [优化] 浅色模式变量 */
+    --gnp-active-bg: rgba(37, 99, 235, 0.18);
     --gnp-active-border: #2563eb;
     --gnp-active-text: #1d4ed8;
+    
+    /* [新增] 当前项颜色：Teal (青色) */
+    --gnp-current-bg: rgba(20, 184, 166, 0.14);
+    --gnp-current-border: #14b8a6;
+    --gnp-current-text: #0f766e;
     --gnp-star-list: rgba(234, 179, 8, 0.65);
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
@@ -452,9 +476,10 @@
         .gemini-nav-item.dragging { opacity: 0.5; background: var(--gnp-hover-bg); border: 2px dashed var(--gnp-active-border); }
         .gemini-nav-item.drag-over { background: var(--gnp-active-bg); border-top: 2px solid var(--gnp-active-border); }
         .gemini-nav-item.active-current {
-            background: var(--gnp-active-bg);
-            border-left: 3px solid var(--gnp-active-border);
-            color: var(--gnp-active-text);
+            /* [修改] 使用青色变量，与蓝色选中态区分 */
+            background: var(--gnp-current-bg);
+            border-left: 3px solid var(--gnp-current-border);
+            color: var(--gnp-current-text);
             font-weight: 500;
         }
 
