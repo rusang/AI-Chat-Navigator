@@ -1396,9 +1396,10 @@ function renderHoverPreviewContent(anchorEl, text) {
         }));
 
         // 复制
+        /* [修复] 复制不增加使用次数 */
         const copyBtn = makeMiniBtn({ cls: '', title: '复制', html: SVGS.copy, onClick: () => {
             navigator.clipboard.writeText(t);
-                recordPromptUse(t);
+            // recordPromptUse(t);  <-- 已移除
             copyBtn.innerHTML = SVGS.check;
             setTimeout(() => { try { copyBtn.innerHTML = SVGS.copy; } catch (_) {} }, 900);
         }});
@@ -1515,9 +1516,10 @@ function renderHoverPreviewContent(anchorEl, text) {
             onClick: () => fillInput(t)
         }));
 
+        /* [修复] 复制不增加使用次数 */
         const copyBtn = makeMiniBtn({ cls: '', title: '复制', html: SVGS.copy, onClick: () => {
             navigator.clipboard.writeText(t);
-                recordPromptUse(t);
+            // recordPromptUse(t);  <-- 已移除
             copyBtn.innerHTML = SVGS.check;
             setTimeout(() => { try { copyBtn.innerHTML = SVGS.copy; } catch (_) {} }, 900);
         }});
@@ -4361,7 +4363,58 @@ clearBtn.onclick = (e) => {
         searchDebounceTimer = setTimeout(run, 300);
     };
 
-    function fillInput(text) {
+// [新增] 全局监听发送事件 (Enter键 或 点击发送按钮)，实现精准计数
+function setupGlobalSendListener() {
+    let lastText = '';
+    let lastTime = 0;
+
+    const tryRecord = () => {
+        try {
+            const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
+            if (!inputEl) return;
+            // 兼容 textarea 的 value 和 contenteditable 的 textContent
+            const val = inputEl.value || inputEl.innerText || inputEl.textContent || '';
+            const t = String(val).trim();
+            if (!t) return;
+
+            // 简单的防抖：相同文本在 2秒内只记一次 (避免 Enter 同时触发 click 的双重计数)
+            const now = Date.now();
+            if (t === lastText && (now - lastTime < 2000)) return;
+            
+            lastText = t;
+            lastTime = now;
+            
+            recordPromptUse(t);
+        } catch (e) {
+            // console.error('[GNP] Send listener error:', e);
+        }
+    };
+
+    // 1. 监听 Enter 键 (捕获阶段，确保在输入框被清空前获取文本)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+            const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
+            // 只有当焦点在输入框内按下回车才算
+            if (inputEl && (e.target === inputEl || inputEl.contains(e.target))) {
+                tryRecord();
+            }
+        }
+    }, true);
+
+    // 2. 监听发送按钮点击 (捕获阶段)
+    document.addEventListener('click', (e) => {
+        const sendBtn = qsAny(CURRENT_CONFIG.sendBtnSelector);
+        // 检查点击目标是否是发送按钮或其子元素
+        if (sendBtn && (e.target === sendBtn || sendBtn.contains(e.target))) {
+            // 排除 disabled 按钮
+            if (!sendBtn.disabled && !sendBtn.hasAttribute('disabled')) {
+                tryRecord();
+            }
+        }
+    }, true);
+}
+
+function fillInput(text) {
         const inputEl = qsAny(CURRENT_CONFIG.inputSelector);
         if (!inputEl) return;
 
@@ -4384,7 +4437,7 @@ clearBtn.onclick = (e) => {
             }, 100);
         }
         // 记录使用（仅当该条已在收藏中）
-        recordPromptUse(text);
+        // recordPromptUse(text);
 
     }
 
@@ -6470,7 +6523,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             copyBtn.onclick = (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(favText);
-                recordPromptUse(favText);
+                // recordPromptUse(favText); <-- 已移除
                 copyBtn.innerHTML = SVGS.check;
                 setTimeout(() => copyBtn.innerHTML = SVGS.copy, 1000);
             };
@@ -6780,7 +6833,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             copyBtn.onclick = (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(content);
-                recordPromptUse(content);
+                // recordPromptUse(content); <-- 已移除
                 copyBtn.innerHTML = SVGS.check;
                 setTimeout(() => copyBtn.innerHTML = SVGS.copy, 1000);
             };
@@ -7476,6 +7529,7 @@ function handleKeyboardNavigation(e) {
             applyTheme('auto');
         }
         watchPageTheme();
+        setupGlobalSendListener(); // [新增] 启动全局发送监听
     }, 800);
 
 
