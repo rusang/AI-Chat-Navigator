@@ -44,8 +44,9 @@
     --gnp-hover-preview-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.92));
     --gnp-hover-preview-toolbar-bg: rgba(255, 255, 255, 0.62);
 
-    --gnp-scroll-thumb: rgba(15, 23, 42, 0.22);
-    --gnp-scroll-thumb-hover: rgba(15, 23, 42, 0.34);
+    /* 🔧 修复：浅色模式滚动条颜色 - 增加不透明度确保可见性 */
+    --gnp-scroll-thumb: rgba(15, 23, 42, 0.35);
+    --gnp-scroll-thumb-hover: rgba(15, 23, 42, 0.50);
 
     --gnp-index-color: #2563eb;
     --gnp-index-nav: var(--gnp-index-color);
@@ -148,6 +149,9 @@
     --gnp-tab-active-fg: rgba(238, 242, 255, 0.98);
     --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(129, 140, 248, 0.70), 0 10px 26px rgba(129, 140, 248, 0.22);
     --gnp-tab-hover-bg: rgba(148, 163, 184, 0.16);
+    /* 🔧 修复：强制深色主题滚动条 */
+    --gnp-scroll-thumb: rgba(148, 163, 184, 0.40);
+    --gnp-scroll-thumb-hover: rgba(148, 163, 184, 0.60);
 }
 
 [data-gnp-theme="light"] {
@@ -178,14 +182,18 @@
     --gnp-tab-active-fg: rgba(30, 27, 75, 0.98);
     --gnp-tab-active-shadow: 0 10px 22px rgba(99, 102, 241, 0.24), 0 0 0 2px rgba(99, 102, 241, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.75);
     --gnp-tab-hover-bg: rgba(15, 23, 42, 0.06);
+    /* 🔧 修复：强制浅色主题滚动条 */
+    --gnp-scroll-thumb: rgba(15, 23, 42, 0.35);
+    --gnp-scroll-thumb-hover: rgba(15, 23, 42, 0.50);
 }
 
 /* 键盘导航选中状态 (v8.0新增) */
 .gemini-nav-item.keyboard-selected { background: var(--gnp-active-bg) !important; box-shadow: inset 0 0 0 2px var(--gnp-active-border) !important; border-left: 3px solid var(--gnp-active-border) !important; }
         --gnp-hover-preview-toolbar-bg: rgba(0, 0, 0, 0.22);
 
-        --gnp-scroll-thumb: rgba(148, 163, 184, 0.28);
-        --gnp-scroll-thumb-hover: rgba(148, 163, 184, 0.44);
+        /* 🔧 修复：深色模式滚动条颜色 - 增加不透明度确保可见性 */
+        --gnp-scroll-thumb: rgba(148, 163, 184, 0.40);
+        --gnp-scroll-thumb-hover: rgba(148, 163, 184, 0.60);
 
         --gnp-index-color: #93c5fd;
         --gnp-index-nav: var(--gnp-index-color);
@@ -512,9 +520,19 @@
         #gemini-progress-bar { height: 100%; width: 0%; background: var(--gnp-progress-bg); transition: width 0.3s; }
 
         #gemini-nav-content-wrapper { flex-grow: 1; overflow-y: auto; padding: 6px 2px 10px; position: relative; }
+        /* 🔧 修复：主列表滚动条样式 - 添加边框和 padding-box 提升可见性 */
         #gemini-nav-content-wrapper::-webkit-scrollbar { width: 6px; } 
-        #gemini-nav-content-wrapper::-webkit-scrollbar-thumb { background: var(--gnp-scroll-thumb); border-radius: 4px; transition: background 0.3s; }
-        #gemini-nav-content-wrapper::-webkit-scrollbar-thumb:hover { background: var(--gnp-scroll-thumb-hover); }
+        #gemini-nav-content-wrapper::-webkit-scrollbar-thumb { 
+            background: var(--gnp-scroll-thumb); 
+            border-radius: 4px; 
+            transition: background 0.3s;
+            border: 1px solid transparent;
+            background-clip: padding-box;
+        }
+        #gemini-nav-content-wrapper::-webkit-scrollbar-thumb:hover { 
+            background: var(--gnp-scroll-thumb-hover);
+            background-clip: padding-box;
+        }
         
         .content-panel { display: none; }
         .content-panel.active { display: block; }
@@ -800,6 +818,23 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-use-meta{
     outline: none;
     overflow: auto;
 }
+/* 🔧 修复：编辑框滚动条样式 */
+#gnp-hover-preview .gnp-hover-editarea::-webkit-scrollbar{
+    width: 8px;
+}
+#gnp-hover-preview .gnp-hover-editarea::-webkit-scrollbar-track{
+    background: transparent;
+}
+#gnp-hover-preview .gnp-hover-editarea::-webkit-scrollbar-thumb{
+    background: var(--gnp-scroll-thumb);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+#gnp-hover-preview .gnp-hover-editarea::-webkit-scrollbar-thumb:hover{
+    background: var(--gnp-scroll-thumb-hover);
+    background-clip: padding-box;
+}
 html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     background: rgba(0,0,0,0.35);
 }
@@ -826,6 +861,9 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
         --gnp-border: rgba(148, 163, 184, 0.16);
         --gnp-text-main: rgba(248, 250, 252, 0.92);
         --gnp-text-sub: rgba(203, 213, 225, 0.72);
+        /* 🔧 修复：暗色主题启发式规则下的滚动条 */
+        --gnp-scroll-thumb: rgba(148, 163, 184, 0.40);
+        --gnp-scroll-thumb-hover: rgba(148, 163, 184, 0.60);
     }
 
     html[data-theme*="dark"] #gnp-hover-preview .gnp-hover-preview-toolbar,
@@ -914,8 +952,19 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     overflow: auto;
     padding-right: 2px;
 }
-#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-thumb { background: var(--gnp-scroll-thumb); border-radius: 4px; }
-#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-thumb:hover { background: var(--gnp-scroll-thumb-hover); }
+/* 🔧 修复：预览框内部滚动条样式 */
+#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar { width: 8px; }
+#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-track { background: transparent; }
+#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-thumb { 
+    background: var(--gnp-scroll-thumb); 
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+#gnp-hover-preview .gnp-hover-preview-inner::-webkit-scrollbar-thumb:hover { 
+    background: var(--gnp-scroll-thumb-hover);
+    background-clip: padding-box;
+}
 
 
 /* Focus ring (accessibility) */

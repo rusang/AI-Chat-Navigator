@@ -1018,6 +1018,46 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
 [data-gnp-theme="dark"] .gnp-item-stars { 
     color: rgba(253, 224, 71, 0.5) !important; 
 }
+
+/* [修复] 侧边栏滚动条样式 (增强对比度，防止隐形) */
+#gemini-nav-sidebar ::-webkit-scrollbar, 
+.gnp-fav-prompt-preview ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent; /* 轨道透明 */
+}
+
+/* 浅色模式默认：深灰色滑块 */
+#gemini-nav-sidebar ::-webkit-scrollbar-thumb, 
+.gnp-fav-prompt-preview ::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.25); 
+    border-radius: 3px;
+}
+#gemini-nav-sidebar ::-webkit-scrollbar-thumb:hover, 
+.gnp-fav-prompt-preview ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+/* 深色模式适配：半透明白色滑块 */
+@media (prefers-color-scheme: dark) {
+    #gemini-nav-sidebar ::-webkit-scrollbar-thumb, 
+    .gnp-fav-prompt-preview ::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.25);
+    }
+    #gemini-nav-sidebar ::-webkit-scrollbar-thumb:hover, 
+    .gnp-fav-prompt-preview ::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(255, 255, 255, 0.4);
+    }
+}
+/* 强制深色主题适配 */
+[data-gnp-theme="dark"] #gemini-nav-sidebar ::-webkit-scrollbar-thumb, 
+[data-gnp-theme="dark"] .gnp-fav-prompt-preview ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+[data-gnp-theme="dark"] #gemini-nav-sidebar ::-webkit-scrollbar-thumb:hover, 
+[data-gnp-theme="dark"] .gnp-fav-prompt-preview ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+}
 `;
 
     const IS_EXTENSION = (typeof chrome !== "undefined" && chrome && chrome.runtime && chrome.runtime.id);
