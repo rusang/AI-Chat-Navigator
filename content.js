@@ -4915,7 +4915,99 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         const def = (defaultFolder && defaultFolder !== '全部') ? defaultFolder : '默认';
         folderSel.value = folderOptions.includes(def) ? def : '默认';
 
-        folderLeft.append(folderLabel, folderSel);
+        // 新建文件夹按钮
+        const newFolderBtn = document.createElement('div');
+        newFolderBtn.className = 'header-circle-btn';
+        newFolderBtn.title = '新建文件夹';
+        newFolderBtn.innerHTML = SVGS.folderPlus;
+        newFolderBtn.style.cssText = 'width:24px;height:24px;min-width:24px;min-height:24px;';
+        newFolderBtn.onclick = (e) => {
+            e.stopPropagation();
+            // 创建一个临时弹窗用于输入文件夹名（挂载在 body 上，z-index 高于当前弹窗）
+            const tempOverlay = document.createElement('div');
+            tempOverlay.className = 'gnp-confirm-overlay';
+            tempOverlay.style.zIndex = '2147483649'; // 高于 gnp-global-overlay
+
+            const box = document.createElement('div');
+            box.className = 'gnp-confirm-box';
+            box.style.minWidth = '320px';
+
+            const title = document.createElement('div');
+            title.className = 'gnp-confirm-title';
+            title.textContent = '新建文件夹';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = '请输入文件夹名称';
+            input.className = 'gnp-prompt-input';
+            input.style.cssText = 'width:100%;box-sizing:border-box;margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--gnp-border);outline:none;font-size:14px;background:var(--gnp-input-bg);color:var(--gnp-input-text);';
+
+            const btnRow = document.createElement('div');
+            btnRow.className = 'gnp-btn-row';
+            btnRow.style.marginTop = '16px';
+
+            const closeTemp = () => tempOverlay.remove();
+
+            const btnCancel = document.createElement('button');
+            btnCancel.className = 'gnp-btn-cancel';
+            btnCancel.textContent = '取消';
+            btnCancel.onclick = closeTemp;
+
+            const btnConfirm = document.createElement('button');
+            btnConfirm.className = 'gnp-btn-confirm';
+            btnConfirm.textContent = '创建';
+            const doCreate = () => {
+                const name = (input.value || '').trim();
+                if (name) {
+                    const f = ensureFolderExists(name);
+                    
+                    // [修复] 检查下拉框中是否已存在该文件夹，避免重复添加选项
+                    let exists = false;
+                    for (let i = 0; i < folderSel.options.length; i++) {
+                        if (folderSel.options[i].value === f) {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if (!exists) {
+                        const opt = document.createElement('option');
+                        opt.value = f;
+                        opt.textContent = f;
+                        folderSel.appendChild(opt);
+                        showSidebarToast(`已创建文件夹「${f}」`);
+                    } else {
+                        // 若已存在，则不重复添加option，仅提示用户
+                        // showSidebarToast(`已切换到文件夹「${f}」`);
+                    }
+                    
+                    // 选中该文件夹
+                    folderSel.value = f;
+                }
+                closeTemp();
+            };
+            btnConfirm.onclick = doCreate;
+
+            input.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') { ev.preventDefault(); doCreate(); }
+                if (ev.key === 'Escape') { ev.preventDefault(); closeTemp(); }
+            });
+
+            // 点击遮罩关闭
+            tempOverlay.addEventListener('mousedown', (ev) => ev.stopPropagation());
+            tempOverlay.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                if (ev.target === tempOverlay) closeTemp();
+            });
+
+            btnRow.append(btnCancel, btnConfirm);
+            box.append(title, input, btnRow);
+            tempOverlay.append(box);
+            document.body.appendChild(tempOverlay);
+            setTimeout(() => input.focus(), 50);
+        };
+
+        folderLeft.append(folderLabel, folderSel, newFolderBtn);
         
         const folderRight = document.createElement('div');
         folderRight.append(starPicker);
