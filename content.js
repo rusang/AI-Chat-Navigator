@@ -1907,12 +1907,11 @@ function gnpSetTabFavFolderFilter(v) {
     });
 
     let favFolderFilter = gnpGetTabFavFolderFilter() || '';
-if (!favFolderFilter) {
-    // 兼容旧版本：曾经把筛选写进 localStorage（会跨标签页共享），这里仅作为“本标签页初始值”读取一次
-    try { favFolderFilter = localStorage.getItem(STORAGE_KEY_FAV_FOLDER_FILTER) || ''; } catch (_) { favFolderFilter = ''; }
-    favFolderFilter = String(favFolderFilter || '').trim() || '全部';
-    gnpSetTabFavFolderFilter(favFolderFilter);
-}
+    if (!favFolderFilter) {
+        // [修改] 新标签页/无会话记录时，强制默认显示“全部”
+        favFolderFilter = '全部';
+        gnpSetTabFavFolderFilter(favFolderFilter);
+    }
 
 
     // 导航使用记录（用于在“目录”面板展示最近使用时间；key 为 prompt 的哈希，避免把长文本直接当作对象 key）
@@ -4015,7 +4014,7 @@ const saveFavorites = (mode = 'fav_list') => {
     let selectedItems = new Set(); 
     let inMultiSelectMode = false; // 标记：是否已进入多选模式（显示批量栏）
 
-    // --- 性能优化：定时器集中管理 ---
+	// --- 性能优化：定时器集中管理 ---
     let autoHideTimer = null;
     let searchDebounceTimer = null;
     let clickTimers = new Map(); // 双击检测：存储每个 item 的点击定时器
@@ -4208,8 +4207,9 @@ clearBtn.onclick = (e) => {
         }
     };
 
-    searchInput.oninput = () => {
-        const raw = (searchInput.value || '').trim();
+	searchInput.oninput = (ev) => {
+        const run = () => {
+            const raw = (searchInput.value || '').trim();
         const tokens = raw.toLowerCase().split(/\s+/).filter(Boolean);
         const regex = tokens.length ? new RegExp(tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi') : null;
 
@@ -4285,6 +4285,10 @@ clearBtn.onclick = (e) => {
 
             item.style.display = show ? 'block' : 'none';
         });
+        };
+        
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(run, 300);
     };
 
     function fillInput(text) {
@@ -6236,6 +6240,8 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             return;
         }
 
+        // 批量插入：使用 DocumentFragment 减少多次 append 触发的重排
+        const __gnpFavFrag = document.createDocumentFragment();
         filteredFavorites.forEach((favObj, idx) => {
             const favText = favObj.text;
             const itemIndex = favorites.indexOf(favObj);
@@ -6463,8 +6469,9 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
             toolbar.append(moveFolderBtn, useBtn, copyBtn, editBtn, pinBtn, delBtn);
             item.append(folderBadge, useMeta, starDisplay, txt, toolbar);
-            panelFav.append(item);
+            __gnpFavFrag.append(item);
         });
+        panelFav.append(__gnpFavFrag);
 
         if (searchInput.value) searchInput.dispatchEvent(new Event('input'));
         restoreKeyboardSelection(panelFav);
@@ -6556,6 +6563,8 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
             originalIndex: index
         })).reverse();
 
+        // 批量插入：使用 DocumentFragment 减少多次 append 触发的重排
+        const __gnpNavFrag = document.createDocumentFragment();
         listData.forEach(({ block, originalIndex }, i) => {
             const content = block.innerText.replace(/\n+/g, ' ').trim();
             if (!content) return;
@@ -6748,8 +6757,9 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
             toolbar.append(folderBadge, useTime, useBtn, copyBtn, starBtn);
             item.append(txt, toolbar); 
-            panelNav.append(item);
+            __gnpNavFrag.append(item);
         });
+        panelNav.append(__gnpNavFrag);
 
         if (searchInput.value) searchInput.dispatchEvent(new Event('input'));
         restoreKeyboardSelection(panelNav);

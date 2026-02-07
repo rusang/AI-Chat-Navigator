@@ -1,16 +1,16 @@
 /* Injected via MV3 content_scripts.css to bypass CSP (e.g., claude.ai) */
 :root {
     /* 浅色模式 */
-    --gnp-bg: rgba(255, 255, 255, 0.88);
-    --gnp-border: rgba(15, 23, 42, 0.12);
+    --gnp-bg: rgba(255, 255, 255, 0.92);
+    --gnp-border: rgba(15, 23, 42, 0.14);
     --gnp-shadow: 0 18px 50px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.06);
     --gnp-text-main: #0f172a;
     --gnp-text-sub: rgba(15, 23, 42, 0.68);
-    --gnp-hover-bg: rgba(15, 23, 42, 0.04);
-    --gnp-active-bg: rgba(37, 99, 235, 0.12);
+    --gnp-hover-bg: rgba(15, 23, 42, 0.06);
+    --gnp-active-bg: rgba(37, 99, 235, 0.14);
     --gnp-active-border: #2563eb;
     --gnp-active-text: #1d4ed8;
-    --gnp-current-bg: rgba(245, 158, 11, 0.14);
+    --gnp-current-bg: rgba(245, 158, 11, 0.16);
     --gnp-current-border: #f59e0b;
     --gnp-current-text: #b45309;
     /* 收藏（与“当前 prompt”的黄色区分开） */
@@ -31,8 +31,8 @@
     --gnp-tab-icon: rgba(15, 23, 42, 0.60);
     --gnp-tab-icon-active: #ffffff;
 
-    --gnp-btn-bg: rgba(255, 255, 255, 0.70);
-    --gnp-btn-hover: rgba(255, 255, 255, 0.92);
+    --gnp-btn-bg: rgba(255, 255, 255, 0.80);
+    --gnp-btn-hover: rgba(255, 255, 255, 0.96);
 
     --gnp-collapsed-bg: rgba(255, 255, 255, 0.92);
     --gnp-collapsed-icon: rgba(15, 23, 42, 0.72);
@@ -155,23 +155,23 @@
 }
 
 [data-gnp-theme="light"] {
-    --gnp-bg: rgba(255, 255, 255, 0.88);
-    --gnp-border: rgba(15, 23, 42, 0.12);
+    --gnp-bg: rgba(255, 255, 255, 0.92);
+    --gnp-border: rgba(15, 23, 42, 0.14);
     --gnp-shadow: 0 18px 50px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.06);
     --gnp-text-main: #0f172a;
     --gnp-text-sub: rgba(15, 23, 42, 0.68);
-    --gnp-hover-bg: rgba(15, 23, 42, 0.04);
-    --gnp-active-bg: rgba(37, 99, 235, 0.12);
+    --gnp-hover-bg: rgba(15, 23, 42, 0.06);
+    --gnp-active-bg: rgba(37, 99, 235, 0.14);
     --gnp-active-border: #2563eb;
     --gnp-active-text: #1d4ed8;
-    --gnp-current-bg: rgba(245, 158, 11, 0.14);
+    --gnp-current-bg: rgba(245, 158, 11, 0.16);
     --gnp-current-border: #f59e0b;
     --gnp-current-text: #b45309;
     --gnp-fav-color: #059669;
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
-    --gnp-btn-bg: rgba(255, 255, 255, 0.70);
-    --gnp-btn-hover: rgba(255, 255, 255, 0.92);
+    --gnp-btn-bg: rgba(255, 255, 255, 0.80);
+    --gnp-btn-hover: rgba(255, 255, 255, 0.96);
     --gnp-popover-bg: rgba(255, 255, 255, 0.995);
     --gnp-popover-border: rgba(15, 23, 42, 0.22);
     --gnp-popover-shadow: 0 20px 58px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.12);
@@ -261,11 +261,11 @@
         
         .gemini-nav-item {
             position: relative; display: block;
-            padding: 8px 12px;
-            margin: 2px 6px;
+            padding: 10px 14px;
+            margin: 3px 8px;
             font-size: 14px; color: var(--gnp-text-main);
             cursor: default; 
-            border-radius: 12px; 
+            border-radius: 14px; 
             transition: background 0.12s ease, box-shadow 0.12s ease;
             overflow: hidden;
             border-left: 3px solid transparent;
@@ -334,7 +334,7 @@
         .item-text.density-spacious { -webkit-line-clamp: 10; white-space: normal; padding-bottom: 2px; }
 
         .bottom-toolbar {
-            position: absolute; bottom: 2px; right: 4px; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.12s ease; background: var(--gnp-btn-bg); border: 1px solid var(--gnp-border); border-radius: 12px; padding: 2px; z-index: 20; pointer-events: auto; backdrop-filter: blur(12px) saturate(160%); -webkit-backdrop-filter: blur(12px) saturate(160%); 
+            position: absolute; bottom: 2px; right: 4px; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.12s ease; background: var(--gnp-btn-bg); border: 1px solid var(--gnp-border); border-radius: 14px; padding: 2px; z-index: 20; pointer-events: auto; backdrop-filter: blur(12px) saturate(160%); -webkit-backdrop-filter: blur(12px) saturate(160%); 
         }
         .gemini-nav-item:hover .bottom-toolbar { opacity: 1; }
 
@@ -405,7 +405,7 @@
             font-size: 12px; font-weight: 600; white-space: nowrap;
         }
         #gemini-batch-bar.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
-        .batch-btn { cursor: pointer; padding: 6px 10px; border-radius: 12px; transition: background 0.12s ease, transform 0.12s ease, color 0.12s ease, box-shadow 0.12s ease; }
+        .batch-btn { cursor: pointer; padding: 6px 10px; border-radius: 14px; transition: background 0.12s ease, transform 0.12s ease, color 0.12s ease, box-shadow 0.12s ease; }
         .batch-btn.action-save { background: color-mix(in srgb, var(--gnp-active-border) 12%, transparent); color: var(--gnp-active-text); }
         .batch-btn.action-save:hover { background: color-mix(in srgb, var(--gnp-active-border) 18%, transparent); }
         .batch-btn.action-move { background: color-mix(in srgb, var(--gnp-active-border) 10%, transparent); color: var(--gnp-text-main); }
@@ -416,7 +416,7 @@
         .batch-btn.action-cancel:hover { color: var(--gnp-text-main); }
 
         .mini-btn {
-            width: 24px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; color: var(--gnp-text-sub); background: var(--gnp-bg); box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-size: 11px; transition: all 0.1s;
+            width: 26px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; color: var(--gnp-text-sub); background: var(--gnp-bg); box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-size: 11px; transition: all 0.1s;
         }
         .mini-btn:hover { background: var(--gnp-btn-hover); color: var(--gnp-text-main); transform: scale(1.1); z-index: 21; }
         .mini-btn.active:hover, .mini-btn.is-active:hover, .mini-btn[aria-pressed="true"]:hover, .mini-btn.star-btn.is-fav:hover {
@@ -441,7 +441,7 @@
         #gemini-fav-header::-webkit-scrollbar{ display:none; }
         #gemini-fav-left { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; min-width:0; flex:1 1 auto; }
         #gemini-fav-right { display:flex; align-items:center; gap:6px; flex-shrink:0; flex-wrap:nowrap; }
-        #gemini-nav-tabs { display: flex; align-items: center; gap: 3px; background: rgba(15, 23, 42, 0.04); padding: 2px; border-radius: 12px; border: 1px solid var(--gnp-border); }
+        #gemini-nav-tabs { display: flex; align-items: center; gap: 3px; background: rgba(15, 23, 42, 0.04); padding: 2px; border-radius: 14px; border: 1px solid var(--gnp-border); }
         #gemini-nav-tabs { flex: 0 0 auto; }
 
         .header-circle-btn {
@@ -521,7 +521,7 @@
 
         #gemini-nav-content-wrapper { flex-grow: 1; overflow-y: auto; padding: 6px 2px 10px; position: relative; }
         /* 🔧 修复：主列表滚动条样式 - 添加边框和 padding-box 提升可见性 */
-        #gemini-nav-content-wrapper::-webkit-scrollbar { width: 6px; } 
+        #gemini-nav-content-wrapper::-webkit-scrollbar { width: 8px; } 
         #gemini-nav-content-wrapper::-webkit-scrollbar-thumb { 
             background: var(--gnp-scroll-thumb); 
             border-radius: 4px; 
@@ -538,7 +538,7 @@
         .content-panel.active { display: block; }
 
         #gemini-nav-search-container { padding: 4px 14px 8px 14px; }
-        #gemini-nav-search-input { width: 100%; box-sizing: border-box; padding: 9px 12px; background: var(--gnp-input-bg); border: 1px solid var(--gnp-border); border-radius: 12px; font-size: 14px; outline: none; transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease; color: var(--gnp-input-text) !important; }
+        #gemini-nav-search-input { width: 100%; box-sizing: border-box; padding: 9px 12px; background: var(--gnp-input-bg); border: 1px solid var(--gnp-border); border-radius: 14px; font-size: 14px; outline: none; transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease; color: var(--gnp-input-text) !important; }
         #gemini-nav-search-input:focus { background: var(--gnp-input-bg); border-color: color-mix(in srgb, var(--gnp-active-border) 36%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gnp-active-border) 22%, transparent); }
         #gemini-nav-search-input::placeholder { color: var(--gnp-text-sub); }
 
@@ -563,7 +563,7 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
 
         .gnp-confirm-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--gnp-modal-overlay); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .gnp-confirm-box { padding: 16px; background: var(--gnp-modal-bg); border: 1px solid var(--gnp-border); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); max-width: 85%; text-align: center; }
+        .gnp-confirm-box { padding: 16px; background: var(--gnp-modal-bg); border: 1px solid var(--gnp-border); border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); max-width: 85%; text-align: center; }
         
 .gnp-confirm-box.gnp-add-prompt { width: 420px; max-width: calc(100vw - 32px); }
 .gnp-confirm-title { font-size: 15px; font-weight: 600; color: var(--gnp-text-main); margin-bottom: 4px; }
@@ -594,10 +594,10 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
         .gnp-folder-filter-search-input::placeholder { color: var(--gnp-text-sub); }
 
         /* 收藏：切换目录时弹出的搜索框（绝对定位，避免与工具栏/图表重叠） */
-        .gnp-folder-filter-search-popup { position: absolute; z-index: 100000; background: var(--gnp-popover-bg); border: 1px solid var(--gnp-popover-border); border-radius: 12px; padding: 8px; box-shadow: var(--gnp-popover-shadow); -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1); }
+        .gnp-folder-filter-search-popup { position: absolute; z-index: 100000; background: var(--gnp-popover-bg); border: 1px solid var(--gnp-popover-border); border-radius: 14px; padding: 8px; box-shadow: var(--gnp-popover-shadow); -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1); }
 
         /* 收藏：文件夹筛选搜索建议列表（显示在侧边栏内） */
-        .gnp-folder-filter-suggest { position: absolute; z-index: 100001; background: var(--gnp-popover-bg); border: 1px solid var(--gnp-popover-border); border-radius: 12px; box-shadow: var(--gnp-popover-shadow); padding: 6px; max-height: 260px; overflow: auto; }
+        .gnp-folder-filter-suggest { position: absolute; z-index: 100001; background: var(--gnp-popover-bg); border: 1px solid var(--gnp-popover-border); border-radius: 14px; box-shadow: var(--gnp-popover-shadow); padding: 6px; max-height: 260px; overflow: auto; }
 
         /* 收藏：文件夹筛选下拉（select）提升对比度（inline style 用 !important 覆盖） */
         .gnp-folder-select { background: var(--gnp-popover-input-bg) !important; border: 1px solid var(--gnp-popover-border) !important; color: var(--gnp-text-main) !important; box-shadow: 0 1px 0 rgba(0,0,0,0.06); }
@@ -731,7 +731,7 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
     max-width: min(720px, 78vw);
     max-height: min(420px, 55vh);
     padding: 12px;
-    border-radius: 12px;
+    border-radius: 14px;
     background: var(--gnp-hover-preview-bg);
     -webkit-backdrop-filter: blur(10px) saturate(1.1);
     backdrop-filter: blur(10px) saturate(1.1);
@@ -809,7 +809,7 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-use-meta{
     box-sizing: border-box;
     resize: none; /* 由弹窗本体提供 resize，避免双重拉伸手柄 */
     padding: 12px 12px;
-    border-radius: 12px;
+    border-radius: 14px;
     border: 1px solid var(--gnp-border);
     background: rgba(255,255,255,0.60);
     color: var(--gnp-text-main);
@@ -1008,3 +1008,263 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
 .gnp-hover-star:hover {
     transform: scale(1.2);
 }
+
+/* ============================================
+   🎨 UI/UX 优化新增部分 - v2.0
+   ============================================ */
+
+/* === CSS 变量补充 === */
+:root {
+    /* 🎨 新增变量 */
+    --gnp-bg-secondary: rgba(248, 250, 252, 0.88);
+    --gnp-border-strong: rgba(15, 23, 42, 0.20);
+    --gnp-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+    --gnp-shadow-lg: 0 24px 80px rgba(15, 23, 42, 0.16), 0 12px 40px rgba(15, 23, 42, 0.10);
+    --gnp-text-muted: rgba(15, 23, 42, 0.45);
+    --gnp-hover-border: rgba(15, 23, 42, 0.18);
+    --gnp-active-glow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    --gnp-current-glow: 0 0 0 4px rgba(245, 158, 11, 0.10);
+    --gnp-fav-bg: rgba(5, 150, 105, 0.10);
+    --gnp-fav-glow: 0 0 0 4px rgba(5, 150, 105, 0.08);
+    --gnp-input-bg-focus: rgba(255, 255, 255, 0.98);
+    --gnp-input-border-focus: rgba(37, 99, 235, 0.50);
+    --gnp-danger-bg: rgba(220, 38, 38, 0.10);
+    --gnp-danger-hover: rgba(220, 38, 38, 0.16);
+    --gnp-btn-shadow: 0 2px 6px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+    --gnp-btn-shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.08);
+    
+    /* 动画系统 */
+    --gnp-transition-fast: 120ms;
+    --gnp-transition-base: 200ms;
+    --gnp-transition-slow: 300ms;
+    --gnp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --gnp-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --gnp-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --gnp-bg-secondary: rgba(15, 23, 42, 0.90);
+        --gnp-border-strong: rgba(148, 163, 184, 0.32);
+        --gnp-text-muted: rgba(248, 250, 252, 0.45);
+        --gnp-hover-border: rgba(148, 163, 184, 0.28);
+        --gnp-active-glow: 0 0 0 4px rgba(96, 165, 250, 0.16);
+        --gnp-current-glow: 0 0 0 4px rgba(251, 191, 36, 0.14);
+        --gnp-fav-bg: rgba(52, 211, 153, 0.14);
+        --gnp-fav-glow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+        --gnp-input-bg-focus: rgba(31, 41, 55, 0.98);
+        --gnp-danger-bg: rgba(252, 165, 165, 0.14);
+        --gnp-danger-hover: rgba(252, 165, 165, 0.20);
+    }
+}
+
+/* === 动画关键帧 === */
+
+/* 🎨 当前项脉冲动画 */
+@keyframes gnp-pulse-current {
+    0%, 100% { 
+        box-shadow: var(--gnp-current-glow), 0 4px 16px rgba(245, 158, 11, 0.18); 
+    }
+    50% { 
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.08), 0 6px 20px rgba(245, 158, 11, 0.24); 
+    }
+}
+
+/* 🎨 按钮脉冲动画 */
+@keyframes gnp-btn-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* 🎨 批量操作栏进入动画 */
+@keyframes gnp-batch-bar-enter {
+    0% {
+        transform: translateX(-50%) translateY(40px) scale(0.9);
+        opacity: 0;
+    }
+    60% {
+        transform: translateX(-50%) translateY(-4px) scale(1.02);
+    }
+    100% {
+        transform: translateX(-50%) translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+/* 🎨 Hover预览淡入动画 */
+@keyframes gnp-preview-fadein {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* 🎨 遮罩淡入动画 */
+@keyframes gnp-overlay-fadein {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 🎨 模态框弹出动画 */
+@keyframes gnp-modal-popup {
+    0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+    60% {
+        transform: scale(1.02) translateY(-4px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* === 组件增强 === */
+
+/* 🎨 导航项：hover时的transform */
+.gemini-nav-item:hover {
+    transform: translateX(-3px) scale(1.01);
+}
+
+/* 🎨 导航项：active按下状态 */
+.gemini-nav-item:active {
+    transform: translateX(-2px) scale(0.99);
+    transition-duration: 80ms;
+}
+
+/* 🎨 当前项：脉冲动画 */
+.gemini-nav-item.active-current {
+    border-left-width: 4px;
+    animation: gnp-pulse-current 2s ease-in-out infinite;
+}
+
+/* 🎨 键盘选中：发光和偏移 */
+.gemini-nav-item.keyboard-selected {
+    box-shadow: inset 0 0 0 2px var(--gnp-active-border), var(--gnp-active-glow) !important;
+    transform: translateX(-2px);
+}
+
+/* 🎨 小按钮：active状态 */
+.mini-btn:active {
+    transform: scale(0.95);
+}
+
+/* 🎨 小按钮：激活态脉冲 */
+.mini-btn.active,
+.mini-btn.is-active,
+.mini-btn[aria-pressed="true"] {
+    animation: gnp-btn-pulse 2s ease-in-out infinite;
+}
+
+/* 🎨 Tab：hover上浮 */
+.nav-tab:not(.active):hover {
+    transform: translateY(-1px) scale(1.02);
+}
+
+/* 🎨 Tab激活：上浮 */
+.nav-tab.active {
+    transform: translateY(-1px);
+}
+
+/* 🎨 搜索框：聚焦放大 */
+#gemini-nav-search-input:focus {
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12), 0 4px 12px rgba(37, 99, 235, 0.10);
+    transform: scale(1.01);
+}
+
+/* 🎨 批量操作栏：动画 */
+#gemini-batch-bar.visible {
+    animation: gnp-batch-bar-enter 0.4s var(--gnp-ease-spring);
+}
+
+/* 🎨 Hover预览：动画 */
+#gnp-hover-preview.visible {
+    animation: gnp-preview-fadein 0.25s var(--gnp-ease-out);
+}
+
+/* 🎨 Hover预览：编辑模式边框 */
+#gnp-hover-preview.editing {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.20), 0 28px 88px rgba(0, 0, 0, 0.18);
+}
+
+/* 🎨 遮罩：模糊和淡入 */
+.gnp-confirm-overlay {
+    backdrop-filter: blur(8px) saturate(0.8);
+    animation: gnp-overlay-fadein 0.2s ease;
+}
+
+/* 🎨 模态框：弹出动画 */
+.gnp-confirm-box {
+    animation: gnp-modal-popup 0.3s var(--gnp-ease-spring);
+}
+
+/* === 无障碍优化 === */
+
+/* ♿ 焦点指示器 */
+*:focus-visible {
+    outline: 2px solid var(--gnp-active-border);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ♿ 高对比度模式 */
+@media (prefers-contrast: high) {
+    :root {
+        --gnp-border: rgba(15, 23, 42, 0.30);
+        --gnp-text-sub: rgba(15, 23, 42, 0.85);
+    }
+}
+
+/* ♿ 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ♿ ARIA 状态视觉反馈 */
+[aria-pressed="true"],
+[aria-selected="true"],
+[aria-current="true"] {
+    background: var(--gnp-active-bg);
+    border-color: var(--gnp-active-border);
+}
+
+[aria-disabled="true"],
+[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* === 性能优化 === */
+
+/* ⚡ GPU 加速 */
+.gemini-nav-item,
+.mini-btn,
+.nav-tab,
+#gemini-batch-bar,
+#gnp-hover-preview {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+}
+
+/* ⚡ Contain 属性 */
+.gemini-nav-item {
+    contain: layout style paint;
+}
+
+/* === END OF UI/UX OPTIMIZATIONS === */
