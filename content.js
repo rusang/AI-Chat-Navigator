@@ -1095,13 +1095,13 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     const SVGS = {
         clear: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
         close: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-        edit: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+        edit: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>`,
         copy: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
         plus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
-        pin: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`,
+        pin: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16h14v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1V5H8v2h1v3.76z"/></svg>`,
         folderPlus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="12" y1="12" x2="12" y2="18"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>`,
         folderX: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="10" y1="13" x2="14" y2="17"></line><line x1="14" y1="13" x2="10" y2="17"></line></svg>`,
-        folderMove: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><polyline points="10 14 12 12 14 14"></polyline><polyline points="10 16 12 18 14 16"></polyline></svg>`,
+        folderMove: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/><path d="M12 13h4"/><path d="M14 11v4"/></svg>`,
         top: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`,
         bottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`,
         chatBottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>`,
@@ -1380,8 +1380,8 @@ function renderHoverPreviewContent(anchorEl, text) {
         // [新增] 文件夹名（星级右侧；不显示“所属文件夹”字样）
         const folderBadge = document.createElement('span');
         folderBadge.className = 'gnp-hover-folder-badge';
-        folderBadge.textContent = currentFolderName;
-        folderBadge.style.cssText = 'height: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; font-size: 11px; line-height: 1; color: var(--gnp-text-sub); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.22); box-shadow: 0 1px 2px rgba(0,0,0,0.04); white-space: nowrap; user-select: none; pointer-events: none;';
+        folderBadge.textContent = gnpTruncateFolderName(currentFolderName);
+        folderBadge.style.cssText = 'max-width: 200px; height: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; font-size: 11px; line-height: 1; color: var(--gnp-text-sub); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.22); box-shadow: 0 1px 2px rgba(0,0,0,0.04); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; pointer-events: none;';
         gnpHoverPreviewToolbarEl.appendChild(folderBadge);
 
         // [新增] 更改所属文件夹按钮（放在使用次数左边）
@@ -1515,8 +1515,8 @@ function renderHoverPreviewContent(anchorEl, text) {
             if (currentFolderName) {
                 const folderBadge = document.createElement('span');
                 folderBadge.className = 'gnp-hover-folder-badge';
-                folderBadge.textContent = currentFolderName;
-                folderBadge.style.cssText = 'height: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; font-size: 11px; line-height: 1; color: var(--gnp-text-sub); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.22); box-shadow: 0 1px 2px rgba(0,0,0,0.04); white-space: nowrap; user-select: none; pointer-events: none;';
+                folderBadge.textContent = gnpTruncateFolderName(currentFolderName);
+                folderBadge.style.cssText = 'max-width: 200px; height: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; font-size: 11px; line-height: 1; color: var(--gnp-text-sub); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.22); box-shadow: 0 1px 2px rgba(0,0,0,0.04); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; pointer-events: none;';
                 gnpHoverPreviewToolbarEl.appendChild(folderBadge);
             }
 
@@ -4096,6 +4096,18 @@ const saveFavorites = (mode = 'fav_list') => {
         return f;
     };
 
+    // 文件夹名显示优化：最多显示 6 个字符，超过用 ... 省略（避免按钮重叠）
+    function gnpTruncateFolderName(name, maxLen = 999) {
+        // 支持自定义截断长度
+        // maxLen=999时显示完整名称（用于弹窗）
+        // maxLen=6时截断为6个字符（用于列表badge）
+        const str = String(name || '');
+        if (maxLen >= 999) return str; // 完整显示
+        const arr = Array.from(str);
+        if (arr.length <= maxLen) return arr.join('');
+        return arr.slice(0, maxLen).join('') + '...';
+    }
+
 
     // 移动收藏到指定文件夹（弹窗在插件内，支持下拉+实时搜索；Esc 退出）
     const gnpMoveFavoriteToFolder = (promptText, currentFolder) => {
@@ -6418,7 +6430,8 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
         const folderSelect = document.createElement('select');
         folderSelect.className = 'gnp-folder-select';
         folderSelect.title = '按文件夹筛选';
-        folderSelect.style.cssText = 'font-size:12px;background:rgba(0,0,0,0.04);border:1px solid var(--gnp-border);border-radius:10px;padding:3px 8px;color:var(--gnp-text-main);max-width:140px;';
+        // 目录名过长会把右侧工具图标“挤”到一起：在这里限制显示宽度，并配合 option 文案截断（最多 6 个字符 + ...）
+        folderSelect.style.cssText = 'font-size:12px;background:rgba(0,0,0,0.04);border:1px solid var(--gnp-border);border-radius:10px;padding:3px 8px;color:var(--gnp-text-main);max-width:140px;width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
 
         // 下拉选择时暂停自动隐藏（原生下拉浮层会触发 sidebar mouseleave，导致菜单自动消失）
         folderSelect.addEventListener('focus', () => { 
@@ -6467,10 +6480,19 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
             return ordered;
         })();
 
+        // 仅用于“切换目录”选择框的显示：最多显示 6 个字符，多余部分用 ...
+        const gnpTruncFolderNameForSelect = (name, maxChars = 6) => {
+            const s = String(name ?? '');
+            if (!s) return s;
+            return s.length > maxChars ? (s.slice(0, maxChars) + '...') : s;
+        };
+
         __folderFilterItems.forEach(f => {
             const opt = document.createElement('option');
             opt.value = f;
-            opt.textContent = f;
+            opt.textContent = gnpTruncFolderNameForSelect(f, 6);
+            // 鼠标悬停可看到全名（即使显示被截断）
+            opt.title = String(f);
             folderSelect.append(opt);
         });
 
@@ -6867,7 +6889,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
             const folderBadge = document.createElement('span');
             folderBadge.className = 'gnp-folder-badge';
-            folderBadge.textContent = favObj.folder || '默认';
+            folderBadge.textContent = gnpTruncateFolderName(favObj.folder || '默认', 6);
             folderBadge.title = '点击移动到其他文件夹';
             folderBadge.onclick = (e) => { e.stopPropagation(); gnpMoveFavoriteToFolder(favText, favObj.folder || '默认'); };
 
@@ -7210,7 +7232,8 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
                         folderBadge.title = '';
                         return;
                     }
-                    const short = (full.length > 4) ? (full.slice(0, 4) + '…') : full;
+                    // [修正] 目录名称（文件夹名）最多显示 6 个字符
+                    const short = (full.length > 6) ? (full.slice(0, 6) + '…') : full;
                     folderBadge.textContent = short;
                     folderBadge.title = full;
                     folderBadge.style.display = 'inline-flex';
