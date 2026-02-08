@@ -1347,6 +1347,9 @@ function renderHoverPreviewContent(anchorEl, text) {
     if (source === 'fav') {
         const idx = getFavoriteIndex(t);
         const favObj = (idx > -1 && favorites && favorites[idx]) ? favorites[idx] : { useCount: 0, lastUsed: 0, rating: 1 };
+        
+        // [调整] 所属文件夹显示：移动到工具栏最下方（星级右侧），仅显示文件夹名
+        const currentFolderName = String(favObj.folder || '默认');
 
         // [新增] 悬浮窗内的星级评分（置于工具栏最前）
         const ratingBox = document.createElement('div');
@@ -1373,6 +1376,26 @@ function renderHoverPreviewContent(anchorEl, text) {
         };
         renderHoverStars(Number(favObj.rating) || 1);
         gnpHoverPreviewToolbarEl.appendChild(ratingBox);
+
+        // [新增] 文件夹名（星级右侧；不显示“所属文件夹”字样）
+        const folderBadge = document.createElement('span');
+        folderBadge.className = 'gnp-hover-folder-badge';
+        folderBadge.textContent = currentFolderName;
+        folderBadge.style.cssText = 'height: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; font-size: 11px; line-height: 1; color: var(--gnp-text-sub); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.22); box-shadow: 0 1px 2px rgba(0,0,0,0.04); white-space: nowrap; user-select: none; pointer-events: none;';
+        gnpHoverPreviewToolbarEl.appendChild(folderBadge);
+
+        // [新增] 更改所属文件夹按钮（放在使用次数左边）
+        const moveFolderBtn = makeMiniBtn({
+            cls: '',
+            title: '更改所属文件夹',
+            html: SVGS.folderMove,
+            onClick: (e) => {
+                if (e) e.stopPropagation();
+                const currentFolder = favObj.folder || '默认';
+                gnpMoveFavoriteToFolderFromHover(t, currentFolder);
+            }
+        });
+        gnpHoverPreviewToolbarEl.appendChild(moveFolderBtn);
 
         // 统计信息（使用次数 / 最近使用）
         try {
@@ -1459,7 +1482,8 @@ function renderHoverPreviewContent(anchorEl, text) {
         const favIdx = getFavoriteIndex(t);
         const isFav = favIdx > -1;
         const favObj = isFav ? favorites[favIdx] : null;
-
+        // [调整] 所属文件夹：移动到工具栏最下方（星级右侧），仅显示文件夹名
+        const currentFolderName = (isFav && favObj) ? String(favObj.folder || '默认') : '';
         if (isFav && favObj) {
             // 复制星级渲染逻辑
             const ratingBox = document.createElement('div');
@@ -1486,6 +1510,30 @@ function renderHoverPreviewContent(anchorEl, text) {
             };
             renderHoverStars(Number(favObj.rating) || 1);
             gnpHoverPreviewToolbarEl.appendChild(ratingBox);
+
+            // [新增] 文件夹名（星级右侧；不显示“所属文件夹”字样）
+            if (currentFolderName) {
+                const folderBadge = document.createElement('span');
+                folderBadge.className = 'gnp-hover-folder-badge';
+                folderBadge.textContent = currentFolderName;
+                folderBadge.style.cssText = 'height: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; font-size: 11px; line-height: 1; color: var(--gnp-text-sub); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.22); box-shadow: 0 1px 2px rgba(0,0,0,0.04); white-space: nowrap; user-select: none; pointer-events: none;';
+                gnpHoverPreviewToolbarEl.appendChild(folderBadge);
+            }
+
+
+
+            // [新增] 如果已收藏，添加更改文件夹按钮（放在使用次数左边）
+            const moveFolderBtn = makeMiniBtn({
+                cls: '',
+                title: '更改所属文件夹',
+                html: SVGS.folderMove,
+                onClick: (e) => {
+                    if (e) e.stopPropagation();
+                    const currentFolder = favObj.folder || '默认';
+                    gnpMoveFavoriteToFolderFromHover(t, currentFolder);
+                }
+            });
+            gnpHoverPreviewToolbarEl.appendChild(moveFolderBtn);
         }
 
         // 统计信息（最近使用时间）
@@ -1534,7 +1582,7 @@ function renderHoverPreviewContent(anchorEl, text) {
                 showFavFolderPickerInSidebar({
                     promptText: t,
                     defaultFolder: targetFolderDefault,
-                    onConfirm: (folder) => {
+                    onConfirm: (folder, rating) => {
                         if (!addFavorite(t, folder)) return;
                         saveFavorites();
                         showSidebarToast(`已收藏到「${folder}」`);
@@ -4056,23 +4104,82 @@ const saveFavorites = (mode = 'fav_list') => {
         showFavFolderPickerInSidebar({
             promptText: t,
             defaultFolder: currentFolder || '默认',
+            defaultRating: (function(){ const i=getFavoriteIndex(t); return (i>-1 && favorites[i] ? Number(favorites[i].rating)||1 : 1); })(),
             titleText: '移动到文件夹',
             descText: '将此收藏移动到哪个文件夹？',
             confirmText: '移动',
-            showPreview: false,
+            showPreview: true,
             allowCreateFolder: true,
-            onConfirm: (folder) => {
+            onConfirm: (folder, rating) => {
                 const f = ensureFolderExists(folder);
                 const idx = getFavoriteIndex(t);
                 if (idx === -1) return;
-                const old = String((favorites[idx] && favorites[idx].folder) || '默认');
-                if (old === f) return;
+
+                const oldFolder = String((favorites[idx] && favorites[idx].folder) || '默认');
+                const oldRating = Number((favorites[idx] && favorites[idx].rating) || 1) || 1;
+                const newRating = Number(rating) || 1;
+
+                // 允许“只改星级不改文件夹”也生效
+                const folderChanged = (oldFolder !== f);
+                const ratingChanged = (oldRating !== newRating);
+                if (!folderChanged && !ratingChanged) return;
+
                 favorites[idx].folder = f;
+                favorites[idx].rating = newRating;
+
                 saveFavorites('fav_list');
                 // 若当前筛选目录不包含该条，重绘后会自动移除/出现
                 try { renderFavorites(); } catch (_) {}
                 try { if (panelNav && panelNav.classList.contains('active')) refreshNav(true); } catch (_) {}
-                try { showSidebarToast(`已移动到「${f}」`); } catch (_) {}
+
+                if (folderChanged) {
+                    try { showSidebarToast(`已移动到「${f}」`); } catch (_) {}
+                } else if (ratingChanged) {
+                    try { showSidebarToast(`已更新星级：${newRating} 星`); } catch (_) {}
+                }
+            }
+        });
+    };
+
+    // [新增] 从hover预览调用的移动文件夹功能（在全局弹窗中显示，保留当前星级）
+    const gnpMoveFavoriteToFolderFromHover = (promptText, currentFolder) => {
+        const t = String(promptText || '').trim();
+        if (!t) return;
+        
+        // 获取当前收藏项信息
+        const idx = getFavoriteIndex(t);
+        if (idx === -1) return;
+        const favObj = favorites[idx];
+        const currentRating = Number(favObj.rating) || 1;
+        
+        // 使用全局弹窗而不是侧边栏内弹窗
+        showFavFolderPickerGlobal({
+            promptText: t,
+            defaultFolder: currentFolder || '默认',
+            defaultRating: currentRating,  // 传递当前星级
+            titleText: '移动到文件夹',
+            descText: '将此收藏移动到哪个文件夹？',
+            confirmText: '移动',
+            showPreview: true,
+            allowCreateFolder: true,
+            onConfirm: (folder, rating) => {
+                const f = ensureFolderExists(folder);
+                const old = String(favObj.folder || '默认');
+                
+                // 更新文件夹和星级
+                favorites[idx].folder = f;
+                favorites[idx].rating = rating;
+                
+                saveFavorites('fav_list');
+                
+                // 刷新界面
+                try { renderFavorites(); } catch (_) {}
+                try { if (panelNav && panelNav.classList.contains('active')) refreshNav(true); } catch (_) {}
+                
+                // 如果文件夹改变了，显示提示
+                if (old !== f) {
+                    try { showSidebarToast(`已移动到「${f}」`); } catch (_) {}
+                }
             }
         });
     };
@@ -4634,7 +4741,7 @@ function showPromptInSidebar({ titleText, placeholder, defaultValue, confirmText
 
 
 }
-function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm, titleText, descText, confirmText, showPreview = true, allowCreateFolder = true }) {
+function showFavFolderPickerInSidebar({ promptText, defaultFolder, defaultRating = 1, onConfirm, titleText, descText, confirmText, showPreview = true, allowCreateFolder = true }) {
     try {
         // 防止叠加多个弹层
         const existed = sidebar && sidebar.querySelector('.gnp-confirm-overlay');
@@ -4678,7 +4785,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm, ti
         preview.style.display = 'none';
     }
 
-    let currentRating = 1;
+    let currentRating = Number(defaultRating) || 1;
     const starPicker = document.createElement('div');
     starPicker.className = 'gnp-star-picker';
     const renderStars = () => {
@@ -4722,6 +4829,7 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm, ti
                 showFavFolderPickerInSidebar({
                     promptText,
                     defaultFolder: f,
+                    defaultRating: currentRating,
                     onConfirm
                 });
             }
@@ -4927,6 +5035,304 @@ function showFavFolderPickerInSidebar({ promptText, defaultFolder, onConfirm, ti
     box.append(title, desc, starPicker, preview, row, btnRow);
     overlay.append(box);
     sidebar.appendChild(overlay);
+
+    // 自动聚焦搜索框
+    setTimeout(() => { try { search.focus(); search.select(); } catch (_) {} }, 0);
+}
+
+// [新增] 全局弹窗版本的文件夹选择器（用于hover预览调用，不会跳回插件窗口）
+function showFavFolderPickerGlobal({ promptText, defaultFolder, defaultRating = 1, onConfirm, titleText, descText, confirmText, showPreview = false, allowCreateFolder = true }) {
+    try {
+        // 清理已有弹层，避免叠加
+        const existedGlobal = document.querySelector('.gnp-global-overlay');
+        if (existedGlobal) existedGlobal.remove();
+        const existedSide = sidebar && sidebar.querySelector('.gnp-confirm-overlay');
+        if (existedSide) existedSide.remove();
+    } catch (_) {}
+
+    // 打开选择弹层时：保持侧边栏展开，且暂停自动隐藏
+    keepSidebarExpanded();
+    
+    // 默认文案
+    titleText = String(titleText || '').trim() || '选择收藏文件夹';
+    descText = String(descText || '').trim() || '将此 Prompt 收藏到哪个文件夹？';
+    confirmText = String(confirmText || '').trim() || '收藏';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'gnp-global-overlay';
+
+    let onDocKeyDown = null;
+
+    const closeOverlay = () => {
+        if (onDocKeyDown) { try { document.removeEventListener('keydown', onDocKeyDown, true); } catch (_) {} onDocKeyDown = null; }
+        overlay.remove();
+        if (isAutoHideEnabled && sidebar && !sidebar.matches(':hover')) scheduleAutoHide();
+    };
+
+    const box = document.createElement('div');
+    box.className = 'gnp-global-box';
+    box.style.minWidth = '420px';
+    box.style.maxWidth = '540px';
+
+    const title = document.createElement('div');
+    title.className = 'gnp-global-title';
+    title.textContent = titleText;
+
+    const desc = document.createElement('div');
+    desc.className = 'gnp-confirm-desc';
+    desc.textContent = descText;
+    desc.style.marginBottom = '12px';
+
+    const preview = document.createElement('div');
+    preview.className = 'gnp-fav-prompt-preview';
+    preview.textContent = String(promptText || '').trim().slice(0, 1200);
+    preview.style.marginBottom = '12px';
+    if (!showPreview) {
+        preview.style.display = 'none';
+    }
+
+    // 星级评分（使用传入的defaultRating）
+    let currentRating = Number(defaultRating) || 1;
+    const starPicker = document.createElement('div');
+    starPicker.className = 'gnp-star-picker';
+    starPicker.style.marginBottom = '12px';
+    const renderStars = () => {
+        starPicker.innerHTML = '';
+        for (let i = 1; i <= 5; i++) {
+            const s = document.createElement('span');
+            s.className = `gnp-star-item ${i <= currentRating ? 'active' : ''}`;
+            s.textContent = i <= currentRating ? '★' : '☆';
+            s.title = `${i} 星`;
+            s.onclick = (e) => { e.stopPropagation(); currentRating = i; renderStars(); };
+            starPicker.appendChild(s);
+        }
+    };
+    renderStars();
+
+    const row = document.createElement('div');
+    row.className = 'gnp-fav-folder-picker-row';
+
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.className = 'gnp-folder-search-input';
+    search.placeholder = '搜索文件夹（支持关键字）...';
+
+    // 新建文件夹按钮
+    const newFolderBtn = document.createElement('div');
+    newFolderBtn.className = 'header-circle-btn';
+    newFolderBtn.title = '新建文件夹';
+    newFolderBtn.innerHTML = SVGS.folderPlus;
+    newFolderBtn.onclick = (e) => {
+        try { e && e.stopPropagation(); } catch (_) {}
+        closeOverlay();
+        showPromptInSidebar({
+            titleText: '新建文件夹',
+            placeholder: '请输入文件夹名称',
+            defaultValue: '',
+            confirmText: '创建',
+            onConfirm: (name) => {
+                const f = ensureFolderExists(name);
+                // 重新打开全局文件夹选择器
+                showFavFolderPickerGlobal({
+                    promptText,
+                    defaultFolder: f,
+                    defaultRating: currentRating,
+                    titleText,
+                    descText,
+                    confirmText,
+                    showPreview,
+                    allowCreateFolder,
+                    onConfirm
+                });
+            }
+        });
+    };
+
+    if (!allowCreateFolder) { try { newFolderBtn.style.display = 'none'; } catch (_) {} }
+
+    const folderSel = document.createElement('select');
+    folderSel.className = 'gnp-folder-select';
+    folderSel.style.width = '100%';
+
+    // 准备文件夹列表
+    let folderOptions = (typeof gnpNormalizeFolders === 'function') ? gnpNormalizeFolders(folders) : ['默认'];
+    try {
+        (Array.isArray(favorites) ? favorites : []).forEach(f => {
+            const ff = String((f && f.folder) || '').trim();
+            if (ff && !folderOptions.includes(ff)) folderOptions.push(ff);
+        });
+    } catch (_) {}
+    folderOptions = (typeof gnpNormalizeFolders === 'function') ? gnpNormalizeFolders(folderOptions) : folderOptions;
+    folderOptions = (folderOptions || []).filter(fn => fn && fn !== '全部');
+    if (!folderOptions.includes('默认')) folderOptions.unshift('默认');
+
+    const allFolders = folderOptions.slice();
+
+    // 搜索建议框
+    const suggestBox = document.createElement('div');
+    suggestBox.className = 'gnp-folder-suggest-box';
+    let suggestActiveIndex = -1;
+
+    const renderSuggest = (list, keyword) => {
+        try { suggestBox.innerHTML = ''; } catch (_) { suggestBox.textContent = ''; }
+        const kw = String(keyword || '').trim();
+        if (!kw) { suggestBox.style.display = 'none'; suggestActiveIndex = -1; return; }
+        suggestBox.style.display = 'block';
+        if (!list || !list.length) {
+            const empty = document.createElement('div');
+            empty.className = 'gnp-folder-suggest-empty';
+            empty.textContent = '（无匹配）';
+            suggestBox.appendChild(empty);
+            suggestActiveIndex = -1;
+            return;
+        }
+        list.forEach((fn, idx) => {
+            const item = document.createElement('div');
+            item.className = 'gnp-folder-suggest-item';
+            if (fn === folderSel.value) item.classList.add('active');
+            item.textContent = fn;
+            item.addEventListener('mousedown', (ev) => {
+                try { ev.preventDefault(); ev.stopPropagation(); } catch (_) {}
+                try { folderSel.value = fn; suggestActiveIndex = idx; } catch (_) {}
+            }, true);
+            item.addEventListener('click', (ev) => {
+                try { ev.preventDefault(); ev.stopPropagation(); } catch (_) {}
+                try { folderSel.value = fn; } catch (_) {}
+            }, true);
+            suggestBox.appendChild(item);
+        });
+        if (suggestActiveIndex < 0) suggestActiveIndex = 0;
+    };
+
+    const rebuildOptions = (keyword) => {
+        const kw = String(keyword || '').trim().toLowerCase();
+        const prev = folderSel.value;
+        folderSel.innerHTML = '';
+
+        let list = allFolders;
+        if (kw) list = allFolders.filter(fn => String(fn).toLowerCase().includes(kw));
+
+        if (!list.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '（无匹配）';
+            opt.disabled = true;
+            folderSel.append(opt);
+            folderSel.value = '';
+            renderSuggest([], keyword);
+            return;
+        }
+
+        list.forEach(fn => {
+            const opt = document.createElement('option');
+            opt.value = fn;
+            opt.textContent = fn;
+            folderSel.append(opt);
+        });
+
+        if (prev && list.includes(prev)) folderSel.value = prev;
+        else folderSel.value = list[0];
+
+        renderSuggest(list, keyword);
+    };
+
+    rebuildOptions('');
+
+    const def = (defaultFolder && defaultFolder !== '全部') ? defaultFolder : '默认';
+    if (allFolders.includes(def)) folderSel.value = def;
+
+    search.addEventListener('input', () => rebuildOptions(search.value));
+    search.addEventListener('keydown', (ev) => {
+        try {
+            if (ev.key === 'ArrowDown' || ev.key === 'Down') {
+                const items = suggestBox.querySelectorAll('.gnp-folder-suggest-item');
+                if (!items || !items.length) return;
+                ev.preventDefault();
+                suggestActiveIndex = (suggestActiveIndex < 0 ? 0 : ((suggestActiveIndex + 1) % items.length));
+                const target = items[suggestActiveIndex];
+                if (target) {
+                    items.forEach(it => it.classList.remove('kbd'));
+                    target.classList.add('kbd');
+                    const val = target.textContent;
+                    if (val) folderSel.value = val;
+                    try { target.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+                }
+            } else if (ev.key === 'ArrowUp' || ev.key === 'Up') {
+                const items = suggestBox.querySelectorAll('.gnp-folder-suggest-item');
+                if (!items || !items.length) return;
+                ev.preventDefault();
+                suggestActiveIndex = (suggestActiveIndex < 0 ? (items.length - 1) : ((suggestActiveIndex - 1 + items.length) % items.length));
+                const target = items[suggestActiveIndex];
+                if (target) {
+                    items.forEach(it => it.classList.remove('kbd'));
+                    target.classList.add('kbd');
+                    const val = target.textContent;
+                    if (val) folderSel.value = val;
+                    try { target.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+                }
+            }
+        } catch (_) {}
+    });
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'gnp-btn-row';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.className = 'gnp-btn-cancel';
+    btnCancel.textContent = '取消';
+    btnCancel.onclick = closeOverlay;
+
+    const btnConfirm = document.createElement('button');
+    btnConfirm.className = 'gnp-btn-confirm';
+    btnConfirm.textContent = confirmText;
+
+    const doConfirm = () => {
+        const folder = String(folderSel.value || '').trim() || '默认';
+        try { onConfirm && onConfirm(folder, currentRating); }
+        finally { closeOverlay(); }
+    };
+    btnConfirm.onclick = doConfirm;
+
+    // Esc关闭，Enter确认
+    onDocKeyDown = (ev) => {
+        try {
+            if (!overlay || !overlay.isConnected) return;
+            if (!ev) return;
+            const k = ev.key;
+            if (k === 'Escape' || k === 'Esc') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                closeOverlay();
+                return;
+            }
+            if (k === 'Enter') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                doConfirm();
+            }
+        } catch (_) {}
+    };
+    try { document.addEventListener('keydown', onDocKeyDown, true); } catch (_) {}
+
+    // 防止事件冒泡
+    overlay.addEventListener('mousedown', (ev) => { ev.stopPropagation(); });
+    overlay.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (ev.target === overlay) closeOverlay();
+    });
+
+    // 搜索框 + 新建文件夹按钮同行显示
+    const searchRow = document.createElement('div');
+    searchRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+    search.style.flex = '1 1 auto';
+    searchRow.append(search, newFolderBtn);
+
+    row.append(searchRow, suggestBox, folderSel);
+    btnRow.append(btnCancel, btnConfirm);
+
+    box.append(title, desc, starPicker, preview, row, btnRow);
+    overlay.append(box);
+    document.body.appendChild(overlay);
 
     // 自动聚焦搜索框
     setTimeout(() => { try { search.focus(); search.select(); } catch (_) {} }, 0);
