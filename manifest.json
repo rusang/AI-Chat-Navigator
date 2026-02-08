@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Chat Navigator",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "为Gemini/ChatGPT/Claude等AI对话添加带有搜索和收藏功能的高级导航面板,支持键盘快捷键和主题切换",
   "permissions": [
     "tabs",
