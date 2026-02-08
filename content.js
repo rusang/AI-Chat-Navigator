@@ -1097,21 +1097,21 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
         close: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
         edit: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>`,
         copy: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
-        plus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>`,
+        plus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
         pin: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16h14v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1V5H8v2h1v3.76z"/></svg>`,
         folderPlus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="12" y1="12" x2="12" y2="18"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>`,
         folderX: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="10" y1="13" x2="14" y2="17"></line><line x1="14" y1="13" x2="10" y2="17"></line></svg>`,
         folderMove: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/><path d="M12 13h4"/><path d="M14 11v4"/></svg>`,
-        top: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11l5-5 5 5"></path><path d="M7 18l5-5 5 5"></path></svg>`,
-        bottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l5 5 5-5"></path><path d="M7 13l5 5 5-5"></path></svg>`,
-        chatBottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v10"></path><path d="M8 12l4 4 4-4"></path><path d="M4 18h16"></path></svg>`,
+        top: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`,
+        bottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`,
+        chatBottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>`,
                 locate: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"7\"/><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"5\"/><line x1=\"12\" y1=\"19\" x2=\"12\" y2=\"22\"/><line x1=\"2\" y1=\"12\" x2=\"5\" y2=\"12\"/><line x1=\"19\" y1=\"12\" x2=\"22\" y2=\"12\"/></svg>`,
-chatTop: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V8"></path><path d="M8 12l4-4 4 4"></path><path d="M4 6h16"></path></svg>`,
+chatTop: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 11l5-5 5 5M7 18l5-5 5 5\"/></svg>`,
         check: `✔`,
         star: `★`,
         lightning: `⚡`,
 
-        nav: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"></path><path d="M3 6h.01"></path><path d="M8 12h13"></path><path d="M3 12h.01"></path><path d="M8 18h13"></path><path d="M3 18h.01"></path></svg>`,
+        nav: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>`,
 
         fileImport: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12 18v-6"></path><polyline points="9 15 12 12 15 15"></polyline></svg>`,
         starTab: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`
@@ -6147,16 +6147,40 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                                 if (!trimmed) return;
                                 const finalName = ensureFolderExists(trimmed);
 
-                                // 更新 folders 列表（去掉旧名）
-                                folders = folders.filter(f => f !== oldName);
-                                if (!folders.includes(finalName)) folders.push(finalName);
-                                saveFolders();
+                    // ✅ Rename must create a tombstone for old folder to prevent sync "revive"
+                    try {
+                        const now = gnpNow();
+                        const oldKey = String(oldName || '').trim();
+                        const newKey = String(finalName || '').trim();
+                        if (oldKey && newKey && oldKey !== newKey) {
+                            deletedFolders = (deletedFolders && typeof deletedFolders === 'object') ? deletedFolders : {};
+                            deletedFolders[oldKey] = now;
+                            try { if (restoredFolders && restoredFolders[oldKey]) delete restoredFolders[oldKey]; } catch (_) {}
+                        }
+                    } catch (_) {}
 
-                                // 更新收藏的 folder 字段
-                                favorites.forEach(f => {
-                                    if (f.folder === oldName) f.folder = finalName;
-                                });
-                                saveFavorites();
+                                // 更新 folders 列表（去掉旧名）
+                    try {
+                        const oldKey = String(oldName || '').trim();
+                        const newKey = String(finalName || '').trim();
+                        folders = (Array.isArray(folders) ? folders : [])
+                            .map(x => String(x || '').trim())
+                            .filter(Boolean)
+                            .filter(x => x !== oldKey);
+                        if (newKey && !folders.includes(newKey)) folders.push(newKey);
+                    } catch (_) {}
+                    saveFolders();
+
+                                // 更新收藏的 folder 字段（用 trim 归一化比较，避免不可见差异导致迁移不完整）
+                    try {
+                        const oldKey = String(oldName || '').trim();
+                        const newKey = String(finalName || '').trim();
+                        favorites.forEach(f => {
+                            const fk = String((f && f.folder) || '').trim();
+                            if (fk === oldKey) f.folder = newKey || '默认';
+                        });
+                    } catch (_) {}
+                    saveFavorites();
 
                                 // 若当前正在浏览被重命名的目录，则同步更新筛选值
                                 if (favFolderFilter === oldName) {
@@ -6607,15 +6631,39 @@ function showEditModalCenter({ titleText, placeholder, defaultValue, confirmText
                     if (!trimmed) return;
                     const finalName = ensureFolderExists(trimmed);
 
+                    // ✅ Rename must create a tombstone for old folder to prevent sync "revive"
+                    try {
+                        const now = gnpNow();
+                        const oldKey = String(oldName || '').trim();
+                        const newKey = String(finalName || '').trim();
+                        if (oldKey && newKey && oldKey !== newKey) {
+                            deletedFolders = (deletedFolders && typeof deletedFolders === 'object') ? deletedFolders : {};
+                            deletedFolders[oldKey] = now;
+                            try { if (restoredFolders && restoredFolders[oldKey]) delete restoredFolders[oldKey]; } catch (_) {}
+                        }
+                    } catch (_) {}
+
                     // 更新 folders 列表（去掉旧名）
-                    folders = folders.filter(f => f !== oldName);
-                    if (!folders.includes(finalName)) folders.push(finalName);
+                    try {
+                        const oldKey = String(oldName || '').trim();
+                        const newKey = String(finalName || '').trim();
+                        folders = (Array.isArray(folders) ? folders : [])
+                            .map(x => String(x || '').trim())
+                            .filter(Boolean)
+                            .filter(x => x !== oldKey);
+                        if (newKey && !folders.includes(newKey)) folders.push(newKey);
+                    } catch (_) {}
                     saveFolders();
 
-                    // 更新收藏的 folder 字段
-                    favorites.forEach(f => {
-                        if (f.folder === oldName) f.folder = finalName;
-                    });
+                    // 更新收藏的 folder 字段（用 trim 归一化比较，避免不可见差异导致迁移不完整）
+                    try {
+                        const oldKey = String(oldName || '').trim();
+                        const newKey = String(finalName || '').trim();
+                        favorites.forEach(f => {
+                            const fk = String((f && f.folder) || '').trim();
+                            if (fk === oldKey) f.folder = newKey || '默认';
+                        });
+                    } catch (_) {}
                     saveFavorites();
 
                     favFolderFilter = finalName;
