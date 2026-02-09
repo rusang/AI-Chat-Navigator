@@ -267,7 +267,7 @@
     --gnp-progress-bg: #2563eb;
 
     --gnp-autosend-color: #7c3aed;
-    --gnp-autosend-bg: rgba(124, 58, 237, 0.12);
+    --gnp-autosend-bg: rgba(124, 58, 237, 0.85);
 
     --gnp-modal-bg: rgba(255, 255, 255, 0.94);
     --gnp-modal-overlay: rgba(15, 23, 42, 0.48);
@@ -358,7 +358,7 @@
     --gnp-tab-active-fg: #ffffff;
     
     --gnp-autosend-color: #a78bfa;
-    --gnp-autosend-bg: rgba(167, 139, 250, 0.18);
+    --gnp-autosend-bg: rgba(167, 139, 250, 0.85);
 
 [data-gnp-theme="light"] {
     --gnp-bg: rgba(255, 255, 255, 0.88);
@@ -391,7 +391,7 @@
     --gnp-tab-active-fg: #ffffff;
     
     --gnp-autosend-color: #7c3aed;
-    --gnp-autosend-bg: rgba(124, 58, 237, 0.12);
+    --gnp-autosend-bg: rgba(124, 58, 237, 0.85);
 
 /* 键盘导航选中状态 (v8.0新增) */
 .gemini-nav-item.keyboard-selected {
@@ -413,7 +413,7 @@
         --gnp-progress-bg: #60a5fa;
 
         --gnp-autosend-color: #a78bfa;
-        --gnp-autosend-bg: rgba(167, 139, 250, 0.18);
+        --gnp-autosend-bg: rgba(167, 139, 250, 0.85);
 
         --gnp-modal-bg: rgba(17, 24, 39, 0.94);
         --gnp-modal-overlay: rgba(0, 0, 0, 0.62);
@@ -585,9 +585,9 @@
             transform: scale(1.1);
         }
         /* 填入/发送按钮 - 闪电效果 */
-        .mini-btn.use-btn { font-weight: bold; background: rgba(124, 58, 237, 0.10); border: 1px solid rgba(124, 58, 237, 0.25); color: var(--gnp-autosend-color); }
-        .mini-btn.use-btn:hover { color: #7c3aed; background: rgba(124, 58, 237, 0.18); box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15), 0 2px 8px rgba(124, 58, 237, 0.15); }
-        .mini-btn.use-btn.autosend-mode { color: var(--gnp-autosend-color); background: var(--gnp-autosend-bg); border: 1px solid var(--gnp-autosend-color); }
+        .mini-btn.use-btn { font-weight: bold; background: rgba(0,0,0,0.04); border: 1px solid var(--gnp-border); color: var(--gnp-text-sub); }
+        .mini-btn.use-btn:hover { color: #7c3aed; background: rgba(124, 58, 237, 0.12); box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12), 0 2px 8px rgba(124, 58, 237, 0.12); }
+        .mini-btn.use-btn.autosend-mode { color: #fff; background: var(--gnp-autosend-bg); border: 1px solid var(--gnp-autosend-color); }
         /* 复制按钮 - 蓝色 */
         .mini-btn:has(svg) { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.20); }
         .mini-btn:has(svg):hover { background: rgba(59, 130, 246, 0.15); color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12), 0 2px 6px rgba(59, 130, 246, 0.12); }
@@ -599,6 +599,7 @@
         .mini-btn:has(path[d*="folder"]):hover { background: rgba(16, 185, 129, 0.15); color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.12), 0 2px 6px rgba(16, 185, 129, 0.12); }
         .mini-btn.active, .mini-btn.is-active, .mini-btn[aria-pressed="true"] { background: var(--gnp-mini-active-bg); box-shadow: var(--gnp-mini-active-shadow); color: var(--gnp-active-text); border-color: color-mix(in srgb, var(--gnp-active-border) 26%, var(--gnp-border)); }
         .mini-btn.star-btn.is-fav { color: var(--gnp-fav-color); font-weight: 700; background: rgba(245, 158, 11, 0.12); box-shadow: 0 1px 3px rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.28); }
+        .gnp-item-stars span { color: var(--gnp-fav-color); text-shadow: 0 1px 0 rgba(0,0,0,0.04); }
         .mini-btn.del-btn { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.20); }
         .mini-btn.del-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.15); box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12), 0 2px 6px rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); }
 
@@ -1246,6 +1247,14 @@ function clearHoverPreviewContent() {
 function makeMiniBtn({ cls = '', title = '', html = '', text = '', onClick = null }) {
     const b = document.createElement('span');
     b.className = `mini-btn ${cls}`.trim();
+    // 确保悬浮预览/弹窗中的⚡按钮也能正确跟随“自动发送”开关变紫
+    //（这些按钮可能不在 sidebar DOM 内，因此不能仅依赖 sidebar 范围的同步）
+    try {
+        if (b.classList.contains('use-btn')) {
+            if (isAutoSendEnabled) b.classList.add('autosend-mode');
+            else b.classList.remove('autosend-mode');
+        }
+    } catch (_) {}
     if (title) b.title = title;
     if (html) b.innerHTML = html;
     if (!html && text) b.textContent = text;
@@ -4301,8 +4310,10 @@ const saveFavorites = (mode = 'fav_list') => {
 function updateHeaderUI() { 
         lockBtn.classList.toggle('active', !isAutoHideEnabled);
         autoSendBtn.classList.toggle('active', isAutoSendEnabled);
-    
-        syncAutosendButtonsUI(sidebar || document);
+
+        // 重要：⚡按钮不仅存在于侧边栏列表，也存在于悬浮预览/弹窗（通常挂在 document.body）。
+        // 若只在 sidebar 内同步，会导致“弹窗里的⚡不变紫”。因此这里强制对 document 同步。
+        syncAutosendButtonsUI(document);
 }
     updateHeaderUI();
 

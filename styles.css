@@ -14,7 +14,7 @@
     --gnp-current-border: #f59e0b;
     --gnp-current-text: #b45309;
     /* 收藏（与“当前 prompt”的黄色区分开） */
-    --gnp-fav-color: #fbbf24;
+    --gnp-fav-color: #059669;
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
     --gnp-search-highlight: #dc2626;
@@ -91,7 +91,7 @@
         --gnp-current-border: #fbbf24;
         --gnp-current-text: #fde68a;
         /* 收藏（与“当前 prompt”的黄色区分开） */
-        --gnp-fav-color: #fbbf24;
+        --gnp-fav-color: #34d399;
         --gnp-input-bg: rgba(148, 163, 184, 0.14);
         --gnp-input-text: rgba(248, 250, 252, 0.96);
         --gnp-search-highlight: #f87171;
@@ -134,7 +134,7 @@
     --gnp-current-bg: rgba(251, 191, 36, 0.18);
     --gnp-current-border: #fbbf24;
     --gnp-current-text: #fde68a;
-    --gnp-fav-color: #fbbf24;
+    --gnp-fav-color: #34d399;
     --gnp-input-bg: rgba(148, 163, 184, 0.14);
     --gnp-input-text: rgba(248, 250, 252, 0.96);
     --gnp-btn-bg: rgba(31, 41, 55, 0.82);
@@ -169,7 +169,7 @@
     --gnp-current-bg: rgba(245, 158, 11, 0.16);
     --gnp-current-border: #f59e0b;
     --gnp-current-text: #b45309;
-    --gnp-fav-color: #fbbf24;
+    --gnp-fav-color: #059669;
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
     --gnp-btn-bg: rgba(255, 255, 255, 0.80);
@@ -371,7 +371,7 @@
             border-radius: 999px;
             font-size: 11px;
             line-height: 1;
-            color: var(--gnp-fav-color);
+            color: var(--gnp-text-sub);
             background: rgba(16,185,129,0.12);
             border: 1px solid rgba(16,185,129,0.22);
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
@@ -439,8 +439,6 @@
         .mini-btn:has(path[d*="folder"]) { background: rgba(16, 185, 129, 0.08) !important; border: 1px solid rgba(16, 185, 129, 0.20) !important; }
         .mini-btn:has(path[d*="folder"]):hover { background: rgba(16, 185, 129, 0.15) !important; color: #10b981 !important; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.12), 0 2px 6px rgba(16, 185, 129, 0.12) !important; }
         .mini-btn.active, .mini-btn.is-active, .mini-btn[aria-pressed="true"] { background: var(--gnp-mini-active-bg) !important; box-shadow: var(--gnp-mini-active-shadow) !important; color: var(--gnp-active-text) !important; border-color: color-mix(in srgb, var(--gnp-active-border) 26%, var(--gnp-border)) !important; }
-        /* 星标按钮（未收藏/已收藏都用淡金色） */
-        .mini-btn.star-btn { color: var(--gnp-fav-color) !important; }
         .mini-btn.star-btn.is-fav { color: var(--gnp-fav-color) !important; font-weight: 700; background: rgba(245, 158, 11, 0.12) !important; box-shadow: 0 1px 3px rgba(245, 158, 11, 0.15) !important; border: 1px solid rgba(245, 158, 11, 0.28) !important; }
         .mini-btn.del-btn { background: rgba(239, 68, 68, 0.08) !important; border: 1px solid rgba(239, 68, 68, 0.20) !important; }
         .mini-btn.del-btn:hover { color: #ef4444 !important; background: rgba(239, 68, 68, 0.15) !important; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12), 0 2px 6px rgba(239, 68, 68, 0.12) !important; border-color: rgba(239, 68, 68, 0.35) !important; }
@@ -597,12 +595,6 @@ html[data-theme="dark"] .resizer-br { background: repeating-linear-gradient(135d
 
         /* 导航：收藏文件夹选择弹层（显示在插件窗口内） */
         .gnp-confirm-box.gnp-fav-folder-picker { width: 520px; max-width: calc(100% - 20px); text-align: left; }
-        /* 星级选择器（淡金色） */
-        .gnp-star-picker { display: flex; gap: 6px; align-items: center; }
-        .gnp-star-item { font-size: 18px; line-height: 1; cursor: pointer; user-select: none; color: color-mix(in srgb, var(--gnp-fav-color) 72%, var(--gnp-text-sub)); text-shadow: 0 1px 0 rgba(0,0,0,0.04); }
-        .gnp-star-item.active { color: var(--gnp-fav-color); text-shadow: 0 1px 2px rgba(0,0,0,0.12); }
-        .gnp-star-item:hover { transform: scale(1.06); }
-
         .gnp-fav-prompt-preview { margin-top: 6px; font-size: 12px; line-height: 1.45; color: var(--gnp-text-sub); background: var(--gnp-input-bg); border: 1px dashed var(--gnp-border); border-radius: 10px; padding: 10px 12px; max-height: 160px; overflow: auto; white-space: pre-wrap; }
         .gnp-fav-folder-picker-row { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 12px; }
         .gnp-folder-search-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--gnp-popover-border); outline: none; font-size: 13px; background: var(--gnp-popover-input-bg); color: var(--gnp-input-text); caret-color: var(--gnp-input-text); }
@@ -1312,7 +1304,7 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     --gnp-current-bg: rgba(251, 191, 36, 0.18);
     --gnp-current-border: #fbbf24;
     --gnp-current-text: #fde68a;
-    --gnp-fav-color: #fbbf24;
+    --gnp-fav-color: #34d399;
     --gnp-input-bg: rgba(148, 163, 184, 0.14);
     --gnp-input-text: rgba(248, 250, 252, 0.96);
     --gnp-btn-bg: rgba(31, 41, 55, 0.82);
@@ -1345,7 +1337,7 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     --gnp-current-bg: rgba(245, 158, 11, 0.16);
     --gnp-current-border: #f59e0b;
     --gnp-current-text: #b45309;
-    --gnp-fav-color: #fbbf24;
+    --gnp-fav-color: #059669;
     --gnp-input-bg: rgba(15, 23, 42, 0.045);
     --gnp-input-text: #0f172a;
     --gnp-btn-bg: rgba(255, 255, 255, 0.80);
