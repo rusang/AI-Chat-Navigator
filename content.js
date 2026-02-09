@@ -355,7 +355,10 @@
     --gnp-tab-active-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(99, 102, 241, 0.60), 0 10px 26px rgba(99, 102, 241, 0.25);
     --gnp-tab-hover-bg: rgba(148, 163, 184, 0.20);
 
-    --gnp-tab-active-fg: #ffffff;}
+    --gnp-tab-active-fg: #ffffff;
+    
+    --gnp-autosend-color: #a78bfa;
+    --gnp-autosend-bg: rgba(167, 139, 250, 0.18);
 
 [data-gnp-theme="light"] {
     --gnp-bg: rgba(255, 255, 255, 0.88);
@@ -385,7 +388,10 @@
     --gnp-tab-active-shadow: 0 8px 20px rgba(79, 70, 229, 0.35), 0 0 0 2px rgba(79, 70, 229, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.3);
     --gnp-tab-hover-bg: rgba(15, 23, 42, 0.08);
 
-    --gnp-tab-active-fg: #ffffff;}
+    --gnp-tab-active-fg: #ffffff;
+    
+    --gnp-autosend-color: #7c3aed;
+    --gnp-autosend-bg: rgba(124, 58, 237, 0.12);
 
 /* 键盘导航选中状态 (v8.0新增) */
 .gemini-nav-item.keyboard-selected {
@@ -407,7 +413,7 @@
         --gnp-progress-bg: #60a5fa;
 
         --gnp-autosend-color: #a78bfa;
-        --gnp-autosend-bg: rgba(167, 139, 250, 0.20);
+        --gnp-autosend-bg: rgba(167, 139, 250, 0.18);
 
         --gnp-modal-bg: rgba(17, 24, 39, 0.94);
         --gnp-modal-overlay: rgba(0, 0, 0, 0.62);
@@ -578,12 +584,23 @@
             box-shadow: var(--gnp-mini-active-shadow);
             transform: scale(1.1);
         }
-        .mini-btn.use-btn { font-weight: bold; }
-        .mini-btn.use-btn:hover { color: #1a73e8; background: rgba(26, 115, 232, 0.1); }
+        /* 填入/发送按钮 - 闪电效果 */
+        .mini-btn.use-btn { font-weight: bold; background: rgba(124, 58, 237, 0.10); border: 1px solid rgba(124, 58, 237, 0.25); color: var(--gnp-autosend-color); }
+        .mini-btn.use-btn:hover { color: #7c3aed; background: rgba(124, 58, 237, 0.18); box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15), 0 2px 8px rgba(124, 58, 237, 0.15); }
         .mini-btn.use-btn.autosend-mode { color: var(--gnp-autosend-color); background: var(--gnp-autosend-bg); border: 1px solid var(--gnp-autosend-color); }
+        /* 复制按钮 - 蓝色 */
+        .mini-btn:has(svg) { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.20); }
+        .mini-btn:has(svg):hover { background: rgba(59, 130, 246, 0.15); color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12), 0 2px 6px rgba(59, 130, 246, 0.12); }
+        /* 编辑按钮 - 琥珀色 */
+        .mini-btn:has(svg):nth-child(4) { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.20); }
+        .mini-btn:has(svg):nth-child(4):hover { background: rgba(245, 158, 11, 0.15); color: #f59e0b; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12), 0 2px 6px rgba(245, 158, 11, 0.12); }
+        /* 文件夹移动按钮 - 绿色 */
+        .mini-btn:has(path[d*="folder"]) { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.20); }
+        .mini-btn:has(path[d*="folder"]):hover { background: rgba(16, 185, 129, 0.15); color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.12), 0 2px 6px rgba(16, 185, 129, 0.12); }
         .mini-btn.active, .mini-btn.is-active, .mini-btn[aria-pressed="true"] { background: var(--gnp-mini-active-bg); box-shadow: var(--gnp-mini-active-shadow); color: var(--gnp-active-text); border-color: color-mix(in srgb, var(--gnp-active-border) 26%, var(--gnp-border)); }
-        .mini-btn.star-btn.is-fav { color: var(--gnp-fav-color); font-weight: 700; background: var(--gnp-mini-active-bg); box-shadow: var(--gnp-mini-active-shadow); border-color: color-mix(in srgb, var(--gnp-fav-color) 28%, var(--gnp-border)); }
-        .mini-btn.del-btn:hover { color: var(--gnp-danger-text); background: color-mix(in srgb, var(--gnp-danger-text) 12%, transparent); border-color: color-mix(in srgb, var(--gnp-danger-text) 26%, var(--gnp-border)); }
+        .mini-btn.star-btn.is-fav { color: var(--gnp-fav-color); font-weight: 700; background: rgba(245, 158, 11, 0.12); box-shadow: 0 1px 3px rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.28); }
+        .mini-btn.del-btn { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.20); }
+        .mini-btn.del-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.15); box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12), 0 2px 6px rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); }
 
         #gemini-nav-header { padding: 12px 14px 10px 14px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; cursor: move; background: rgba(255,255,255,0.35); border-bottom: 1px solid var(--gnp-border); }
         .header-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
@@ -620,9 +637,14 @@
         }
         .header-circle-btn:hover { transform: translateY(-1px); background: var(--gnp-btn-hover); color: var(--gnp-text-main); box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 8px 20px rgba(15,23,42,0.10); }
         #gemini-nav-lock.active { background: #34c759; color: #fff; box-shadow: 0 0 4px rgba(52, 199, 89, 0.4); }
-        #gemini-nav-autosend.active { background: var(--gnp-autosend-color); color: #fff; box-shadow: 0 0 6px var(--gnp-autosend-color); }
+        #gemini-nav-autosend { background: rgba(124, 58, 237, 0.10); border-color: rgba(124, 58, 237, 0.25); color: var(--gnp-autosend-color); }
+        #gemini-nav-autosend:hover { background: rgba(124, 58, 237, 0.18); color: #7c3aed; box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15), inset 0 1px 0 rgba(255,255,255,0.65), 0 8px 20px rgba(124, 58, 237, 0.15); }
+        #gemini-nav-autosend.active { background: var(--gnp-autosend-color); color: #fff; box-shadow: 0 0 8px var(--gnp-autosend-color), 0 0 0 2px rgba(124, 58, 237, 0.30); }
         #gemini-nav-clear:hover { background: rgba(220, 38, 38, 0.14); color: var(--gnp-danger-text); }
-        #gemini-nav-top:hover, #gemini-nav-bottom:hover, #gemini-nav-chat-bottom:hover { background: rgba(37, 99, 235, 0.14); color: var(--gnp-active-text); }
+        #gemini-nav-top, #gemini-nav-bottom { background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.20); }
+        #gemini-nav-top:hover, #gemini-nav-bottom:hover { background: rgba(37, 99, 235, 0.18); color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12), inset 0 1px 0 rgba(255,255,255,0.65), 0 8px 20px rgba(15,23,42,0.10); }
+        #gemini-nav-chat-top, #gemini-nav-chat-bottom { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.20); }
+        #gemini-nav-chat-top:hover, #gemini-nav-chat-bottom:hover { background: rgba(16, 185, 129, 0.18); color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.12), inset 0 1px 0 rgba(255,255,255,0.65), 0 8px 20px rgba(15,23,42,0.10); }
 
         .nav-tab { 
             width: 22px;
@@ -1093,25 +1115,25 @@ html[data-theme="dark"] #gnp-hover-preview .gnp-hover-editarea{
     injectStyles(styles);
 
     const SVGS = {
-        clear: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
+        clear: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
         close: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-        edit: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>`,
-        copy: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
-        plus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+        edit: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+        copy: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+        plus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
         pin: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16h14v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1V5H8v2h1v3.76z"/></svg>`,
-        folderPlus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="12" y1="12" x2="12" y2="18"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>`,
-        folderX: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path><line x1="10" y1="13" x2="14" y2="17"></line><line x1="14" y1="13" x2="10" y2="17"></line></svg>`,
-        folderMove: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/><path d="M12 13h4"/><path d="M14 11v4"/></svg>`,
-        top: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`,
-        bottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`,
-        chatBottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg>`,
-                locate: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"7\"/><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"5\"/><line x1=\"12\" y1=\"19\" x2=\"12\" y2=\"22\"/><line x1=\"2\" y1=\"12\" x2=\"5\" y2=\"12\"/><line x1=\"19\" y1=\"12\" x2=\"22\" y2=\"12\"/></svg>`,
-chatTop: `<svg class=\"icon-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 11l5-5 5 5M7 18l5-5 5 5\"/></svg>`,
+        folderPlus: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>`,
+        folderX: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="10" y1="12" x2="14" y2="16"/><line x1="14" y1="12" x2="10" y2="16"/></svg>`,
+        folderMove: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><path d="M15 12l-3 3m0 0l-3-3m3 3v-5"/></svg>`,
+        top: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`,
+        bottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`,
+        chatBottom: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="19" y2="20"/><polyline points="7 6 12 11 17 6"/><polyline points="7 13 12 18 17 13"/></svg>`,
+                locate: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>`,
+chatTop: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="4" x2="19" y2="4"/><polyline points="7 11 12 6 17 11"/><polyline points="7 18 12 13 17 18"/></svg>`,
         check: `✔`,
         star: `★`,
         lightning: `⚡`,
 
-        nav: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>`,
+        nav: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
 
         fileImport: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12 18v-6"></path><polyline points="9 15 12 12 15 15"></polyline></svg>`,
         starTab: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`
@@ -1578,12 +1600,12 @@ function renderHoverPreviewContent(anchorEl, text) {
             if (!isFav) {
                 const targetFolderDefault = (favFolderFilter && favFolderFilter !== '全部') ? favFolderFilter : '默认';
 
-                // 弹出“文件夹选择”弹层（在插件窗口内）
-                showFavFolderPickerInSidebar({
+                // 弹出“文件夹选择”弹层（全屏居中）
+                showFavFolderPickerGlobal({
                     promptText: t,
                     defaultFolder: targetFolderDefault,
                     onConfirm: (folder, rating) => {
-                        if (!addFavorite(t, folder)) return;
+                        if (!addFavorite(t, folder, rating)) return;
                         saveFavorites();
                         showSidebarToast(`已收藏到「${folder}」`);
 
@@ -1835,6 +1857,17 @@ window.addEventListener('resize', repositionHoverPreview, true);
     locateBtn.className = 'header-circle-btn';
     locateBtn.title = '定位当前 Prompt（居中显示）';
     locateBtn.innerHTML = SVGS.locate;
+    locateBtn.style.cssText = 'background: rgba(139, 92, 246, 0.08); border-color: rgba(139, 92, 246, 0.20);';
+    locateBtn.addEventListener('mouseenter', () => {
+        locateBtn.style.background = 'rgba(139, 92, 246, 0.18)';
+        locateBtn.style.color = '#8b5cf6';
+        locateBtn.style.boxShadow = '0 0 0 2px rgba(139, 92, 246, 0.12), inset 0 1px 0 rgba(255,255,255,0.65), 0 8px 20px rgba(15,23,42,0.10)';
+    });
+    locateBtn.addEventListener('mouseleave', () => {
+        locateBtn.style.background = 'rgba(139, 92, 246, 0.08)';
+        locateBtn.style.color = '';
+        locateBtn.style.boxShadow = '';
+    });
 
 
     const autoSendBtn = document.createElement('div');
@@ -4253,10 +4286,24 @@ const saveFavorites = (mode = 'fav_list') => {
         }, 500);
     }
 
-    function updateHeaderUI() { 
+    
+    // 将“自动发送”开关状态同步到每条 Prompt 的⚡按钮（避免只改了顶部按钮）
+    function syncAutosendButtonsUI(root = document) {
+        try {
+            const btns = root.querySelectorAll('.mini-btn.use-btn');
+            btns.forEach(b => {
+                if (isAutoSendEnabled) b.classList.add('autosend-mode');
+                else b.classList.remove('autosend-mode');
+            });
+        } catch (_) {}
+    }
+
+function updateHeaderUI() { 
         lockBtn.classList.toggle('active', !isAutoHideEnabled);
         autoSendBtn.classList.toggle('active', isAutoSendEnabled);
-    }
+    
+        syncAutosendButtonsUI(sidebar || document);
+}
     updateHeaderUI();
 
     lockBtn.onclick = (e) => {
@@ -7074,7 +7121,10 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
         if (searchInput.value) searchInput.dispatchEvent(new Event('input'));
         restoreKeyboardSelection(panelFav);
-    }
+    
+        // 让每条 Prompt 的⚡按钮跟随顶部“自动发送”开关变色
+        syncAutosendButtonsUI(panelFav || sidebar || document);
+}
 
 	let lastPageSignature = ''; // [Fix v2] 更稳健的页面指纹（长度+首+尾）
     let observer = null;
@@ -7363,6 +7413,9 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
         if (searchInput.value) searchInput.dispatchEvent(new Event('input'));
         restoreKeyboardSelection(panelNav);
+
+        // 让每条 Prompt 的⚡按钮跟随顶部“自动发送”开关变色
+        syncAutosendButtonsUI(panelNav || sidebar || document);
 }
 
     function applyMagneticSnapping() {
