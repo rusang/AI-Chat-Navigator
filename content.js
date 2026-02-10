@@ -218,7 +218,7 @@
     --gnp-active-bg: rgba(37, 99, 235, 0.18);
     --gnp-active-border: #2563eb;
     --gnp-active-text: #1d4ed8;
-    
+
     /* [新增] 当前项颜色：Teal (青色) */
     --gnp-current-bg: rgba(20, 184, 166, 0.14);
     --gnp-current-border: #14b8a6;
@@ -356,9 +356,10 @@
     --gnp-tab-hover-bg: rgba(148, 163, 184, 0.20);
 
     --gnp-tab-active-fg: #ffffff;
-    
+
     --gnp-autosend-color: #a78bfa;
     --gnp-autosend-bg: rgba(167, 139, 250, 0.85);
+}
 
 [data-gnp-theme="light"] {
     --gnp-bg: rgba(255, 255, 255, 0.88);
@@ -372,7 +373,7 @@
     --gnp-active-bg: rgba(37, 99, 235, 0.18);
     --gnp-active-border: #2563eb;
     --gnp-active-text: #1d4ed8;
-    
+
     /* [新增] 当前项颜色：Teal (青色) */
     --gnp-current-bg: rgba(20, 184, 166, 0.14);
     --gnp-current-border: #14b8a6;
@@ -389,9 +390,10 @@
     --gnp-tab-hover-bg: rgba(15, 23, 42, 0.08);
 
     --gnp-tab-active-fg: #ffffff;
-    
+
     --gnp-autosend-color: #7c3aed;
     --gnp-autosend-bg: rgba(124, 58, 237, 0.85);
+}
 
 /* 键盘导航选中状态 (v8.0新增) */
 .gemini-nav-item.keyboard-selected {
@@ -1378,7 +1380,7 @@ function renderHoverPreviewContent(anchorEl, text) {
     if (source === 'fav') {
         const idx = getFavoriteIndex(t);
         const favObj = (idx > -1 && favorites && favorites[idx]) ? favorites[idx] : { useCount: 0, lastUsed: 0, rating: 1 };
-        
+
         // [调整] 所属文件夹显示：移动到工具栏最下方（星级右侧），仅显示文件夹名
         const currentFolderName = String(favObj.folder || '默认');
 
@@ -1572,7 +1574,7 @@ function renderHoverPreviewContent(anchorEl, text) {
             const lu = Number(getPromptLastUsed(t)) || 0;
             const meta = document.createElement('span');
             meta.className = 'gnp-hover-use-meta';
-            
+
             // [优化] 如果是收藏项，额外显示使用次数，格式与收藏面板保持一致
             if (isFav && favObj) {
                  const uc = Number(favObj.useCount) || 0;
@@ -1580,7 +1582,7 @@ function renderHoverPreviewContent(anchorEl, text) {
             } else {
                  meta.textContent = formatRelativeTimeNav(lu);
             }
-            
+
             meta.title = lu ? `最近使用：${new Date(lu).toLocaleString()}` : '从未使用';
             meta.addEventListener('mousedown', (e) => e.stopPropagation());
             meta.addEventListener('click', (e) => e.stopPropagation());
@@ -3188,7 +3190,7 @@ function gnpSortObjectKeys(obj) {
 
             existing.useCount = Math.max(beforeUc, useCount);
             existing.lastUsed = Math.max(beforeLu, lastUsed);
-            
+
             // rating：以本地为准，除非本地是默认(1)且导入的大于1
             if ((!existing.rating || existing.rating === 1) && rating > 1) {
                 existing.rating = rating;
@@ -3906,7 +3908,7 @@ function gnpPickAndImportFavoritesJsonFile() {
 				importedList.forEach(f => {
 					const t = String(f.text || '').trim();
 					if (!t) return;
-					
+
 					// 1. 清除删除标记
 					if (deletedFavorites && deletedFavorites[t]) {
 						delete deletedFavorites[t];
@@ -4199,13 +4201,13 @@ const saveFavorites = (mode = 'fav_list') => {
     const gnpMoveFavoriteToFolderFromHover = (promptText, currentFolder) => {
         const t = String(promptText || '').trim();
         if (!t) return;
-        
+
         // 获取当前收藏项信息
         const idx = getFavoriteIndex(t);
         if (idx === -1) return;
         const favObj = favorites[idx];
         const currentRating = Number(favObj.rating) || 1;
-        
+
         // 使用全局弹窗而不是侧边栏内弹窗
         showFavFolderPickerGlobal({
             promptText: t,
@@ -4219,17 +4221,17 @@ const saveFavorites = (mode = 'fav_list') => {
             onConfirm: (folder, rating) => {
                 const f = ensureFolderExists(folder);
                 const old = String(favObj.folder || '默认');
-                
+
                 // 更新文件夹和星级
                 favorites[idx].folder = f;
                 favorites[idx].rating = rating;
-                
+
                 saveFavorites('fav_list');
-                
+
                 // 刷新界面
                 try { renderFavorites(); } catch (_) {}
                 try { if (panelNav && panelNav.classList.contains('active')) refreshNav(true); } catch (_) {}
-                
+
                 // 如果文件夹改变了，显示提示
                 if (old !== f) {
                     try { showSidebarToast(`已移动到「${f}」`); } catch (_) {}
@@ -4295,7 +4297,7 @@ const saveFavorites = (mode = 'fav_list') => {
         }, 500);
     }
 
-    
+
     // 将“自动发送”开关状态同步到每条 Prompt 的⚡按钮（避免只改了顶部按钮）
     function syncAutosendButtonsUI(root = document) {
         try {
@@ -4535,7 +4537,7 @@ clearBtn.onclick = (e) => {
             item.style.display = show ? 'block' : 'none';
         });
         };
-        
+
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(run, 300);
     };
@@ -4557,10 +4559,10 @@ function setupGlobalSendListener() {
             // 简单的防抖：相同文本在 2秒内只记一次 (避免 Enter 同时触发 click 的双重计数)
             const now = Date.now();
             if (t === lastText && (now - lastTime < 2000)) return;
-            
+
             lastText = t;
             lastTime = now;
-            
+
             recordPromptUse(t);
         } catch (e) {
             // console.error('[GNP] Send listener error:', e);
@@ -5122,7 +5124,7 @@ function showFavFolderPickerGlobal({ promptText, defaultFolder, defaultRating = 
 
     // 打开选择弹层时：保持侧边栏展开，且暂停自动隐藏
     keepSidebarExpanded();
-    
+
     // 默认文案
     titleText = String(titleText || '').trim() || '选择收藏文件夹';
     descText = String(descText || '').trim() || '将此 Prompt 收藏到哪个文件夹？';
@@ -5563,7 +5565,7 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
                 const name = (input.value || '').trim();
                 if (name) {
                     const f = ensureFolderExists(name);
-                    
+
                     // [修复] 检查下拉框中是否已存在该文件夹，避免重复添加选项
                     let exists = false;
                     for (let i = 0; i < folderSel.options.length; i++) {
@@ -5583,7 +5585,7 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
                         // 若已存在，则不重复添加option，仅提示用户
                         // showSidebarToast(`已切换到文件夹「${f}」`);
                     }
-                    
+
                     // 选中该文件夹
                     folderSel.value = f;
                 }
@@ -5611,7 +5613,7 @@ function showAddFavoritePromptInSidebar(defaultFolder) {
         };
 
         folderLeft.append(folderLabel, folderSel, newFolderBtn);
-        
+
         const folderRight = document.createElement('div');
         folderRight.append(starPicker);
         folderRow.append(folderLeft, folderRight);
@@ -7001,7 +7003,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
             const starDisplay = document.createElement('span');
             starDisplay.className = 'gnp-item-stars';
-            
+
             // [修改] 动态评级：渲染5颗星，支持点击调整
             const updateStarUI = (currentR) => {
                 starDisplay.innerHTML = '';
@@ -7132,7 +7134,7 @@ rightBox.append(importJsonBtn, addPromptBtn, newFolderBtn, renameFolderBtn, dele
 
         if (searchInput.value) searchInput.dispatchEvent(new Event('input'));
         restoreKeyboardSelection(panelFav);
-    
+
         // 让每条 Prompt 的⚡按钮跟随顶部“自动发送”开关变色
         syncAutosendButtonsUI(panelFav || sidebar || document);
 }
