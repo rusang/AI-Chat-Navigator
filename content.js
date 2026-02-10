@@ -1615,6 +1615,7 @@ function renderHoverPreviewContent(anchorEl, text) {
                 showFavFolderPickerGlobal({
                     promptText: t,
                     defaultFolder: targetFolderDefault,
+                    showPreview: true,  // [修复] 显示prompt内容预览
                     onConfirm: (folder, rating) => {
                         if (!addFavorite(t, folder, rating)) return;
                         saveFavorites();
