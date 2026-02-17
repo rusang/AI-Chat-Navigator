@@ -17,6 +17,13 @@
 (function() {
     'use strict';
 
+    // [修复] 强力防重复锁：使用全局变量防止 油猴脚本 和 Chrome扩展 同时运行
+    if (window.GNP_INSTANCE_LOADED || document.getElementById('gemini-nav-container')) {
+        console.log('[GNP] Prevented duplicate execution.');
+        return;
+    }
+    window.GNP_INSTANCE_LOADED = true;
+
     // --- 调试开关（生产环境应设为 false）---
     const DEBUG = false;
     const log = DEBUG ? console.log.bind(console, '[GNP]') : () => {};
@@ -35,13 +42,19 @@
 
 	const SITE_CONFIG = {
 	gemini: {
-		// Gemini 策略：优先寻找 query-text 类，其次寻找包含特定属性的容器
+		// Gemini 策略：穷举所有可能的 Gemini 2026+ 结构
 		promptSelector: [
-			'.query-text',                            // 经典稳定类名
-			'h2[data-test-id="user-query"]',          // 语义化测试ID
-			'div[data-role="user-query"]',            // 语义化角色
-			'div:has(> span[class*="query-text"])',   // 结构特征：父级包含类似类名
-			'.user-query'                             // 备用类名
+            // [修复] 针对 2026 新版 Gemini 的宽泛匹配
+            'user-query',                             // 1. 新版自定义标签
+            '[data-test-id="user-query"]',            // 2. 测试属性 (最常见)
+            '[aria-label="User query"]',              // 3. 辅助功能标签
+            '.user-query',                            // 4. 标准类名
+            '.query-text',                            // 5. 旧版兼容
+            'div[data-message-author="0"]',           // 6. 作者属性 (0通常代表用户)
+            'div:has(> .message-content)',            // 7. 结构化特征
+            '.conversation-container h2',             // 8. 标题结构
+            // 最后的保底：抓取所有看起来像用户气泡的文本块（慎用，但能救急）
+            '.message-content'
 		],
 		inputSelector: [
 			'div[role="textbox"]',
